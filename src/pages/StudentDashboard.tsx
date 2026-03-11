@@ -18,6 +18,7 @@ import ModuleDetailView from "@/components/dashboard/ModuleDetailView";
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState("modules");
+  const [selectedModuleId, setSelectedModuleId] = useState<number | null>(null);
   const overallProgress = 28;
 
   return (

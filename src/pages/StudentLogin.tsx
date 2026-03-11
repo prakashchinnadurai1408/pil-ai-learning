@@ -15,7 +15,7 @@ const StudentLogin = () => {
   const [form, setForm] = useState({ name: "", mobile: "", college: "", location: "" });
   const [otp, setOtp] = useState("");
 
-  const handleSendOTP = () => {
+  const handleSendOTP = async () => {
     if (!form.name || !form.mobile || !form.college || !form.location) {
       toast.error("Please fill all fields");
       return;
@@ -24,6 +24,8 @@ const StudentLogin = () => {
       toast.error("Enter a valid 10-digit mobile number");
       return;
     }
+    // Save location incrementally (ignore duplicate)
+    await supabase.from("locations").upsert({ name: form.location.trim() }, { onConflict: "name" });
     toast.success("OTP sent to " + form.mobile);
     setStep("otp");
   };

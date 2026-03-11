@@ -70,13 +70,8 @@ const TrainerLogin = () => {
                 <Input id="tcollege" placeholder="Enter your college name" value={form.college} onChange={(e) => setForm({ ...form, college: e.target.value })} />
               </div>
               <div>
-                <Label>Location</Label>
-                <Select onValueChange={(v) => setForm({ ...form, location: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
-                  <SelectContent>
-                    {locations.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="tlocation">Location</Label>
+                <Input id="tlocation" placeholder="Enter your location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
               </div>
               <div>
                 <Label>Role</Label>

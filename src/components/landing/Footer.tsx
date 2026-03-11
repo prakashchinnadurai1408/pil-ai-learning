@@ -1,4 +1,4 @@
-import logoIcon from "@/assets/logo-icon.png";
+import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
 const Footer = () => {
   return (

@@ -6,7 +6,7 @@ import {
   Users, BarChart3, ClipboardCheck, BookOpen, LogOut,
   TrendingUp, GraduationCap, Clock
 } from "lucide-react";
-import logoIcon from "@/assets/logo-icon.png";
+import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
 const students = [
   { name: "Aarav Sharma", college: "IIT Bombay", progress: 78, modulesCompleted: 7, lastActive: "2h ago" },

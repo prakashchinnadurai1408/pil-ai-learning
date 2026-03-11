@@ -8,7 +8,7 @@ import {
   BookOpen, MessageSquare, Video, FlaskConical, ClipboardCheck,
   FolderKanban, BarChart3, LogOut, Play, CheckCircle, Lock
 } from "lucide-react";
-import logoIcon from "@/assets/logo-icon.png";
+import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import AIPlayground from "@/components/dashboard/AIPlayground";
 import VideoLearning from "@/components/dashboard/VideoLearning";
 import AssessmentsView from "@/components/dashboard/AssessmentsView";

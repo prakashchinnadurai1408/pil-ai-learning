@@ -94,8 +94,8 @@ const StudentLogin = () => {
                 </div>
               </div>
               <div>
-                <Label htmlFor="college">College Name</Label>
-                <Input id="college" placeholder="Enter your college name" value={form.college} onChange={(e) => setForm({ ...form, college: e.target.value })} />
+                <Label htmlFor="college">Institute Name</Label>
+                <Input id="college" placeholder="Enter your institute name" value={form.college} onChange={(e) => setForm({ ...form, college: e.target.value })} />
               </div>
               <div>
                 <Label htmlFor="location">Location</Label>

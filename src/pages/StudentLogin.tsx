@@ -96,13 +96,8 @@ const StudentLogin = () => {
                 </div>
               </div>
               <div>
-                <Label>College Name</Label>
-                <Select onValueChange={(v) => setForm({ ...form, college: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select your college" /></SelectTrigger>
-                  <SelectContent>
-                    {colleges.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="college">College Name</Label>
+                <Input id="college" placeholder="Enter your college name" value={form.college} onChange={(e) => setForm({ ...form, college: e.target.value })} />
               </div>
               <div>
                 <Label>Location</Label>

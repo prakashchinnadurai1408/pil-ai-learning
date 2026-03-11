@@ -46,7 +46,7 @@ const Footer = () => {
 
         <div className="border-t pt-6" style={{ borderColor: "hsl(220, 20%, 20%)", color: "hsl(220, 15%, 45%)" }}>
           <p className="text-sm text-center">
-            © {new Date().getFullYear()} AI LearnHub. All rights reserved.
+            © {new Date().getFullYear()} Pluginlive Technologies AI LearnHub. All rights reserved.
           </p>
         </div>
       </div>

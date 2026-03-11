@@ -7,11 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Mail, Users, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
-
-const locations = [
-  "Mumbai", "Delhi", "Chennai", "Bangalore", "Hyderabad",
-  "Pune", "Kolkata", "Ahmedabad", "Jaipur", "Other"
-];
+import { supabase } from "@/integrations/supabase/client";
 
 const TrainerLogin = () => {
   const [step, setStep] = useState<"form" | "sent">("form");

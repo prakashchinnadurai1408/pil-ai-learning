@@ -3,16 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, GraduationCap, Phone, Shield } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "sonner";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
-
-const locations = [
-  "Mumbai", "Delhi", "Chennai", "Bangalore", "Hyderabad",
-  "Pune", "Kolkata", "Ahmedabad", "Jaipur", "Other"
-];
+import { supabase } from "@/integrations/supabase/client";
 
 const StudentLogin = () => {
   const navigate = useNavigate();

@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      colleges: {
+        Row: {
+          created_at: string
+          id: number
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          name?: string
+        }
+        Relationships: []
+      }
       locations: {
         Row: {
           created_at: string

@@ -3,16 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, GraduationCap, Phone, Shield } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "sonner";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
-
-const locations = [
-  "Mumbai", "Delhi", "Chennai", "Bangalore", "Hyderabad",
-  "Pune", "Kolkata", "Ahmedabad", "Jaipur", "Other"
-];
+import { supabase } from "@/integrations/supabase/client";
 
 const StudentLogin = () => {
   const navigate = useNavigate();
@@ -20,7 +15,7 @@ const StudentLogin = () => {
   const [form, setForm] = useState({ name: "", mobile: "", college: "", location: "" });
   const [otp, setOtp] = useState("");
 
-  const handleSendOTP = () => {
+  const handleSendOTP = async () => {
     if (!form.name || !form.mobile || !form.college || !form.location) {
       toast.error("Please fill all fields");
       return;
@@ -29,6 +24,8 @@ const StudentLogin = () => {
       toast.error("Enter a valid 10-digit mobile number");
       return;
     }
+    // Save location incrementally (ignore duplicate)
+    await supabase.from("locations").upsert({ name: form.location.trim() }, { onConflict: "name" });
     toast.success("OTP sent to " + form.mobile);
     setStep("otp");
   };
@@ -100,13 +97,8 @@ const StudentLogin = () => {
                 <Input id="college" placeholder="Enter your college name" value={form.college} onChange={(e) => setForm({ ...form, college: e.target.value })} />
               </div>
               <div>
-                <Label>Location</Label>
-                <Select onValueChange={(v) => setForm({ ...form, location: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
-                  <SelectContent>
-                    {locations.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="location">Location</Label>
+                <Input id="location" placeholder="Enter your location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
               </div>
               <Button className="w-full bg-gradient-primary border-0 text-primary-foreground hover:opacity-90 mt-2" size="lg" onClick={handleSendOTP}>
                 Send OTP

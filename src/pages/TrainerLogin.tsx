@@ -7,21 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Mail, Users, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
-
-const locations = [
-  "Mumbai", "Delhi", "Chennai", "Bangalore", "Hyderabad",
-  "Pune", "Kolkata", "Ahmedabad", "Jaipur", "Other"
-];
+import { supabase } from "@/integrations/supabase/client";
 
 const TrainerLogin = () => {
   const [step, setStep] = useState<"form" | "sent">("form");
   const [form, setForm] = useState({ name: "", email: "", college: "", location: "", role: "" });
 
-  const handleSendMagicLink = () => {
+  const handleSendMagicLink = async () => {
     if (!form.name || !form.email || !form.college || !form.location || !form.role) {
       toast.error("Please fill all fields");
       return;
     }
+    // Save location incrementally (ignore duplicate)
+    await supabase.from("locations").upsert({ name: form.location.trim() }, { onConflict: "name" });
     toast.success("Magic link sent to " + form.email);
     setStep("sent");
   };
@@ -72,13 +70,8 @@ const TrainerLogin = () => {
                 <Input id="tcollege" placeholder="Enter your college name" value={form.college} onChange={(e) => setForm({ ...form, college: e.target.value })} />
               </div>
               <div>
-                <Label>Location</Label>
-                <Select onValueChange={(v) => setForm({ ...form, location: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
-                  <SelectContent>
-                    {locations.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="tlocation">Location</Label>
+                <Input id="tlocation" placeholder="Enter your location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
               </div>
               <div>
                 <Label>Role</Label>

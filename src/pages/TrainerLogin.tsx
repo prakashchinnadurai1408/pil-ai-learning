@@ -8,10 +8,6 @@ import { ArrowLeft, Mail, Users, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
-const colleges = [
-  "IIT Bombay", "IIT Delhi", "IIT Madras", "NIT Trichy", "BITS Pilani",
-  "VIT Vellore", "SRM University", "Amity University", "Anna University", "Other"
-];
 const locations = [
   "Mumbai", "Delhi", "Chennai", "Bangalore", "Hyderabad",
   "Pune", "Kolkata", "Ahmedabad", "Jaipur", "Other"
@@ -72,13 +68,8 @@ const TrainerLogin = () => {
                 </div>
               </div>
               <div>
-                <Label>College Name</Label>
-                <Select onValueChange={(v) => setForm({ ...form, college: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select college" /></SelectTrigger>
-                  <SelectContent>
-                    {colleges.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="tcollege">College Name</Label>
+                <Input id="tcollege" placeholder="Enter your college name" value={form.college} onChange={(e) => setForm({ ...form, college: e.target.value })} />
               </div>
               <div>
                 <Label>Location</Label>

@@ -9,10 +9,6 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { toast } from "sonner";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
-const colleges = [
-  "IIT Bombay", "IIT Delhi", "IIT Madras", "NIT Trichy", "BITS Pilani",
-  "VIT Vellore", "SRM University", "Amity University", "Anna University", "Other"
-];
 const locations = [
   "Mumbai", "Delhi", "Chennai", "Bangalore", "Hyderabad",
   "Pune", "Kolkata", "Ahmedabad", "Jaipur", "Other"

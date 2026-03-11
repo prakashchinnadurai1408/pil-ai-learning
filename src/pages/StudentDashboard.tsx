@@ -12,6 +12,8 @@ import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import AIPlayground from "@/components/dashboard/AIPlayground";
 import VideoLearning from "@/components/dashboard/VideoLearning";
 import AssessmentsView from "@/components/dashboard/AssessmentsView";
+import AIToolsSandbox from "@/components/dashboard/AIToolsSandbox";
+import ProjectsView from "@/components/dashboard/ProjectsView";
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState("modules");

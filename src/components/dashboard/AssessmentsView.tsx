@@ -1,23 +1,116 @@
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { ClipboardCheck, Clock, Trophy, ArrowRight } from "lucide-react";
-
-const assessments = [
-  { id: 1, title: "AI Fundamentals Quiz", module: "Introduction to AI", questions: 20, duration: "30 min", score: 85, status: "completed" as const },
-  { id: 2, title: "AI Tools Proficiency", module: "AI Tools for Students", questions: 15, duration: "25 min", score: null, status: "available" as const },
-  { id: 3, title: "Prompt Engineering Challenge", module: "Prompt Engineering", questions: 25, duration: "40 min", score: null, status: "available" as const },
-  { id: 4, title: "LLM Knowledge Assessment", module: "LLM Models & Providers", questions: 20, duration: "30 min", score: null, status: "locked" as const },
-];
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { mcqBank, moduleNames } from "@/data/videoContent";
+import { ClipboardCheck, Clock, Trophy, ArrowRight, Filter, CheckCircle, RotateCcw } from "lucide-react";
 
 const AssessmentsView = () => {
+  const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [submitted, setSubmitted] = useState(false);
+
+  const questions = useMemo(
+    () => (selectedModule ? mcqBank.filter((q) => q.moduleId === Number(selectedModule)) : []),
+    [selectedModule]
+  );
+
+  const score = useMemo(
+    () => questions.filter((q, i) => answers[i] === q.correct).length,
+    [questions, answers, submitted]
+  );
+
+  const assessmentList = Object.entries(moduleNames).map(([id, name]) => {
+    const qCount = mcqBank.filter((q) => q.moduleId === Number(id)).length;
+    return { id: Number(id), name, questions: qCount, duration: `${qCount * 2} min` };
+  });
+
+  if (selectedModule) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-display font-semibold text-lg text-foreground">
+              {moduleNames[Number(selectedModule)]} — Assessment
+            </h3>
+            <p className="text-xs text-muted-foreground">{questions.length} questions</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => { setSelectedModule(null); setAnswers({}); setSubmitted(false); }} className="text-muted-foreground">
+            ← All Assessments
+          </Button>
+        </div>
+
+        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+          {questions.map((q, qi) => (
+            <div key={q.id} className="bg-card rounded-lg border border-border p-5 shadow-card">
+              <p className="font-medium mb-3 text-card-foreground text-sm">{qi + 1}. {q.question}</p>
+              <div className="space-y-2">
+                {q.options.map((opt, oi) => (
+                  <button
+                    key={oi}
+                    onClick={() => !submitted && setAnswers({ ...answers, [qi]: oi })}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg border text-sm transition-colors ${
+                      submitted
+                        ? oi === q.correct
+                          ? "border-success bg-success/10 text-success font-medium"
+                          : answers[qi] === oi
+                          ? "border-destructive bg-destructive/10 text-destructive"
+                          : "border-border text-muted-foreground"
+                        : answers[qi] === oi
+                        ? "border-primary bg-primary/5 text-foreground"
+                        : "border-border text-muted-foreground hover:border-primary/30"
+                    }`}
+                  >
+                    {String.fromCharCode(65 + oi)}. {opt}
+                  </button>
+                ))}
+              </div>
+              {submitted && (
+                <p className="text-xs text-muted-foreground mt-2 italic">💡 {q.explanation}</p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-4 pt-4 border-t border-border">
+          {!submitted ? (
+            <>
+              <Button
+                onClick={() => setSubmitted(true)}
+                disabled={Object.keys(answers).length < questions.length}
+                className="bg-gradient-primary border-0 text-primary-foreground"
+              >
+                Submit Assessment
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {Object.keys(answers).length}/{questions.length} answered
+              </span>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-warning" />
+                <p className="font-display font-bold text-foreground">
+                  Score: {score}/{questions.length} ({Math.round((score / questions.length) * 100)}%)
+                </p>
+              </div>
+              <Button variant="outline" size="sm" className="gap-1" onClick={() => { setAnswers({}); setSubmitted(false); }}>
+                <RotateCcw className="h-3 w-3" /> Retry
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Score Summary */}
+      {/* Summary Stats */}
       <div className="grid sm:grid-cols-3 gap-4">
         {[
-          { label: "Completed", value: "1/4", icon: ClipboardCheck, color: "text-success" },
-          { label: "Average Score", value: "85%", icon: Trophy, color: "text-warning" },
-          { label: "Time Spent", value: "30 min", icon: Clock, color: "text-primary" },
+          { label: "Total Assessments", value: "10", icon: ClipboardCheck, color: "text-primary" },
+          { label: "Total Questions", value: String(mcqBank.length), icon: Trophy, color: "text-warning" },
+          { label: "Avg Duration", value: "~15 min", icon: Clock, color: "text-success" },
         ].map((stat) => {
           const Icon = stat.icon;
           return (
@@ -35,46 +128,28 @@ const AssessmentsView = () => {
       </div>
 
       {/* Assessment Cards */}
-      <div className="space-y-4">
-        {assessments.map((a) => (
-          <div
-            key={a.id}
-            className={`bg-card rounded-lg border p-5 shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-              a.status === "locked" ? "opacity-50 border-border" : "border-border"
-            }`}
-          >
-            <div className="flex items-center gap-4">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                a.status === "completed" ? "bg-success/10" : "bg-muted"
-              }`}>
-                <ClipboardCheck className={`h-5 w-5 ${
-                  a.status === "completed" ? "text-success" : "text-muted-foreground"
-                }`} />
+      <div className="grid sm:grid-cols-2 gap-4">
+        {assessmentList.map((a) => (
+          <div key={a.id} className="bg-card rounded-lg border border-border p-5 shadow-card hover:shadow-elevated transition-all">
+            <div className="flex items-start justify-between mb-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <ClipboardCheck className="h-5 w-5 text-primary" />
               </div>
-              <div>
-                <h4 className="font-display font-semibold text-card-foreground">{a.title}</h4>
-                <p className="text-xs text-muted-foreground">{a.module} · {a.questions} questions · {a.duration}</p>
-              </div>
+              <span className="text-xs text-muted-foreground font-display font-bold">
+                Module {String(a.id).padStart(2, "0")}
+              </span>
             </div>
-            <div className="flex items-center gap-4">
-              {a.score !== null && (
-                <div className="text-right">
-                  <p className="text-lg font-display font-bold text-success">{a.score}%</p>
-                  <p className="text-xs text-muted-foreground">Score</p>
-                </div>
-              )}
-              {a.status === "available" && (
-                <Button className="bg-gradient-primary border-0 text-primary-foreground gap-2" size="sm">
-                  Start <ArrowRight className="h-3 w-3" />
-                </Button>
-              )}
-              {a.status === "completed" && (
-                <Button variant="outline" size="sm">Review</Button>
-              )}
-              {a.status === "locked" && (
-                <span className="text-xs text-muted-foreground">Locked</span>
-              )}
-            </div>
+            <h4 className="font-display font-semibold text-card-foreground mb-1">{a.name}</h4>
+            <p className="text-xs text-muted-foreground mb-4">
+              {a.questions} questions · ~{a.duration}
+            </p>
+            <Button
+              onClick={() => setSelectedModule(String(a.id))}
+              className="w-full bg-gradient-primary border-0 text-primary-foreground gap-2"
+              size="sm"
+            >
+              Start Assessment <ArrowRight className="h-3 w-3" />
+            </Button>
           </div>
         ))}
       </div>

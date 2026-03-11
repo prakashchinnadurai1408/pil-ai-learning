@@ -24,8 +24,9 @@ const StudentLogin = () => {
       toast.error("Enter a valid 10-digit mobile number");
       return;
     }
-    // Save location incrementally (ignore duplicate)
+    // Save location and college incrementally (ignore duplicates)
     await supabase.from("locations").upsert({ name: form.location.trim() }, { onConflict: "name" });
+    await supabase.from("colleges").upsert({ name: form.college.trim() }, { onConflict: "name" });
     toast.success("OTP sent to " + form.mobile);
     setStep("otp");
   };

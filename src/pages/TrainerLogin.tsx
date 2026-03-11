@@ -18,8 +18,9 @@ const TrainerLogin = () => {
       toast.error("Please fill all fields");
       return;
     }
-    // Save location incrementally (ignore duplicate)
+    // Save location and college incrementally (ignore duplicates)
     await supabase.from("locations").upsert({ name: form.location.trim() }, { onConflict: "name" });
+    await supabase.from("colleges").upsert({ name: form.college.trim() }, { onConflict: "name" });
     toast.success("Magic link sent to " + form.email);
     setStep("sent");
   };

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import logoIcon from "@/assets/logo-icon.png";
+import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { GraduationCap, Users } from "lucide-react";
 
 const Navbar = () => {
@@ -8,8 +8,8 @@ const Navbar = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
       <div className="container mx-auto px-6 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
-          <img src={logoIcon} alt="AI Learn" className="h-8 w-8" />
-          <span className="font-display text-xl font-bold text-gradient-primary">
+          <img src={pluginliveLogo} alt="PluginLive" className="h-8" />
+          <span className="font-display text-lg font-bold text-gradient-primary">
             AI LearnHub
           </span>
         </Link>

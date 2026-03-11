@@ -6,7 +6,7 @@ import {
   Users, BarChart3, ClipboardCheck, BookOpen, LogOut,
   TrendingUp, GraduationCap, Clock
 } from "lucide-react";
-import logoIcon from "@/assets/logo-icon.png";
+import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
 const students = [
   { name: "Aarav Sharma", college: "IIT Bombay", progress: 78, modulesCompleted: 7, lastActive: "2h ago" },
@@ -23,7 +23,7 @@ const TrainerDashboard = () => {
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={logoIcon} alt="AI LearnHub" className="h-7 w-7" />
+            <img src={pluginliveLogo} alt="PluginLive" className="h-7" />
             <span className="font-display font-bold text-gradient-accent">Trainer Portal</span>
           </div>
           <div className="flex items-center gap-4">

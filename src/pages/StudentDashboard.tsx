@@ -8,7 +8,7 @@ import {
   BookOpen, MessageSquare, Video, FlaskConical, ClipboardCheck,
   FolderKanban, BarChart3, LogOut, Play, CheckCircle, Lock
 } from "lucide-react";
-import logoIcon from "@/assets/logo-icon.png";
+import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import AIPlayground from "@/components/dashboard/AIPlayground";
 import VideoLearning from "@/components/dashboard/VideoLearning";
 import AssessmentsView from "@/components/dashboard/AssessmentsView";
@@ -23,7 +23,7 @@ const StudentDashboard = () => {
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={logoIcon} alt="AI LearnHub" className="h-7 w-7" />
+            <img src={pluginliveLogo} alt="PluginLive" className="h-7" />
             <span className="font-display font-bold text-gradient-primary">AI LearnHub</span>
           </div>
           <div className="flex items-center gap-4">

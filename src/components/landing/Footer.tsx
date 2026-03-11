@@ -1,4 +1,4 @@
-import logoIcon from "@/assets/logo-icon.png";
+import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
 const Footer = () => {
   return (
@@ -7,7 +7,7 @@ const Footer = () => {
         <div className="flex flex-col md:flex-row justify-between gap-8 mb-12">
           <div className="max-w-sm">
             <div className="flex items-center gap-2 mb-4">
-              <img src={logoIcon} alt="AI LearnHub" className="h-8 w-8" />
+              <img src={pluginliveLogo} alt="PluginLive" className="h-8" />
               <span className="font-display text-xl font-bold" style={{ color: "hsl(196, 80%, 50%)" }}>
                 AI LearnHub
               </span>
@@ -46,7 +46,7 @@ const Footer = () => {
 
         <div className="border-t pt-6" style={{ borderColor: "hsl(220, 20%, 20%)", color: "hsl(220, 15%, 45%)" }}>
           <p className="text-sm text-center">
-            © {new Date().getFullYear()} AI LearnHub. All rights reserved.
+            © {new Date().getFullYear()} Pluginlive Technologies AI LearnHub. All rights reserved.
           </p>
         </div>
       </div>

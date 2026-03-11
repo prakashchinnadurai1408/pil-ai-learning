@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, GraduationCap, Phone, Shield } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "sonner";
-import logoIcon from "@/assets/logo-icon.png";
+import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
 const colleges = [
   "IIT Bombay", "IIT Delhi", "IIT Madras", "NIT Trichy", "BITS Pilani",
@@ -51,7 +51,7 @@ const StudentLogin = () => {
       {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-hero relative items-center justify-center p-12">
         <div className="relative z-10 max-w-md">
-          <img src={logoIcon} alt="AI LearnHub" className="h-16 w-16 mb-8 animate-float" />
+          <img src={pluginliveLogo} alt="PluginLive" className="h-12 mb-8 animate-float" />
           <h2 className="text-3xl font-display font-bold mb-4" style={{ color: "hsl(0, 0%, 95%)" }}>
             Begin Your AI Journey
           </h2>

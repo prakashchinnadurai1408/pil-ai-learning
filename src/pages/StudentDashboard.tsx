@@ -79,6 +79,9 @@ const StudentDashboard = () => {
           </TabsList>
 
           <TabsContent value="modules">
+            {selectedModuleId ? (
+              <ModuleDetailView moduleId={selectedModuleId} onBack={() => setSelectedModuleId(null)} />
+            ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {modules.map((mod, i) => {
                 const Icon = mod.icon;
@@ -112,7 +115,12 @@ const StudentDashboard = () => {
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-muted-foreground">{progress}% complete</span>
                       {!isLocked && (
-                        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-primary">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs gap-1 text-primary"
+                          onClick={() => setSelectedModuleId(mod.id)}
+                        >
                           <Play className="h-3 w-3" /> {isCompleted ? "Review" : "Continue"}
                         </Button>
                       )}
@@ -121,6 +129,7 @@ const StudentDashboard = () => {
                 );
               })}
             </div>
+            )}
           </TabsContent>
 
           <TabsContent value="videos">

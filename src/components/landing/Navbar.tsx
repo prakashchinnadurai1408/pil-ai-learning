@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import logoIcon from "@/assets/logo-icon.png";
+import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { GraduationCap, Users } from "lucide-react";
 
 const Navbar = () => {

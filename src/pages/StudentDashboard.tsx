@@ -130,14 +130,7 @@ const StudentDashboard = () => {
           </TabsContent>
 
           <TabsContent value="tools">
-            <div className="bg-card rounded-lg border border-border p-8 text-center shadow-card">
-              <FlaskConical className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="font-display font-semibold text-lg mb-2 text-card-foreground">AI Tools Sandbox</h3>
-              <p className="text-muted-foreground text-sm mb-4">
-                Experiment with image generation, code generation, text summarization & AI research queries
-              </p>
-              <Button className="bg-gradient-primary border-0 text-primary-foreground">Coming Soon</Button>
-            </div>
+            <AIToolsSandbox />
           </TabsContent>
 
           <TabsContent value="assessments">
@@ -145,14 +138,7 @@ const StudentDashboard = () => {
           </TabsContent>
 
           <TabsContent value="projects">
-            <div className="bg-card rounded-lg border border-border p-8 text-center shadow-card">
-              <FolderKanban className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="font-display font-semibold text-lg mb-2 text-card-foreground">AI Projects</h3>
-              <p className="text-muted-foreground text-sm mb-4">
-                Build AI study assistants, chatbots, content generators & more. Submit your projects for review.
-              </p>
-              <Button className="bg-gradient-primary border-0 text-primary-foreground">Coming Soon</Button>
-            </div>
+            <ProjectsView />
           </TabsContent>
         </Tabs>
       </div>

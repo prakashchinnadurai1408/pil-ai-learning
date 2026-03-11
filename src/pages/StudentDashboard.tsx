@@ -14,6 +14,7 @@ import VideoLearning from "@/components/dashboard/VideoLearning";
 import AssessmentsView from "@/components/dashboard/AssessmentsView";
 import AIToolsSandbox from "@/components/dashboard/AIToolsSandbox";
 import ProjectsView from "@/components/dashboard/ProjectsView";
+import ModuleDetailView from "@/components/dashboard/ModuleDetailView";
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState("modules");

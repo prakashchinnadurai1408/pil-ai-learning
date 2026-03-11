@@ -67,8 +67,8 @@ const TrainerLogin = () => {
                 </div>
               </div>
               <div>
-                <Label htmlFor="tcollege">College Name</Label>
-                <Input id="tcollege" placeholder="Enter your college name" value={form.college} onChange={(e) => setForm({ ...form, college: e.target.value })} />
+                <Label htmlFor="tcollege">Institute Name</Label>
+                <Input id="tcollege" placeholder="Enter your institute name" value={form.college} onChange={(e) => setForm({ ...form, college: e.target.value })} />
               </div>
               <div>
                 <Label htmlFor="tlocation">Location</Label>

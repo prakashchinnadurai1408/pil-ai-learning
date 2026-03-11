@@ -13,11 +13,13 @@ const TrainerLogin = () => {
   const [step, setStep] = useState<"form" | "sent">("form");
   const [form, setForm] = useState({ name: "", email: "", college: "", location: "", role: "" });
 
-  const handleSendMagicLink = () => {
+  const handleSendMagicLink = async () => {
     if (!form.name || !form.email || !form.college || !form.location || !form.role) {
       toast.error("Please fill all fields");
       return;
     }
+    // Save location incrementally (ignore duplicate)
+    await supabase.from("locations").upsert({ name: form.location.trim() }, { onConflict: "name" });
     toast.success("Magic link sent to " + form.email);
     setStep("sent");
   };

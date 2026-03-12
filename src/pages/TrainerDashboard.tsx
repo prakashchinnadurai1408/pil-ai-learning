@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Users, BarChart3, ClipboardCheck, LogOut,
-  TrendingUp, Eye, Loader2, Search, X, ArrowUpDown, ArrowUp, ArrowDown
+  TrendingUp, Eye, Loader2, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Download
 } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { moduleNames, mcqBank } from "@/data/videoContent";
@@ -70,6 +70,19 @@ const TrainerDashboard = () => {
 
   const hasFilters = searchQuery || collegeFilter !== "all" || scoreFilter !== "all" || progressFilter !== "all";
   const clearFilters = () => { setSearchQuery(""); setCollegeFilter("all"); setScoreFilter("all"); setProgressFilter("all"); };
+
+  const exportCSV = () => {
+    const headers = ["Name", "Email", "College", "Location", "Mobile", "Progress %", "Modules Completed", "Avg Score %"];
+    const rows = filteredStudents.map(s => [s.name, s.email, s.college, s.location, s.mobile, s.progress, s.modulesCompleted, s.avgScore]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `students-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const assessments = Object.entries(moduleNames).map(([id, name]) => {
     const mid = Number(id);
@@ -144,11 +157,16 @@ const TrainerDashboard = () => {
               <div className="p-4 border-b border-border space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-display font-semibold text-card-foreground">Student Progress</h3>
-                  {hasFilters && (
-                    <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" onClick={clearFilters}>
-                      <X className="h-3 w-3" /> Clear Filters
+                  <div className="flex items-center gap-2">
+                    {hasFilters && (
+                      <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" onClick={clearFilters}>
+                        <X className="h-3 w-3" /> Clear Filters
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={exportCSV}>
+                      <Download className="h-3 w-3" /> Export CSV
                     </Button>
-                  )}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <div className="relative flex-1 min-w-[200px]">

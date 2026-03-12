@@ -33,6 +33,7 @@ const StudentDashboard = () => {
             <span className="font-display font-bold text-gradient-primary">AI LearnHub</span>
           </div>
           <div className="flex items-center gap-4">
+            <NotificationsPanel studentId={null} />
             <span className="text-sm text-muted-foreground hidden sm:block">Welcome, Student</span>
             <Link to="/">
               <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">

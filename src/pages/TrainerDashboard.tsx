@@ -164,6 +164,7 @@ const TrainerDashboard = () => {
                         <X className="h-3 w-3" /> Clear Filters
                       </Button>
                     )}
+                    <ComposeMessageDialog recipientStudents={filteredStudents.map(s => ({ id: s.id, name: s.name, email: s.email }))} />
                     <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={exportCSV}>
                       <Download className="h-3 w-3" /> Export CSV
                     </Button>

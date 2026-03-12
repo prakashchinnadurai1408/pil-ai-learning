@@ -166,10 +166,17 @@ const AIToolsSandbox = () => {
               </Button>
             )}
           </div>
-          <div className="min-h-[250px] bg-muted/50 rounded-lg border border-border p-4 overflow-y-auto">
+          <div className="min-h-[250px] bg-muted/50 rounded-lg border border-border p-4 overflow-y-auto" role="region" aria-label="AI output" aria-live="polite">
             {output ? (
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                <ReactMarkdown>{output}</ReactMarkdown>
+              <div>
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown>{output}</ReactMarkdown>
+                </div>
+                {!output.startsWith("⚠️") && !isLoading && (
+                  <div className="mt-3 pt-3 border-t border-border">
+                    <AIFeedback messageIndex={0} />
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground italic">

@@ -95,8 +95,8 @@ const NotificationsPanel = ({ studentId }: NotificationsPanelProps) => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="relative">
-          <Bell className="h-4 w-4" />
+        <Button variant="ghost" size="sm" className="relative" aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}>
+          <Bell className="h-4 w-4" aria-hidden="true" />
           {unreadCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center">
               {unreadCount > 9 ? "9+" : unreadCount}

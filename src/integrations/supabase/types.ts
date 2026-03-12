@@ -50,6 +50,112 @@ export type Database = {
         }
         Relationships: []
       }
+      student_assessment_scores: {
+        Row: {
+          attempted_at: string
+          correct_answers: number
+          id: string
+          module_id: number
+          score: number
+          student_id: string
+          total_questions: number
+        }
+        Insert: {
+          attempted_at?: string
+          correct_answers: number
+          id?: string
+          module_id: number
+          score: number
+          student_id: string
+          total_questions: number
+        }
+        Update: {
+          attempted_at?: string
+          correct_answers?: number
+          id?: string
+          module_id?: number
+          score?: number
+          student_id?: string
+          total_questions?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_assessment_scores_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_module_progress: {
+        Row: {
+          completed: boolean
+          created_at: string
+          id: string
+          last_accessed: string | null
+          module_id: number
+          progress_percent: number
+          student_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          id?: string
+          last_accessed?: string | null
+          module_id: number
+          progress_percent?: number
+          student_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          id?: string
+          last_accessed?: string | null
+          module_id?: number
+          progress_percent?: number
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_module_progress_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      students: {
+        Row: {
+          college: string
+          created_at: string
+          email: string
+          id: string
+          location: string
+          mobile: string
+          name: string
+        }
+        Insert: {
+          college: string
+          created_at?: string
+          email: string
+          id?: string
+          location: string
+          mobile: string
+          name: string
+        }
+        Update: {
+          college?: string
+          created_at?: string
+          email?: string
+          id?: string
+          location?: string
+          mobile?: string
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

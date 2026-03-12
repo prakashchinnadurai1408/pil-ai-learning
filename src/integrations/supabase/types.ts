@@ -126,6 +126,45 @@ export type Database = {
           },
         ]
       }
+      student_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message_id: string
+          read: boolean
+          student_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_id: string
+          read?: boolean
+          student_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_id?: string
+          read?: boolean
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_notifications_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "trainer_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_notifications_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       students: {
         Row: {
           college: string
@@ -153,6 +192,30 @@ export type Database = {
           location?: string
           mobile?: string
           name?: string
+        }
+        Relationships: []
+      }
+      trainer_messages: {
+        Row: {
+          body: string
+          id: string
+          recipient_count: number
+          sent_at: string
+          subject: string
+        }
+        Insert: {
+          body: string
+          id?: string
+          recipient_count?: number
+          sent_at?: string
+          subject: string
+        }
+        Update: {
+          body?: string
+          id?: string
+          recipient_count?: number
+          sent_at?: string
+          subject?: string
         }
         Relationships: []
       }

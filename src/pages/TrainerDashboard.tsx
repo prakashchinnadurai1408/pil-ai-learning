@@ -27,11 +27,27 @@ const TrainerDashboard = () => {
   const [collegeFilter, setCollegeFilter] = useState("all");
   const [scoreFilter, setScoreFilter] = useState("all");
   const [progressFilter, setProgressFilter] = useState("all");
+  const [sortKey, setSortKey] = useState<"name" | "college" | "progress" | "modulesCompleted" | "avgScore" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const colleges = useMemo(() => [...new Set(students.map(s => s.college))].sort(), [students]);
 
+  const handleSort = (key: typeof sortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const SortIcon = ({ col }: { col: typeof sortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return sortDir === "asc" ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
+
   const filteredStudents = useMemo(() => {
-    return students.filter(s => {
+    let result = students.filter(s => {
       if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase()) && !s.email.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       if (collegeFilter !== "all" && s.college !== collegeFilter) return false;
       if (scoreFilter === "high" && s.avgScore < 80) return false;
@@ -42,7 +58,15 @@ const TrainerDashboard = () => {
       if (progressFilter === "below50" && s.progress >= 50) return false;
       return true;
     });
-  }, [students, searchQuery, collegeFilter, scoreFilter, progressFilter]);
+    if (sortKey) {
+      result = [...result].sort((a, b) => {
+        const av = a[sortKey], bv = b[sortKey];
+        const cmp = typeof av === "string" ? av.localeCompare(bv as string) : (av as number) - (bv as number);
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    }
+    return result;
+  }, [students, searchQuery, collegeFilter, scoreFilter, progressFilter, sortKey, sortDir]);
 
   const hasFilters = searchQuery || collegeFilter !== "all" || scoreFilter !== "all" || progressFilter !== "all";
   const clearFilters = () => { setSearchQuery(""); setCollegeFilter("all"); setScoreFilter("all"); setProgressFilter("all"); };

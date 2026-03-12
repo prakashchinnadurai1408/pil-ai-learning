@@ -13,6 +13,7 @@ import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { moduleNames, mcqBank } from "@/data/videoContent";
 import { useTrainerData } from "@/hooks/useTrainerData";
 import { StudentDetailModal } from "@/components/trainer/StudentDetailModal";
+import ComposeMessageDialog from "@/components/trainer/ComposeMessageDialog";
 import type { StudentData } from "@/hooks/useTrainerData";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,

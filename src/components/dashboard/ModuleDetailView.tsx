@@ -5,9 +5,10 @@ import { modules } from "@/data/modules";
 import { moduleContents, LessonContent } from "@/data/moduleContent";
 import {
   ArrowLeft, BookOpen, Activity, Video, Dumbbell,
-  CheckCircle, ChevronRight, Clock, Target, Lightbulb
+  CheckCircle, ChevronRight, Clock, Target, Lightbulb, Trophy
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import ModuleQuiz from "./ModuleQuiz";
 
 interface ModuleDetailViewProps {
   moduleId: number;

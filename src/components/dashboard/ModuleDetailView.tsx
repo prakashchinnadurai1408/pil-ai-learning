@@ -5,9 +5,10 @@ import { modules } from "@/data/modules";
 import { moduleContents, LessonContent } from "@/data/moduleContent";
 import {
   ArrowLeft, BookOpen, Activity, Video, Dumbbell,
-  CheckCircle, ChevronRight, Clock, Target, Lightbulb
+  CheckCircle, ChevronRight, Clock, Target, Lightbulb, Trophy
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import ModuleQuiz from "./ModuleQuiz";
 
 interface ModuleDetailViewProps {
   moduleId: number;
@@ -33,12 +34,16 @@ const ModuleDetailView = ({ moduleId, onBack }: ModuleDetailViewProps) => {
   const content = moduleContents.find((c) => c.moduleId === moduleId);
   const [activeLessonIdx, setActiveLessonIdx] = useState(0);
   const [completedLessons, setCompletedLessons] = useState<Set<number>>(new Set());
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizCompleted, setQuizCompleted] = useState(false);
 
   if (!mod || !content) return null;
 
   const Icon = mod.icon;
   const activeLesson = content.lessons[activeLessonIdx];
-  const progress = Math.round((completedLessons.size / content.lessons.length) * 100);
+  const totalItems = content.lessons.length + 1; // +1 for quiz
+  const completedItems = completedLessons.size + (quizCompleted ? 1 : 0);
+  const progress = Math.round((completedItems / totalItems) * 100);
 
   const markComplete = () => {
     setCompletedLessons((prev) => {
@@ -48,6 +53,8 @@ const ModuleDetailView = ({ moduleId, onBack }: ModuleDetailViewProps) => {
     });
     if (activeLessonIdx < content.lessons.length - 1) {
       setActiveLessonIdx(activeLessonIdx + 1);
+    } else {
+      setShowQuiz(true);
     }
   };
 
@@ -99,16 +106,16 @@ const ModuleDetailView = ({ moduleId, onBack }: ModuleDetailViewProps) => {
           <div className="p-4 border-b border-border">
             <h3 className="font-display font-semibold text-sm text-card-foreground">Lessons</h3>
           </div>
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-border max-h-[480px] overflow-y-auto">
             {content.lessons.map((lesson, i) => {
               const LIcon = typeIcons[lesson.type];
               const done = completedLessons.has(i);
               return (
                 <button
                   key={lesson.id}
-                  onClick={() => setActiveLessonIdx(i)}
+                  onClick={() => { setActiveLessonIdx(i); setShowQuiz(false); }}
                   className={`w-full p-3 text-left flex items-center gap-2.5 transition-colors hover:bg-muted/50 ${
-                    activeLessonIdx === i ? "bg-primary/5 border-l-2 border-l-primary" : ""
+                    !showQuiz && activeLessonIdx === i ? "bg-primary/5 border-l-2 border-l-primary" : ""
                   }`}
                 >
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
@@ -132,74 +139,136 @@ const ModuleDetailView = ({ moduleId, onBack }: ModuleDetailViewProps) => {
                 </button>
               );
             })}
+
+            {/* Module Quiz entry */}
+            <button
+              onClick={() => setShowQuiz(true)}
+              className={`w-full p-3 text-left flex items-center gap-2.5 transition-colors hover:bg-muted/50 ${
+                showQuiz ? "bg-primary/5 border-l-2 border-l-primary" : ""
+              }`}
+            >
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+                quizCompleted ? "bg-success/10" : "bg-warning/10"
+              }`}>
+                {quizCompleted ? (
+                  <CheckCircle className="h-3.5 w-3.5 text-success" />
+                ) : (
+                  <Trophy className="h-3 w-3 text-warning" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-card-foreground truncate">Module Quiz</p>
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <span>Assessment</span>
+                  <span>·</span>
+                  <Trophy className="h-2.5 w-2.5" />
+                  <span>Test your knowledge</span>
+                </div>
+              </div>
+            </button>
           </div>
         </div>
 
-        {/* Lesson Content */}
+        {/* Lesson Content or Quiz */}
         <div className="lg:col-span-3 bg-card rounded-lg border border-border shadow-card overflow-hidden">
-          <div className="p-5 border-b border-border flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase">
-                  {typeLabels[activeLesson.type]}
-                </span>
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> {activeLesson.duration}
+          {showQuiz ? (
+            <>
+              <div className="p-5 border-b border-border flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-warning/10 text-warning uppercase">
+                      Quiz
+                    </span>
+                  </div>
+                  <h3 className="font-display font-semibold text-lg text-card-foreground">Module Quiz</h3>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  End of module
                 </span>
               </div>
-              <h3 className="font-display font-semibold text-lg text-card-foreground">{activeLesson.title}</h3>
-            </div>
-            <span className="text-xs text-muted-foreground">
-              {activeLessonIdx + 1} / {content.lessons.length}
-            </span>
-          </div>
-
-          <div className="p-6 max-h-[540px] overflow-y-auto">
-            <div className="prose prose-sm max-w-none text-muted-foreground prose-headings:text-card-foreground prose-strong:text-card-foreground prose-code:text-primary">
-              <ReactMarkdown>{activeLesson.content}</ReactMarkdown>
-            </div>
-
-            {activeLesson.keyTakeaways && (
-              <div className="mt-6 bg-primary/5 rounded-lg p-4 border border-primary/10">
-                <h4 className="text-sm font-semibold text-card-foreground flex items-center gap-2 mb-2">
-                  <Lightbulb className="h-4 w-4 text-warning" /> Key Takeaways
-                </h4>
-                <ul className="space-y-1.5">
-                  {activeLesson.keyTakeaways.map((t, i) => (
-                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
-                      <CheckCircle className="h-3 w-3 mt-0.5 text-success flex-shrink-0" />
-                      {t}
-                    </li>
-                  ))}
-                </ul>
+              <div className="p-6 max-h-[540px] overflow-y-auto">
+                <ModuleQuiz
+                  moduleId={moduleId}
+                  moduleName={mod.title}
+                  onComplete={(score, total) => {
+                    if (Math.round((score / total) * 100) >= 70) {
+                      setQuizCompleted(true);
+                    }
+                  }}
+                />
               </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <>
+              <div className="p-5 border-b border-border flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase">
+                      {typeLabels[activeLesson.type]}
+                    </span>
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> {activeLesson.duration}
+                    </span>
+                  </div>
+                  <h3 className="font-display font-semibold text-lg text-card-foreground">{activeLesson.title}</h3>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {activeLessonIdx + 1} / {content.lessons.length}
+                </span>
+              </div>
 
-          <div className="p-4 border-t border-border flex items-center justify-between">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={activeLessonIdx === 0}
-              onClick={() => setActiveLessonIdx(activeLessonIdx - 1)}
-            >
-              ← Previous
-            </Button>
-            <Button
-              size="sm"
-              onClick={markComplete}
-              className="bg-gradient-primary border-0 text-primary-foreground gap-1.5"
-            >
-              {completedLessons.has(activeLessonIdx) ? (
-                activeLessonIdx < content.lessons.length - 1 ? "Next Lesson →" : "✓ Completed"
-              ) : (
-                <>
-                  <CheckCircle className="h-3.5 w-3.5" />
-                  Mark Complete & Continue
-                </>
-              )}
-            </Button>
-          </div>
+              <div className="p-6 max-h-[540px] overflow-y-auto">
+                <div className="prose prose-sm max-w-none text-muted-foreground prose-headings:text-card-foreground prose-strong:text-card-foreground prose-code:text-primary">
+                  <ReactMarkdown>{activeLesson.content}</ReactMarkdown>
+                </div>
+
+                {activeLesson.keyTakeaways && (
+                  <div className="mt-6 bg-primary/5 rounded-lg p-4 border border-primary/10">
+                    <h4 className="text-sm font-semibold text-card-foreground flex items-center gap-2 mb-2">
+                      <Lightbulb className="h-4 w-4 text-warning" /> Key Takeaways
+                    </h4>
+                    <ul className="space-y-1.5">
+                      {activeLesson.keyTakeaways.map((t, i) => (
+                        <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
+                          <CheckCircle className="h-3 w-3 mt-0.5 text-success flex-shrink-0" />
+                          {t}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 border-t border-border flex items-center justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={activeLessonIdx === 0}
+                  onClick={() => setActiveLessonIdx(activeLessonIdx - 1)}
+                >
+                  ← Previous
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={markComplete}
+                  className="bg-gradient-primary border-0 text-primary-foreground gap-1.5"
+                >
+                  {completedLessons.has(activeLessonIdx) ? (
+                    activeLessonIdx < content.lessons.length - 1 ? "Next Lesson →" : (
+                      <span className="flex items-center gap-1.5" onClick={(e) => { e.stopPropagation(); setShowQuiz(true); }}>
+                        <Trophy className="h-3.5 w-3.5" /> Take Module Quiz
+                      </span>
+                    )
+                  ) : (
+                    <>
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      Mark Complete & Continue
+                    </>
+                  )}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

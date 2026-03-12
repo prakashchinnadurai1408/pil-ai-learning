@@ -117,8 +117,60 @@ const TrainerDashboard = () => {
           {/* Students Tab */}
           <TabsContent value="students">
             <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
-              <div className="p-4 border-b border-border">
-                <h3 className="font-display font-semibold text-card-foreground">Student Progress</h3>
+              <div className="p-4 border-b border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-display font-semibold text-card-foreground">Student Progress</h3>
+                  {hasFilters && (
+                    <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" onClick={clearFilters}>
+                      <X className="h-3 w-3" /> Clear Filters
+                    </Button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name or email..."
+                      className="pl-9 h-9"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <Select value={collegeFilter} onValueChange={setCollegeFilter}>
+                    <SelectTrigger className="w-[180px] h-9">
+                      <SelectValue placeholder="College" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Colleges</SelectItem>
+                      {colleges.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={scoreFilter} onValueChange={setScoreFilter}>
+                    <SelectTrigger className="w-[160px] h-9">
+                      <SelectValue placeholder="Score Range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Scores</SelectItem>
+                      <SelectItem value="high">80%+ (High)</SelectItem>
+                      <SelectItem value="mid">60-79% (Medium)</SelectItem>
+                      <SelectItem value="low">Below 60% (Low)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={progressFilter} onValueChange={setProgressFilter}>
+                    <SelectTrigger className="w-[160px] h-9">
+                      <SelectValue placeholder="Progress" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Progress</SelectItem>
+                      <SelectItem value="above75">75%+ (Ahead)</SelectItem>
+                      <SelectItem value="50to75">50-74% (On Track)</SelectItem>
+                      <SelectItem value="below50">Below 50% (Behind)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {hasFilters && (
+                  <p className="text-xs text-muted-foreground">{filteredStudents.length} of {students.length} students shown</p>
+                )}
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -133,7 +185,10 @@ const TrainerDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {students.map((s) => (
+                    {filteredStudents.length === 0 ? (
+                      <tr><td colSpan={6} className="p-8 text-center text-sm text-muted-foreground">No students match your filters.</td></tr>
+                    ) : null}
+                    {filteredStudents.map((s) => (
                       <tr key={s.id} className="hover:bg-muted/30 transition-colors">
                         <td className="p-4">
                           <div className="flex items-center gap-3">

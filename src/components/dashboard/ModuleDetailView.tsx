@@ -53,6 +53,8 @@ const ModuleDetailView = ({ moduleId, onBack }: ModuleDetailViewProps) => {
     });
     if (activeLessonIdx < content.lessons.length - 1) {
       setActiveLessonIdx(activeLessonIdx + 1);
+    } else {
+      setShowQuiz(true);
     }
   };
 

@@ -34,12 +34,16 @@ const ModuleDetailView = ({ moduleId, onBack }: ModuleDetailViewProps) => {
   const content = moduleContents.find((c) => c.moduleId === moduleId);
   const [activeLessonIdx, setActiveLessonIdx] = useState(0);
   const [completedLessons, setCompletedLessons] = useState<Set<number>>(new Set());
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizCompleted, setQuizCompleted] = useState(false);
 
   if (!mod || !content) return null;
 
   const Icon = mod.icon;
   const activeLesson = content.lessons[activeLessonIdx];
-  const progress = Math.round((completedLessons.size / content.lessons.length) * 100);
+  const totalItems = content.lessons.length + 1; // +1 for quiz
+  const completedItems = completedLessons.size + (quizCompleted ? 1 : 0);
+  const progress = Math.round((completedItems / totalItems) * 100);
 
   const markComplete = () => {
     setCompletedLessons((prev) => {

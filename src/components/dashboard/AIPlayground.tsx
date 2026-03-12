@@ -111,8 +111,13 @@ const AIPlayground = () => {
             <div className="w-7 h-7 rounded-full bg-gradient-accent flex items-center justify-center flex-shrink-0">
               <Bot className="h-4 w-4 text-accent-foreground" />
             </div>
-            <div className="bg-muted rounded-lg px-4 py-3 text-sm text-muted-foreground animate-pulse">
-              Thinking...
+            <div className="bg-muted rounded-lg px-4 py-3 text-sm text-muted-foreground flex items-center gap-1.5">
+              <span className="flex gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+              </span>
+              <span className="ml-1">AI is thinking...</span>
             </div>
           </div>
         )}

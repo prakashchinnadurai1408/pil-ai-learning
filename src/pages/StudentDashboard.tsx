@@ -136,23 +136,23 @@ const StudentDashboard = () => {
           </TabsContent>
 
           <TabsContent value="videos">
-            <VideoLearning />
+            <ErrorBoundary><VideoLearning /></ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="playground">
-            <AIPlayground />
+            <ErrorBoundary><AIPlayground /></ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="tools">
-            <AIToolsSandbox />
+            <ErrorBoundary><AIToolsSandbox /></ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="assessments">
-            <AssessmentsView />
+            <ErrorBoundary><AssessmentsView /></ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="projects">
-            <ProjectsView />
+            <ErrorBoundary><ProjectsView /></ErrorBoundary>
           </TabsContent>
         </Tabs>
       </div>

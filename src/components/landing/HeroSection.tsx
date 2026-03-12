@@ -72,12 +72,12 @@ const HeroSection = () => {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="flex flex-wrap gap-4"
+              className="flex flex-col sm:flex-row gap-3 sm:gap-4"
             >
-              <Link to="/student-login">
+              <Link to="/student-login" className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  className="gap-2 bg-gradient-primary border-0 text-primary-foreground hover:opacity-90 text-base px-8"
+                  className="w-full sm:w-auto gap-2 bg-gradient-primary border-0 text-primary-foreground hover:opacity-90 text-base px-8"
                 >
                   Start Learning <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -85,7 +85,7 @@ const HeroSection = () => {
               <Button
                 variant="outline"
                 size="lg"
-                className="gap-2 text-base border-primary/30 hover:bg-primary/10"
+                className="w-full sm:w-auto gap-2 text-base border-primary/30 hover:bg-primary/10"
                 style={{ color: "hsl(0, 0%, 90%)" }}
                 onClick={handleWatchDemo}
               >

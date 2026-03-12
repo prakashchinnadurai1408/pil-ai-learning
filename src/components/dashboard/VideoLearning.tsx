@@ -96,10 +96,11 @@ const VideoLearning = () => {
                   {/* YouTube Embed */}
                   <div className="aspect-video bg-foreground/5">
                     <iframe
-                      src={`https://www.youtube.com/embed/${currentVideo.youtubeId}?rel=0`}
+                      src={`https://www.youtube.com/embed/${currentVideo.youtubeId}?rel=0&playsinline=1`}
                       title={currentVideo.title}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
+                      loading="lazy"
                       className="w-full h-full"
                     />
                   </div>

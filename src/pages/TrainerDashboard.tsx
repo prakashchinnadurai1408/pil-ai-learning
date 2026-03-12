@@ -157,11 +157,16 @@ const TrainerDashboard = () => {
               <div className="p-4 border-b border-border space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-display font-semibold text-card-foreground">Student Progress</h3>
-                  {hasFilters && (
-                    <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" onClick={clearFilters}>
-                      <X className="h-3 w-3" /> Clear Filters
+                  <div className="flex items-center gap-2">
+                    {hasFilters && (
+                      <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" onClick={clearFilters}>
+                        <X className="h-3 w-3" /> Clear Filters
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={exportCSV}>
+                      <Download className="h-3 w-3" /> Export CSV
                     </Button>
-                  )}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <div className="relative flex-1 min-w-[200px]">

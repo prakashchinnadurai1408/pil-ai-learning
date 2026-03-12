@@ -23,6 +23,29 @@ const TrainerDashboard = () => {
   const { students, loading, totalStudents, avgProgress, avgOverallScore, moduleStats, scoreDistribution } = useTrainerData();
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [collegeFilter, setCollegeFilter] = useState("all");
+  const [scoreFilter, setScoreFilter] = useState("all");
+  const [progressFilter, setProgressFilter] = useState("all");
+
+  const colleges = useMemo(() => [...new Set(students.map(s => s.college))].sort(), [students]);
+
+  const filteredStudents = useMemo(() => {
+    return students.filter(s => {
+      if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase()) && !s.email.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      if (collegeFilter !== "all" && s.college !== collegeFilter) return false;
+      if (scoreFilter === "high" && s.avgScore < 80) return false;
+      if (scoreFilter === "mid" && (s.avgScore < 60 || s.avgScore >= 80)) return false;
+      if (scoreFilter === "low" && s.avgScore >= 60) return false;
+      if (progressFilter === "above75" && s.progress < 75) return false;
+      if (progressFilter === "50to75" && (s.progress < 50 || s.progress >= 75)) return false;
+      if (progressFilter === "below50" && s.progress >= 50) return false;
+      return true;
+    });
+  }, [students, searchQuery, collegeFilter, scoreFilter, progressFilter]);
+
+  const hasFilters = searchQuery || collegeFilter !== "all" || scoreFilter !== "all" || progressFilter !== "all";
+  const clearFilters = () => { setSearchQuery(""); setCollegeFilter("all"); setScoreFilter("all"); setProgressFilter("all"); };
 
   const assessments = Object.entries(moduleNames).map(([id, name]) => {
     const mid = Number(id);

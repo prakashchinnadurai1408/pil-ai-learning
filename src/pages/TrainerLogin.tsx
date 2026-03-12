@@ -18,11 +18,38 @@ const TrainerLogin = () => {
       toast.error("Please fill all fields");
       return;
     }
-    // Save location and college incrementally (ignore duplicates)
-    await supabase.from("locations").upsert({ name: form.location.trim() }, { onConflict: "name" });
-    await supabase.from("colleges").upsert({ name: form.college.trim() }, { onConflict: "name" });
-    toast.success("Magic link sent to " + form.email);
-    setStep("sent");
+
+    try {
+      // Save location and college incrementally (ignore duplicates)
+      await supabase.from("locations").upsert({ name: form.location.trim() }, { onConflict: "name" });
+      await supabase.from("colleges").upsert({ name: form.college.trim() }, { onConflict: "name" });
+
+      // Send magic link via Supabase Auth
+      const { error } = await supabase.auth.signInWithOtp({
+        email: form.email.trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/trainer-dashboard`,
+          data: {
+            full_name: form.name,
+            college: form.college,
+            location: form.location,
+            role: form.role,
+          },
+        },
+      });
+
+      if (error) {
+        console.error("Magic link error:", error);
+        toast.error(error.message || "Failed to send magic link. Please try again.");
+        return;
+      }
+
+      toast.success("Magic link sent to " + form.email);
+      setStep("sent");
+    } catch (err) {
+      console.error("Magic link error:", err);
+      toast.error("Something went wrong. Please try again.");
+    }
   };
 
   return (

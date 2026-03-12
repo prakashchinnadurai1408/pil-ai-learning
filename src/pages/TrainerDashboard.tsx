@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Users, BarChart3, ClipboardCheck, LogOut,
-  TrendingUp, Eye, Loader2, Search, X
+  TrendingUp, Eye, Loader2, Search, X, ArrowUpDown, ArrowUp, ArrowDown
 } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { moduleNames, mcqBank } from "@/data/videoContent";
@@ -27,11 +27,27 @@ const TrainerDashboard = () => {
   const [collegeFilter, setCollegeFilter] = useState("all");
   const [scoreFilter, setScoreFilter] = useState("all");
   const [progressFilter, setProgressFilter] = useState("all");
+  const [sortKey, setSortKey] = useState<"name" | "college" | "progress" | "modulesCompleted" | "avgScore" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const colleges = useMemo(() => [...new Set(students.map(s => s.college))].sort(), [students]);
 
+  const handleSort = (key: typeof sortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const SortIcon = ({ col }: { col: typeof sortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return sortDir === "asc" ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
+
   const filteredStudents = useMemo(() => {
-    return students.filter(s => {
+    let result = students.filter(s => {
       if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase()) && !s.email.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       if (collegeFilter !== "all" && s.college !== collegeFilter) return false;
       if (scoreFilter === "high" && s.avgScore < 80) return false;
@@ -42,7 +58,15 @@ const TrainerDashboard = () => {
       if (progressFilter === "below50" && s.progress >= 50) return false;
       return true;
     });
-  }, [students, searchQuery, collegeFilter, scoreFilter, progressFilter]);
+    if (sortKey) {
+      result = [...result].sort((a, b) => {
+        const av = a[sortKey], bv = b[sortKey];
+        const cmp = typeof av === "string" ? av.localeCompare(bv as string) : (av as number) - (bv as number);
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    }
+    return result;
+  }, [students, searchQuery, collegeFilter, scoreFilter, progressFilter, sortKey, sortDir]);
 
   const hasFilters = searchQuery || collegeFilter !== "all" || scoreFilter !== "all" || progressFilter !== "all";
   const clearFilters = () => { setSearchQuery(""); setCollegeFilter("all"); setScoreFilter("all"); setProgressFilter("all"); };
@@ -176,11 +200,21 @@ const TrainerDashboard = () => {
                 <table className="w-full">
                   <thead className="bg-muted/50">
                     <tr className="text-left text-xs text-muted-foreground">
-                      <th className="p-4 font-medium">Student</th>
-                      <th className="p-4 font-medium">College</th>
-                      <th className="p-4 font-medium">Progress</th>
-                      <th className="p-4 font-medium">Modules</th>
-                      <th className="p-4 font-medium">Avg Score</th>
+                      <th className="p-4 font-medium cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort("name")}>
+                        <span className="inline-flex items-center">Student <SortIcon col="name" /></span>
+                      </th>
+                      <th className="p-4 font-medium cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort("college")}>
+                        <span className="inline-flex items-center">College <SortIcon col="college" /></span>
+                      </th>
+                      <th className="p-4 font-medium cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort("progress")}>
+                        <span className="inline-flex items-center">Progress <SortIcon col="progress" /></span>
+                      </th>
+                      <th className="p-4 font-medium cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort("modulesCompleted")}>
+                        <span className="inline-flex items-center">Modules <SortIcon col="modulesCompleted" /></span>
+                      </th>
+                      <th className="p-4 font-medium cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort("avgScore")}>
+                        <span className="inline-flex items-center">Avg Score <SortIcon col="avgScore" /></span>
+                      </th>
                       <th className="p-4 font-medium">Actions</th>
                     </tr>
                   </thead>

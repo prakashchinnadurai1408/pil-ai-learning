@@ -74,7 +74,11 @@ const AIToolsSandbox = () => {
       });
     } catch (e) {
       setIsLoading(false);
-      toast.error(e instanceof Error ? e.message : "Failed to process request");
+      const msg = e instanceof Error && e.message.includes("Rate limit")
+        ? "Too many requests — please wait and try again."
+        : "AI service is temporarily unavailable. Please try again in a moment.";
+      setOutput(`⚠️ ${msg}`);
+      toast.error(msg, { duration: 3000 });
     }
   };
 

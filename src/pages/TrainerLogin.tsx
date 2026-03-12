@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,8 +10,19 @@ import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 
 const TrainerLogin = () => {
+  const navigate = useNavigate();
   const [step, setStep] = useState<"form" | "sent">("form");
   const [form, setForm] = useState({ name: "", email: "", college: "", location: "", role: "" });
+
+  // Listen for auth state changes (magic link callback)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        navigate("/trainer-dashboard");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   const handleSendMagicLink = async () => {
     if (!form.name || !form.email || !form.college || !form.location || !form.role) {

@@ -71,6 +71,19 @@ const TrainerDashboard = () => {
   const hasFilters = searchQuery || collegeFilter !== "all" || scoreFilter !== "all" || progressFilter !== "all";
   const clearFilters = () => { setSearchQuery(""); setCollegeFilter("all"); setScoreFilter("all"); setProgressFilter("all"); };
 
+  const exportCSV = () => {
+    const headers = ["Name", "Email", "College", "Location", "Mobile", "Progress %", "Modules Completed", "Avg Score %"];
+    const rows = filteredStudents.map(s => [s.name, s.email, s.college, s.location, s.mobile, s.progress, s.modulesCompleted, s.avgScore]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `students-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const assessments = Object.entries(moduleNames).map(([id, name]) => {
     const mid = Number(id);
     const qCount = mcqBank.filter((q) => q.moduleId === mid).length;

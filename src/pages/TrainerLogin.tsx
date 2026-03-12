@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,19 +10,57 @@ import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 
 const TrainerLogin = () => {
+  const navigate = useNavigate();
   const [step, setStep] = useState<"form" | "sent">("form");
   const [form, setForm] = useState({ name: "", email: "", college: "", location: "", role: "" });
+
+  // Listen for auth state changes (magic link callback)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        navigate("/trainer-dashboard");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   const handleSendMagicLink = async () => {
     if (!form.name || !form.email || !form.college || !form.location || !form.role) {
       toast.error("Please fill all fields");
       return;
     }
-    // Save location and college incrementally (ignore duplicates)
-    await supabase.from("locations").upsert({ name: form.location.trim() }, { onConflict: "name" });
-    await supabase.from("colleges").upsert({ name: form.college.trim() }, { onConflict: "name" });
-    toast.success("Magic link sent to " + form.email);
-    setStep("sent");
+
+    try {
+      // Save location and college incrementally (ignore duplicates)
+      await supabase.from("locations").upsert({ name: form.location.trim() }, { onConflict: "name" });
+      await supabase.from("colleges").upsert({ name: form.college.trim() }, { onConflict: "name" });
+
+      // Send magic link via Supabase Auth
+      const { error } = await supabase.auth.signInWithOtp({
+        email: form.email.trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/trainer-dashboard`,
+          data: {
+            full_name: form.name,
+            college: form.college,
+            location: form.location,
+            role: form.role,
+          },
+        },
+      });
+
+      if (error) {
+        console.error("Magic link error:", error);
+        toast.error(error.message || "Failed to send magic link. Please try again.");
+        return;
+      }
+
+      toast.success("Magic link sent to " + form.email);
+      setStep("sent");
+    } catch (err) {
+      console.error("Magic link error:", err);
+      toast.error("Something went wrong. Please try again.");
+    }
   };
 
   return (

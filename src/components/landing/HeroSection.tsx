@@ -85,11 +85,11 @@ const HeroSection = () => {
               <Button
                 variant="outline"
                 size="lg"
-                className="w-full sm:w-auto gap-2 text-base border-primary/30 hover:bg-primary/10"
-                style={{ color: "hsl(0, 0%, 90%)" }}
+                className="w-full sm:w-auto gap-2 text-base border-destructive/40 hover:bg-destructive/10"
                 onClick={handleWatchDemo}
               >
-                <Play className="h-4 w-4" /> Watch Demo
+                <Play className="h-4 w-4 text-destructive" />
+                <span className="font-bold text-destructive">Watch Demo</span>
               </Button>
             </motion.div>
 

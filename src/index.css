@@ -22,7 +22,7 @@
     --secondary-foreground: 220 30% 10%;
 
     --muted: 220 15% 94%;
-    --muted-foreground: 220 10% 46%;
+    --muted-foreground: 220 10% 40%;
 
     --accent: 262 60% 55%;
     --accent-foreground: 0 0% 100%;
@@ -75,7 +75,7 @@
     --secondary: 220 20% 16%;
     --secondary-foreground: 220 15% 92%;
     --muted: 220 20% 16%;
-    --muted-foreground: 220 10% 60%;
+    --muted-foreground: 220 10% 65%;
     --accent: 262 60% 60%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62% 30%;
@@ -104,6 +104,17 @@
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
+  }
+
+  /* Global focus-visible styles for keyboard accessibility */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Remove default focus outline, rely on focus-visible */
+  *:focus:not(:focus-visible) {
+    outline: none;
+    box-shadow: none;
   }
 }
 

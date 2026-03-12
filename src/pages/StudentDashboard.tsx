@@ -15,6 +15,7 @@ import AssessmentsView from "@/components/dashboard/AssessmentsView";
 import AIToolsSandbox from "@/components/dashboard/AIToolsSandbox";
 import ProjectsView from "@/components/dashboard/ProjectsView";
 import ModuleDetailView from "@/components/dashboard/ModuleDetailView";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState("modules");
@@ -80,9 +81,11 @@ const StudentDashboard = () => {
 
           <TabsContent value="modules">
             {selectedModuleId ? (
-              <ModuleDetailView moduleId={selectedModuleId} onBack={() => setSelectedModuleId(null)} />
+              <ErrorBoundary>
+                <ModuleDetailView moduleId={selectedModuleId} onBack={() => setSelectedModuleId(null)} />
+              </ErrorBoundary>
             ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {modules.map((mod, i) => {
                 const Icon = mod.icon;
                 const isCompleted = i < 2;
@@ -133,23 +136,23 @@ const StudentDashboard = () => {
           </TabsContent>
 
           <TabsContent value="videos">
-            <VideoLearning />
+            <ErrorBoundary><VideoLearning /></ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="playground">
-            <AIPlayground />
+            <ErrorBoundary><AIPlayground /></ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="tools">
-            <AIToolsSandbox />
+            <ErrorBoundary><AIToolsSandbox /></ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="assessments">
-            <AssessmentsView />
+            <ErrorBoundary><AssessmentsView /></ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="projects">
-            <ProjectsView />
+            <ErrorBoundary><ProjectsView /></ErrorBoundary>
           </TabsContent>
         </Tabs>
       </div>

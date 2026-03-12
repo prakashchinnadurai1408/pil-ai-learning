@@ -104,16 +104,16 @@ const ModuleDetailView = ({ moduleId, onBack }: ModuleDetailViewProps) => {
           <div className="p-4 border-b border-border">
             <h3 className="font-display font-semibold text-sm text-card-foreground">Lessons</h3>
           </div>
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-border max-h-[480px] overflow-y-auto">
             {content.lessons.map((lesson, i) => {
               const LIcon = typeIcons[lesson.type];
               const done = completedLessons.has(i);
               return (
                 <button
                   key={lesson.id}
-                  onClick={() => setActiveLessonIdx(i)}
+                  onClick={() => { setActiveLessonIdx(i); setShowQuiz(false); }}
                   className={`w-full p-3 text-left flex items-center gap-2.5 transition-colors hover:bg-muted/50 ${
-                    activeLessonIdx === i ? "bg-primary/5 border-l-2 border-l-primary" : ""
+                    !showQuiz && activeLessonIdx === i ? "bg-primary/5 border-l-2 border-l-primary" : ""
                   }`}
                 >
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
@@ -137,6 +137,33 @@ const ModuleDetailView = ({ moduleId, onBack }: ModuleDetailViewProps) => {
                 </button>
               );
             })}
+
+            {/* Module Quiz entry */}
+            <button
+              onClick={() => setShowQuiz(true)}
+              className={`w-full p-3 text-left flex items-center gap-2.5 transition-colors hover:bg-muted/50 ${
+                showQuiz ? "bg-primary/5 border-l-2 border-l-primary" : ""
+              }`}
+            >
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+                quizCompleted ? "bg-success/10" : "bg-warning/10"
+              }`}>
+                {quizCompleted ? (
+                  <CheckCircle className="h-3.5 w-3.5 text-success" />
+                ) : (
+                  <Trophy className="h-3 w-3 text-warning" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-card-foreground truncate">Module Quiz</p>
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <span>Assessment</span>
+                  <span>·</span>
+                  <Trophy className="h-2.5 w-2.5" />
+                  <span>Test your knowledge</span>
+                </div>
+              </div>
+            </button>
           </div>
         </div>
 

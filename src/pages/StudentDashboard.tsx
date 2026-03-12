@@ -80,9 +80,11 @@ const StudentDashboard = () => {
 
           <TabsContent value="modules">
             {selectedModuleId ? (
-              <ModuleDetailView moduleId={selectedModuleId} onBack={() => setSelectedModuleId(null)} />
+              <ErrorBoundary>
+                <ModuleDetailView moduleId={selectedModuleId} onBack={() => setSelectedModuleId(null)} />
+              </ErrorBoundary>
             ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {modules.map((mod, i) => {
                 const Icon = mod.icon;
                 const isCompleted = i < 2;

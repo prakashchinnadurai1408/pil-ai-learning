@@ -64,6 +64,8 @@ const VideoLearning = () => {
               <button
                 key={v.id}
                 onClick={() => { setSelectedVideo(v.id); setShowQuiz(false); setSubmitted(false); setAnswers({}); }}
+                aria-label={`Play video: ${v.title}`}
+                aria-current={selectedVideo === v.id ? "true" : undefined}
                 className={`w-full p-3.5 text-left flex items-center gap-3 hover:bg-muted/50 transition-colors ${
                   selectedVideo === v.id ? "bg-primary/5 border-l-2 border-l-primary" : ""
                 }`}

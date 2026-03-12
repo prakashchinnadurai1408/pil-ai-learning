@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -6,17 +6,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { modules } from "@/data/modules";
 import {
   BookOpen, MessageSquare, Video, FlaskConical, ClipboardCheck,
-  FolderKanban, BarChart3, LogOut, Play, CheckCircle, Lock
+  FolderKanban, LogOut, Play, CheckCircle, Lock
 } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
-import AIPlayground from "@/components/dashboard/AIPlayground";
-import VideoLearning from "@/components/dashboard/VideoLearning";
-import AssessmentsView from "@/components/dashboard/AssessmentsView";
-import AIToolsSandbox from "@/components/dashboard/AIToolsSandbox";
-import ProjectsView from "@/components/dashboard/ProjectsView";
-import ModuleDetailView from "@/components/dashboard/ModuleDetailView";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import NotificationsPanel from "@/components/dashboard/NotificationsPanel";
+import { ContentSkeleton } from "@/components/LoadingFallback";
+
+const AIPlayground = lazy(() => import("@/components/dashboard/AIPlayground"));
+const VideoLearning = lazy(() => import("@/components/dashboard/VideoLearning"));
+const AssessmentsView = lazy(() => import("@/components/dashboard/AssessmentsView"));
+const AIToolsSandbox = lazy(() => import("@/components/dashboard/AIToolsSandbox"));
+const ProjectsView = lazy(() => import("@/components/dashboard/ProjectsView"));
+const ModuleDetailView = lazy(() => import("@/components/dashboard/ModuleDetailView"));
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState("modules");
@@ -29,22 +31,22 @@ const StudentDashboard = () => {
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={pluginliveLogo} alt="PluginLive" className="h-7" />
+            <img src={pluginliveLogo} alt="PluginLive Logo" className="h-7" />
             <span className="font-display font-bold text-gradient-primary">AI LearnHub</span>
           </div>
           <div className="flex items-center gap-4">
             <NotificationsPanel studentId={null} />
             <span className="text-sm text-muted-foreground hidden sm:block">Welcome, Student</span>
             <Link to="/">
-              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
-                <LogOut className="h-4 w-4" /> Logout
+              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" aria-label="Logout">
+                <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Logout</span>
               </Button>
             </Link>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8">
+      <main className="container mx-auto px-6 py-8" role="main">
         {/* Progress Overview */}
         <div className="bg-card rounded-lg border border-border p-6 shadow-card mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
@@ -53,16 +55,16 @@ const StudentDashboard = () => {
               <p className="text-muted-foreground text-sm">Track your AI learning journey</p>
             </div>
             <div className="text-right">
-              <p className="text-3xl font-display font-bold text-primary">{overallProgress}%</p>
+              <p className="text-3xl font-display font-bold text-primary" aria-label={`Overall progress: ${overallProgress}%`}>{overallProgress}%</p>
               <p className="text-xs text-muted-foreground">Overall Progress</p>
             </div>
           </div>
-          <Progress value={overallProgress} className="h-2" />
+          <Progress value={overallProgress} className="h-2" aria-label={`Progress: ${overallProgress}%`} />
         </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-3 sm:grid-cols-6 mb-8 h-auto gap-1 bg-muted p-1">
+          <TabsList className="grid grid-cols-3 sm:grid-cols-6 mb-8 h-auto gap-1 bg-muted p-1" aria-label="Dashboard sections">
             {[
               { value: "modules", icon: BookOpen, label: "Modules" },
               { value: "videos", icon: Video, label: "Videos" },
@@ -73,8 +75,8 @@ const StudentDashboard = () => {
             ].map((tab) => {
               const Icon = tab.icon;
               return (
-                <TabsTrigger key={tab.value} value={tab.value} className="gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                  <Icon className="h-3.5 w-3.5" />
+                <TabsTrigger key={tab.value} value={tab.value} className="gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm" aria-label={tab.label}>
+                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                   <span className="hidden sm:inline">{tab.label}</span>
                 </TabsTrigger>
               );
@@ -84,10 +86,12 @@ const StudentDashboard = () => {
           <TabsContent value="modules">
             {selectedModuleId ? (
               <ErrorBoundary>
-                <ModuleDetailView moduleId={selectedModuleId} onBack={() => setSelectedModuleId(null)} />
+                <Suspense fallback={<ContentSkeleton />}>
+                  <ModuleDetailView moduleId={selectedModuleId} onBack={() => setSelectedModuleId(null)} />
+                </Suspense>
               </ErrorBoundary>
             ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" role="list" aria-label="Course modules">
               {modules.map((mod, i) => {
                 const Icon = mod.icon;
                 const isCompleted = i < 2;
@@ -98,16 +102,17 @@ const StudentDashboard = () => {
                 return (
                   <div
                     key={mod.id}
+                    role="listitem"
                     className={`relative bg-card rounded-lg border p-5 shadow-card transition-all hover:shadow-elevated ${
                       isLocked ? "opacity-60" : ""
                     } ${isActive ? "border-primary ring-1 ring-primary/20" : "border-border"}`}
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${mod.color} flex items-center justify-center`}>
-                        <Icon className="h-5 w-5 text-primary-foreground" />
+                        <Icon className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
                       </div>
-                      {isCompleted && <CheckCircle className="h-5 w-5 text-success" />}
-                      {isLocked && <Lock className="h-4 w-4 text-muted-foreground" />}
+                      {isCompleted && <CheckCircle className="h-5 w-5 text-success" aria-label="Completed" />}
+                      {isLocked && <Lock className="h-4 w-4 text-muted-foreground" aria-label="Locked" />}
                       {isActive && (
                         <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                           In Progress
@@ -116,7 +121,7 @@ const StudentDashboard = () => {
                     </div>
                     <h3 className="font-display font-semibold mb-1 text-card-foreground">{mod.title}</h3>
                     <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{mod.description}</p>
-                    <Progress value={progress} className="h-1.5 mb-2" />
+                    <Progress value={progress} className="h-1.5 mb-2" aria-label={`${mod.title} progress: ${progress}%`} />
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-muted-foreground">{progress}% complete</span>
                       {!isLocked && (
@@ -125,8 +130,9 @@ const StudentDashboard = () => {
                           variant="ghost"
                           className="h-7 text-xs gap-1 text-primary"
                           onClick={() => setSelectedModuleId(mod.id)}
+                          aria-label={`${isCompleted ? "Review" : "Continue"} ${mod.title}`}
                         >
-                          <Play className="h-3 w-3" /> {isCompleted ? "Review" : "Continue"}
+                          <Play className="h-3 w-3" aria-hidden="true" /> {isCompleted ? "Review" : "Continue"}
                         </Button>
                       )}
                     </div>
@@ -138,26 +144,46 @@ const StudentDashboard = () => {
           </TabsContent>
 
           <TabsContent value="videos">
-            <ErrorBoundary><VideoLearning /></ErrorBoundary>
+            <ErrorBoundary>
+              <Suspense fallback={<ContentSkeleton />}>
+                <VideoLearning />
+              </Suspense>
+            </ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="playground">
-            <ErrorBoundary><AIPlayground /></ErrorBoundary>
+            <ErrorBoundary>
+              <Suspense fallback={<ContentSkeleton />}>
+                <AIPlayground />
+              </Suspense>
+            </ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="tools">
-            <ErrorBoundary><AIToolsSandbox /></ErrorBoundary>
+            <ErrorBoundary>
+              <Suspense fallback={<ContentSkeleton />}>
+                <AIToolsSandbox />
+              </Suspense>
+            </ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="assessments">
-            <ErrorBoundary><AssessmentsView /></ErrorBoundary>
+            <ErrorBoundary>
+              <Suspense fallback={<ContentSkeleton />}>
+                <AssessmentsView />
+              </Suspense>
+            </ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="projects">
-            <ErrorBoundary><ProjectsView /></ErrorBoundary>
+            <ErrorBoundary>
+              <Suspense fallback={<ContentSkeleton />}>
+                <ProjectsView />
+              </Suspense>
+            </ErrorBoundary>
           </TabsContent>
         </Tabs>
-      </div>
+      </main>
     </div>
   );
 };

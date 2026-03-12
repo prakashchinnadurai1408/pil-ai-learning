@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FlaskConical, FileText, Code, Brain, HelpCircle, Loader2, Copy, CheckCircle } from "lucide-react";
+import { FlaskConical, FileText, Code, Brain, HelpCircle, Loader2, Copy, CheckCircle, AlertTriangle } from "lucide-react";
 import { streamChat } from "@/lib/streamChat";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
+import AIFeedback from "@/components/dashboard/AIFeedback";
 
 const tools = [
   {
@@ -73,7 +74,11 @@ const AIToolsSandbox = () => {
       });
     } catch (e) {
       setIsLoading(false);
-      toast.error(e instanceof Error ? e.message : "Failed to process request");
+      const msg = e instanceof Error && e.message.includes("Rate limit")
+        ? "Too many requests — please wait and try again."
+        : "AI service is temporarily unavailable. Please try again in a moment.";
+      setOutput(`⚠️ ${msg}`);
+      toast.error(msg, { duration: 3000 });
     }
   };
 
@@ -161,10 +166,17 @@ const AIToolsSandbox = () => {
               </Button>
             )}
           </div>
-          <div className="min-h-[250px] bg-muted/50 rounded-lg border border-border p-4 overflow-y-auto">
+          <div className="min-h-[250px] bg-muted/50 rounded-lg border border-border p-4 overflow-y-auto" role="region" aria-label="AI output" aria-live="polite">
             {output ? (
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                <ReactMarkdown>{output}</ReactMarkdown>
+              <div>
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown>{output}</ReactMarkdown>
+                </div>
+                {!output.startsWith("⚠️") && !isLoading && (
+                  <div className="mt-3 pt-3 border-t border-border">
+                    <AIFeedback messageIndex={0} />
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground italic">

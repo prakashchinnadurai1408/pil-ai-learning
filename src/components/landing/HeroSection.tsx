@@ -1,25 +1,13 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { ArrowRight, Play, Sparkles, X } from "lucide-react";
+import { ArrowRight, Play, Sparkles } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
+import FeatureTour from "./FeatureTour";
 
 const HeroSection = () => {
-  const [showDemo, setShowDemo] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  const handleWatchDemo = () => {
-    setShowDemo(true);
-  };
-
-  const handleCloseDemo = () => {
-    setShowDemo(false);
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0;
-    }
-  };
+  const [showTour, setShowTour] = useState(false);
 
   return (
     <>
@@ -86,7 +74,7 @@ const HeroSection = () => {
                 variant="outline"
                 size="lg"
                 className="w-full sm:w-auto gap-2 text-base border-destructive/40 hover:bg-destructive/10"
-                onClick={handleWatchDemo}
+                onClick={() => setShowTour(true)}
               >
                 <Play className="h-4 w-4 text-destructive" />
                 <span className="font-bold text-destructive">Watch Demo</span>
@@ -119,55 +107,9 @@ const HeroSection = () => {
         </div>
       </section>
 
-      {/* Demo Video Modal */}
+      {/* Feature Tour Modal */}
       <AnimatePresence>
-        {showDemo && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-foreground/80 backdrop-blur-sm p-4"
-            onClick={handleCloseDemo}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-4xl rounded-xl overflow-hidden shadow-elevated bg-card"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
-                <div className="flex items-center gap-2">
-                  <Play className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-display font-semibold text-card-foreground">
-                    AI LearnHub — Quick Demo
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleCloseDemo}
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-card-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="aspect-video bg-foreground/5">
-                <video
-                  ref={videoRef}
-                  src="/demo-video.mp4"
-                  autoPlay
-                  muted
-                  playsInline
-                  controls
-                  className="w-full h-full object-cover"
-                  onEnded={handleCloseDemo}
-                />
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
+        {showTour && <FeatureTour onClose={() => setShowTour(false)} />}
       </AnimatePresence>
     </>
   );

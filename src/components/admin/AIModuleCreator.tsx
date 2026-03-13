@@ -321,4 +321,28 @@ Return ONLY valid JSON in this exact format, no other text:
   );
 };
 
+      {/* Publish Confirmation Dialog */}
+      <AlertDialog open={publishConfirmId !== null} onOpenChange={(open) => !open && setPublishConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Confirm Publication
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Have you reviewed all AI-generated content in this module? Once published, students will be able to access this content immediately. Ensure all topics, descriptions, and video suggestions are accurate.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go Back & Review</AlertDialogCancel>
+            <AlertDialogAction onClick={() => publishConfirmId && handlePublishModule(publishConfirmId)}>
+              Yes, Publish Module
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
 export default AIModuleCreator;

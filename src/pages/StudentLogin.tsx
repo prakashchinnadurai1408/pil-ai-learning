@@ -32,8 +32,12 @@ const StudentLogin = () => {
   };
 
   const handleVerifyOTP = () => {
-    if (otp.length < 6) {
-      toast.error("Enter the complete 6-digit OTP");
+    if (otp.length < 4) {
+      toast.error("Enter the complete 4-digit OTP");
+      return;
+    }
+    if (otp !== "1234") {
+      toast.error("Invalid OTP. Please enter 1234");
       return;
     }
     toast.success("Welcome, " + form.name + "!");

@@ -116,7 +116,7 @@ const StudentLogin = () => {
                 <p className="text-sm text-muted-foreground">OTP sent to <span className="font-medium text-foreground">{form.mobile}</span></p>
               </div>
               <div className="flex justify-center">
-                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                <InputOTP maxLength={4} value={otp} onChange={setOtp}>
                   <InputOTPGroup>
                     {[0, 1, 2, 3, 4, 5].map((i) => (
                       <InputOTPSlot key={i} index={i} />

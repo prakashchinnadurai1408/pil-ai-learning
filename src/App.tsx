@@ -10,8 +10,10 @@ import { LoadingFallback } from "@/components/LoadingFallback";
 const Index = lazy(() => import("./pages/Index.tsx"));
 const StudentLogin = lazy(() => import("./pages/StudentLogin.tsx"));
 const TrainerLogin = lazy(() => import("./pages/TrainerLogin.tsx"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin.tsx"));
 const StudentDashboard = lazy(() => import("./pages/StudentDashboard.tsx"));
 const TrainerDashboard = lazy(() => import("./pages/TrainerDashboard.tsx"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 const queryClient = new QueryClient();

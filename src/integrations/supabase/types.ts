@@ -85,6 +85,47 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_section_content: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          module_id: number | null
+          section_type: string
+          sort_order: number
+          status: string
+          title: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          id?: string
+          module_id?: number | null
+          section_type: string
+          sort_order?: number
+          status?: string
+          title: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          module_id?: number | null
+          section_type?: string
+          sort_order?: number
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_section_content_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "admin_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       colleges: {
         Row: {
           created_at: string

@@ -20,7 +20,7 @@ export interface MCQQuestion {
 export const videoLessons: VideoLesson[] = [
   // Module 1: Introduction to AI
   { id: 1, title: "What is Artificial Intelligence?", moduleId: 1, module: "Introduction to AI", duration: "11:02", youtubeId: "ad79nYk2keg", completed: true },
-  { id: 2, title: "AI vs Machine Learning vs Deep Learning", moduleId: 1, module: "Introduction to AI", duration: "7:20", youtubeId: "9QaOlanLDZ0", completed: true },
+  { id: 2, title: "AI vs Machine Learning vs Deep Learning", moduleId: 1, module: "Introduction to AI", duration: "7:20", youtubeId: "RIKng6d6Fd8", completed: true },
   { id: 3, title: "How AI is Changing Education", moduleId: 1, module: "Introduction to AI", duration: "12:45", youtubeId: "hJP5GqnTrNo", completed: true },
   { id: 4, title: "AI in Daily Life — Real Examples", moduleId: 1, module: "Introduction to AI", duration: "9:30", youtubeId: "mJeNghZXtMo", completed: false },
   { id: 5, title: "History & Future of AI", moduleId: 1, module: "Introduction to AI", duration: "14:10", youtubeId: "a0_lo_GDcFw", completed: false },

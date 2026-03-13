@@ -88,6 +88,12 @@ const AdminDashboard = () => {
               <ContentManager />
             </Suspense>
           </TabsContent>
+
+          <TabsContent value="question-bank">
+            <Suspense fallback={<TabSkeleton />}>
+              <QuestionBankViewer />
+            </Suspense>
+          </TabsContent>
         </Tabs>
       </div>
     </div>

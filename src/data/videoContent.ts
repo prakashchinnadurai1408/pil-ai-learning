@@ -54,9 +54,9 @@ export const videoLessons: VideoLesson[] = [
 
   // Module 6: LLM Models & Providers
   { id: 25, title: "What are Large Language Models?", moduleId: 6, module: "LLM Models & Providers", duration: "14:50", youtubeId: "iR2O2GPbB0E", completed: false },
-  { id: 26, title: "Understanding Tokens & Context Windows", moduleId: 6, module: "LLM Models & Providers", duration: "11:30", youtubeId: "WyDABuVe_hQ", completed: false },
-  { id: 27, title: "OpenAI vs Anthropic vs Google Models", moduleId: 6, module: "LLM Models & Providers", duration: "18:40", youtubeId: "PYbml72y_Xk", completed: false },
-  { id: 28, title: "Open Source LLMs — Llama, Mistral & More", moduleId: 6, module: "LLM Models & Providers", duration: "15:20", youtubeId: "x-5OB7t_5rA", completed: false },
+  { id: 26, title: "Understanding Tokens & Context Windows", moduleId: 6, module: "LLM Models & Providers", duration: "11:30", youtubeId: "-QVoIxEpFkM", completed: false },
+  { id: 27, title: "OpenAI vs Anthropic vs Google Models", moduleId: 6, module: "LLM Models & Providers", duration: "9:58", youtubeId: "CumRswBv07I", completed: false },
+  { id: 28, title: "Open Source LLMs — Llama, Mistral & More", moduleId: 6, module: "LLM Models & Providers", duration: "15:20", youtubeId: "HzGJqs_y2Vc", completed: false },
 
   // Module 7: AI Workflow Automation
   { id: 29, title: "Introduction to AI Workflows", moduleId: 7, module: "AI Workflow Automation", duration: "13:15", youtubeId: "hG0k7tHoJJM", completed: false },

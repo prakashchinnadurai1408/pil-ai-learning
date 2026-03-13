@@ -5,6 +5,7 @@ import { videoLessons, mcqBank, moduleNames } from "@/data/videoContent";
 import { Play, CheckCircle, Clock, ChevronRight, Filter, BookOpen, Trophy, AlertTriangle, RefreshCw, Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
 
 interface AIQuizQuestion {
   question: string;

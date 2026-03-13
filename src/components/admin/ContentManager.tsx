@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Sparkles, Video, MessageSquare, FlaskConical, ClipboardCheck, FolderKanban,
-  Loader2, Trash2, Check, AlertTriangle, Eye
+  Loader2, Trash2, Check, AlertTriangle, Eye, Search, X
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,8 +41,24 @@ const ContentManager = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState<"publish" | "delete" | null>(null);
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterModuleId, setFilterModuleId] = useState<string>("all");
 
-  const draftItems = items.filter(i => i.status === "draft");
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      if (filterStatus !== "all" && item.status !== filterStatus) return false;
+      if (filterModuleId !== "all" && String(item.module_id) !== filterModuleId) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const contentStr = typeof item.content === "object" ? JSON.stringify(item.content) : "";
+        if (!item.title.toLowerCase().includes(q) && !contentStr.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }, [items, searchQuery, filterStatus, filterModuleId]);
+
+  const draftItems = filteredItems.filter(i => i.status === "draft");
   const allDraftsSelected = draftItems.length > 0 && draftItems.every(i => selectedIds.has(i.id));
 
   const toggleSelect = (id: string) => {
@@ -220,7 +236,7 @@ const ContentManager = () => {
 
   return (
     <div className="space-y-6">
-      <Tabs value={activeSection} onValueChange={(v) => { setActiveSection(v); setGeneratedContent(null); setTopic(""); setSelectedIds(new Set()); }}>
+      <Tabs value={activeSection} onValueChange={(v) => { setActiveSection(v); setGeneratedContent(null); setTopic(""); setSelectedIds(new Set()); setSearchQuery(""); setFilterStatus("all"); setFilterModuleId("all"); }}>
         <TabsList className="bg-muted p-1 mb-6">
           {SECTION_TYPES.map(s => {
             const Icon = s.icon;
@@ -298,9 +314,48 @@ const ContentManager = () => {
 
             {/* Existing Content */}
             <div>
+              {/* Search & Filters */}
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search content..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="pl-8 h-9 text-sm"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2">
+                      <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                    </button>
+                  )}
+                </div>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-[130px] h-9 text-sm">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterModuleId} onValueChange={setFilterModuleId}>
+                  <SelectTrigger className="w-[160px] h-9 text-sm">
+                    <SelectValue placeholder="Module" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Modules</SelectItem>
+                    {adminModules.map(m => (
+                      <SelectItem key={m.id} value={String(m.id)}>{m.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-display font-semibold text-card-foreground">
-                  {section.label} Content ({loading ? "..." : items.length})
+                  {section.label} Content ({loading ? "..." : filteredItems.length}{filteredItems.length !== items.length ? ` of ${items.length}` : ""})
                 </h3>
                 {draftItems.length > 0 && (
                   <div className="flex items-center gap-2">
@@ -328,13 +383,13 @@ const ContentManager = () => {
 
               {loading ? (
                 <div className="text-sm text-muted-foreground">Loading...</div>
-              ) : items.length === 0 ? (
+              ) : filteredItems.length === 0 ? (
                 <div className="text-sm text-muted-foreground bg-card border border-border rounded-lg p-8 text-center">
-                  No {section.label.toLowerCase()} content yet. Use the AI generator above.
+                  {items.length === 0 ? `No ${section.label.toLowerCase()} content yet. Use the AI generator above.` : "No content matches your filters."}
                 </div>
               ) : (
                 <div className="grid gap-3">
-                  {items.map(item => (
+                  {filteredItems.map(item => (
                     <div key={item.id} className="bg-card rounded-lg border border-border p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         {item.status === "draft" && (

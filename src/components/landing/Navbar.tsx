@@ -76,6 +76,11 @@ const Navbar = () => {
               About
             </a>
             <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
+              <Link to="/admin-login" onClick={closeMenu}>
+                <Button variant="ghost" size="sm" className="w-full gap-2 text-muted-foreground">
+                  <Shield className="h-4 w-4" /> Admin Login
+                </Button>
+              </Link>
               <Link to="/trainer-login" onClick={closeMenu}>
                 <Button variant="outline" size="sm" className="w-full gap-2">
                   <Users className="h-4 w-4" /> Trainer Login

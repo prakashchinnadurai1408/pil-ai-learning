@@ -35,6 +35,7 @@ const AIModuleCreator = () => {
   const [generatedTopics, setGeneratedTopics] = useState<GeneratedTopic[]>([]);
   const [editingTopic, setEditingTopic] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [publishConfirmId, setPublishConfirmId] = useState<number | null>(null);
 
   const handleGenerate = async () => {
     if (!moduleTitle.trim()) {

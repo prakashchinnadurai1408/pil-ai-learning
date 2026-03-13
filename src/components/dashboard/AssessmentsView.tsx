@@ -2,7 +2,8 @@ import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { mcqBank, moduleNames } from "@/data/videoContent";
-import { ClipboardCheck, Clock, Trophy, ArrowRight, Filter, CheckCircle, RotateCcw } from "lucide-react";
+import { ClipboardCheck, Clock, Trophy, ArrowRight, Filter, CheckCircle, RotateCcw, Sparkles } from "lucide-react";
+import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
 
 const AssessmentsView = () => {
   const [selectedModule, setSelectedModule] = useState<string | null>(null);

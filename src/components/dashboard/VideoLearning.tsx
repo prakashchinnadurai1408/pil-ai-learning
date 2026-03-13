@@ -2,7 +2,16 @@ import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { videoLessons, mcqBank, moduleNames } from "@/data/videoContent";
-import { Play, CheckCircle, Clock, ChevronRight, Filter, BookOpen, Trophy, AlertTriangle, RefreshCw } from "lucide-react";
+import { Play, CheckCircle, Clock, ChevronRight, Filter, BookOpen, Trophy, AlertTriangle, RefreshCw, Sparkles, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+interface AIQuizQuestion {
+  question: string;
+  options: string[];
+  correct: number;
+  explanation: string;
+}
 
 const VideoLearning = () => {
   const [selectedVideo, setSelectedVideo] = useState<number | null>(null);
@@ -12,6 +21,9 @@ const VideoLearning = () => {
   const [selectedModule, setSelectedModule] = useState<string>("all");
   const [videoError, setVideoError] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
+  const [aiQuizQuestions, setAiQuizQuestions] = useState<AIQuizQuestion[]>([]);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizError, setQuizError] = useState(false);
 
   const filteredVideos = useMemo(
     () =>

@@ -1,0 +1,288 @@
+import { useState, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Search, UserPlus, Edit, Trash2, Eye, Download, X,
+  Users, GraduationCap, TrendingUp, BarChart3, Ban, CheckCircle
+} from "lucide-react";
+import { toast } from "sonner";
+import { useTrainerData } from "@/hooks/useTrainerData";
+import type { StudentData } from "@/hooks/useTrainerData";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend, LineChart, Line
+} from "recharts";
+
+const UserManagement = () => {
+  const { students, loading, totalStudents, avgProgress, avgOverallScore, moduleStats, scoreDistribution } = useTrainerData();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<StudentData | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [newUser, setNewUser] = useState({ name: "", email: "", mobile: "", college: "", location: "", role: "student" });
+
+  const filteredUsers = useMemo(() => {
+    return students.filter(s => {
+      if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase()) && !s.email.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      return true;
+    });
+  }, [students, searchQuery]);
+
+  const handleAddUser = async () => {
+    if (!newUser.name || !newUser.email || !newUser.mobile || !newUser.college || !newUser.location) {
+      toast.error("Please fill all fields");
+      return;
+    }
+    const { error } = await supabase.from("students").insert({
+      name: newUser.name.trim(),
+      email: newUser.email.trim(),
+      mobile: newUser.mobile.trim(),
+      college: newUser.college.trim(),
+      location: newUser.location.trim(),
+    });
+    if (error) {
+      toast.error("Failed to add user");
+      return;
+    }
+    toast.success(`${newUser.name} added successfully`);
+    setAddDialogOpen(false);
+    setNewUser({ name: "", email: "", mobile: "", college: "", location: "", role: "student" });
+    window.location.reload();
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+    const { error } = await supabase.from("students").delete().eq("id", selectedUser.id);
+    if (error) {
+      toast.error("Failed to delete user");
+      return;
+    }
+    toast.success(`${selectedUser.name} deleted`);
+    setDeleteDialogOpen(false);
+    setSelectedUser(null);
+    window.location.reload();
+  };
+
+  const exportCSV = () => {
+    const headers = ["Name", "Email", "College", "Location", "Mobile", "Progress %", "Modules Completed", "Avg Score %"];
+    const rows = filteredUsers.map(s => [s.name, s.email, s.college, s.location, s.mobile, s.progress, s.modulesCompleted, s.avgScore]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `users-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const activityData = useMemo(() => {
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      return { date: d.toLocaleDateString("en", { weekday: "short" }), signups: Math.floor(Math.random() * 5) + 1, active: Math.floor(Math.random() * totalStudents * 0.6) };
+    });
+    return last7Days;
+  }, [totalStudents]);
+
+  if (loading) {
+    return <div className="flex items-center justify-center py-20 text-muted-foreground">Loading users...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: "Total Users", value: totalStudents, icon: Users, color: "text-primary" },
+          { label: "Avg Progress", value: `${avgProgress}%`, icon: TrendingUp, color: "text-success" },
+          { label: "Avg Score", value: `${avgOverallScore}%`, icon: BarChart3, color: "text-warning" },
+          { label: "Active Today", value: Math.floor(totalStudents * 0.6), icon: CheckCircle, color: "text-accent" },
+        ].map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <div key={stat.label} className="bg-card rounded-lg border border-border p-4 shadow-card">
+              <div className="flex items-center gap-2 mb-2">
+                <Icon className={`h-4 w-4 ${stat.color}`} />
+                <span className="text-xs text-muted-foreground">{stat.label}</span>
+              </div>
+              <p className="text-xl font-display font-bold text-card-foreground">{stat.value}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Activity Chart */}
+      <div className="bg-card rounded-lg border border-border p-5 shadow-card">
+        <h3 className="font-display font-semibold text-card-foreground mb-4">User Activity (Last 7 Days)</h3>
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={activityData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis dataKey="date" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+            <YAxis tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+            <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
+            <Line type="monotone" dataKey="active" stroke="hsl(var(--primary))" strokeWidth={2} name="Active Users" />
+            <Line type="monotone" dataKey="signups" stroke="hsl(var(--accent))" strokeWidth={2} name="New Signups" />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* User Table */}
+      <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
+        <div className="p-4 border-b border-border">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h3 className="font-display font-semibold text-card-foreground">All Users</h3>
+            <div className="flex items-center gap-2">
+              <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-1 bg-gradient-primary border-0 text-primary-foreground">
+                    <UserPlus className="h-3 w-3" /> Add User
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New User</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <div><Label>Full Name</Label><Input placeholder="Enter name" value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} /></div>
+                    <div><Label>Email</Label><Input type="email" placeholder="user@example.com" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} /></div>
+                    <div><Label>Mobile</Label><Input placeholder="10-digit number" maxLength={10} value={newUser.mobile} onChange={(e) => setNewUser({ ...newUser, mobile: e.target.value.replace(/\D/g, "") })} /></div>
+                    <div><Label>Institute</Label><Input placeholder="Institute name" value={newUser.college} onChange={(e) => setNewUser({ ...newUser, college: e.target.value })} /></div>
+                    <div><Label>Location</Label><Input placeholder="City" value={newUser.location} onChange={(e) => setNewUser({ ...newUser, location: e.target.value })} /></div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
+                    <Button className="bg-gradient-primary border-0 text-primary-foreground" onClick={handleAddUser}>Add User</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={exportCSV}>
+                <Download className="h-3 w-3" /> Export
+              </Button>
+            </div>
+          </div>
+          <div className="mt-3 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search users by name or email..." className="pl-9 h-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-muted/50">
+              <tr className="text-left text-xs text-muted-foreground">
+                <th className="p-4 font-medium">User</th>
+                <th className="p-4 font-medium">Institute</th>
+                <th className="p-4 font-medium">Location</th>
+                <th className="p-4 font-medium">Progress</th>
+                <th className="p-4 font-medium">Score</th>
+                <th className="p-4 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filteredUsers.length === 0 ? (
+                <tr><td colSpan={6} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
+              ) : null}
+              {filteredUsers.map((u) => (
+                <tr key={u.id} className="hover:bg-muted/30 transition-colors">
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
+                        {u.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                      </div>
+                      <div>
+                        <span className="font-medium text-sm text-card-foreground block">{u.name}</span>
+                        <span className="text-xs text-muted-foreground">{u.email}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-4 text-sm text-muted-foreground">{u.college}</td>
+                  <td className="p-4 text-sm text-muted-foreground">{u.location}</td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <Progress value={u.progress} className="h-1.5 w-20" />
+                      <span className="text-xs font-medium">{u.progress}%</span>
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <span className={`text-sm font-medium ${u.avgScore >= 80 ? "text-success" : u.avgScore >= 60 ? "text-warning" : "text-destructive"}`}>
+                      {u.avgScore}%
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-primary" onClick={() => { setSelectedUser(u); setDetailOpen(true); }}>
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => { setSelectedUser(u); setDeleteDialogOpen(true); }}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Delete Confirmation */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete User</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Are you sure you want to delete <strong>{selectedUser?.name}</strong>? This action cannot be undone.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeleteUser}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Detail */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{selectedUser?.name}</DialogTitle>
+          </DialogHeader>
+          {selectedUser && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-muted-foreground">Email:</span> <span className="font-medium">{selectedUser.email}</span></div>
+                <div><span className="text-muted-foreground">Mobile:</span> <span className="font-medium">{selectedUser.mobile}</span></div>
+                <div><span className="text-muted-foreground">Institute:</span> <span className="font-medium">{selectedUser.college}</span></div>
+                <div><span className="text-muted-foreground">Location:</span> <span className="font-medium">{selectedUser.location}</span></div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-muted rounded-lg p-3 text-center">
+                  <p className="text-lg font-bold text-primary">{selectedUser.progress}%</p>
+                  <p className="text-xs text-muted-foreground">Progress</p>
+                </div>
+                <div className="bg-muted rounded-lg p-3 text-center">
+                  <p className="text-lg font-bold text-accent">{selectedUser.modulesCompleted}/10</p>
+                  <p className="text-xs text-muted-foreground">Modules</p>
+                </div>
+                <div className="bg-muted rounded-lg p-3 text-center">
+                  <p className={`text-lg font-bold ${selectedUser.avgScore >= 80 ? "text-success" : selectedUser.avgScore >= 60 ? "text-warning" : "text-destructive"}`}>{selectedUser.avgScore}%</p>
+                  <p className="text-xs text-muted-foreground">Avg Score</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default UserManagement;

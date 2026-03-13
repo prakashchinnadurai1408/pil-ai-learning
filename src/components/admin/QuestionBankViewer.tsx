@@ -76,6 +76,37 @@ const QuestionBankViewer = () => {
     }
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const filteredIds = filtered.map((q) => q.id);
+    const allSelected = filteredIds.every((id) => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredIds));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    const { error } = await supabase.from("quiz_question_bank").delete().in("id", ids);
+    if (error) {
+      toast.error("Failed to delete questions");
+    } else {
+      setQuestions((prev) => prev.filter((q) => !selectedIds.has(q.id)));
+      toast.success(`${ids.length} question(s) deleted`);
+      setSelectedIds(new Set());
+    }
+    setShowBulkConfirm(false);
+  };
+
   const stats = useMemo(() => {
     const byModule = new Map<string, number>();
     questions.forEach((q) => {

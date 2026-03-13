@@ -318,9 +318,6 @@ Return ONLY valid JSON in this exact format, no other text:
           </div>
         )}
       </div>
-    </div>
-  );
-};
 
       {/* Publish Confirmation Dialog */}
       <AlertDialog open={publishConfirmId !== null} onOpenChange={(open) => !open && setPublishConfirmId(null)}>

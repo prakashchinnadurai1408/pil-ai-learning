@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
-import { GraduationCap, Users, Menu, X } from "lucide-react";
+import { GraduationCap, Users, Menu, X, Shield } from "lucide-react";
 
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);

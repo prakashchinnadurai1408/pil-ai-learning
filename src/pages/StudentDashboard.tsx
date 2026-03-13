@@ -26,6 +26,7 @@ const StudentDashboard = () => {
   const [selectedModuleId, setSelectedModuleId] = useState<number | null>(null);
   const { adminModules } = useAdminModules();
   const publishedAdminModules = adminModules.filter(m => m.status === "published");
+  const studentName = sessionStorage.getItem("studentName") || "Student";
   const overallProgress = 28;
 
   return (

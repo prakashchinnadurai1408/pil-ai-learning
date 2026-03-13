@@ -93,11 +93,12 @@ Return ONLY valid JSON in this exact format, no other text:
     setGeneratedTopics(prev => prev.map((t, i) => i === index ? { ...t, [field]: value } : t));
   };
 
-  const handleSaveModule = async (status: "draft" | "published" = "draft") => {
+  const handleSaveModule = async () => {
     if (generatedTopics.length === 0) {
       toast.error("Generate topics first");
       return;
     }
+    // AI-generated content always saves as draft for human review
     setSaving(true);
 
     const { data: mod, error: modError } = await supabase
@@ -105,7 +106,7 @@ Return ONLY valid JSON in this exact format, no other text:
       .insert({
         title: moduleTitle.trim(),
         description: moduleDescription.trim() || `Learn about ${moduleTitle}`,
-        status,
+        status: "draft",
       })
       .select()
       .single();

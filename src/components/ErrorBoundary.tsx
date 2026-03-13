@@ -27,6 +27,11 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   handleReset = () => {
+    // For stale chunk / dynamic import errors, a full reload is needed
+    if (this.state.error?.message?.includes("dynamically imported module")) {
+      window.location.reload();
+      return;
+    }
     this.setState({ hasError: false, error: null });
   };
 

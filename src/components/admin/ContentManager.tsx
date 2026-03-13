@@ -41,8 +41,24 @@ const ContentManager = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState<"publish" | "delete" | null>(null);
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterModuleId, setFilterModuleId] = useState<string>("all");
 
-  const draftItems = items.filter(i => i.status === "draft");
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      if (filterStatus !== "all" && item.status !== filterStatus) return false;
+      if (filterModuleId !== "all" && String(item.module_id) !== filterModuleId) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const contentStr = typeof item.content === "object" ? JSON.stringify(item.content) : "";
+        if (!item.title.toLowerCase().includes(q) && !contentStr.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }, [items, searchQuery, filterStatus, filterModuleId]);
+
+  const draftItems = filteredItems.filter(i => i.status === "draft");
   const allDraftsSelected = draftItems.length > 0 && draftItems.every(i => selectedIds.has(i.id));
 
   const toggleSelect = (id: string) => {

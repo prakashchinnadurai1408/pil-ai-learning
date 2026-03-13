@@ -289,7 +289,7 @@ const ContentManager = () => {
               )}
             </div>
           </TabsContent>
-        ))
+        ))}
       </Tabs>
 
       {/* Publish Confirmation */}

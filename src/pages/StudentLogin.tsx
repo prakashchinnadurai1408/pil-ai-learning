@@ -32,8 +32,12 @@ const StudentLogin = () => {
   };
 
   const handleVerifyOTP = () => {
-    if (otp.length < 6) {
-      toast.error("Enter the complete 6-digit OTP");
+    if (otp.length < 4) {
+      toast.error("Enter the complete 4-digit OTP");
+      return;
+    }
+    if (otp !== "1234") {
+      toast.error("Invalid OTP. Please enter 1234");
       return;
     }
     toast.success("Welcome, " + form.name + "!");
@@ -112,9 +116,9 @@ const StudentLogin = () => {
                 <p className="text-sm text-muted-foreground">OTP sent to <span className="font-medium text-foreground">{form.mobile}</span></p>
               </div>
               <div className="flex justify-center">
-                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                <InputOTP maxLength={4} value={otp} onChange={setOtp}>
                   <InputOTPGroup>
-                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                    {[0, 1, 2, 3].map((i) => (
                       <InputOTPSlot key={i} index={i} />
                     ))}
                   </InputOTPGroup>

@@ -15,6 +15,7 @@ interface AIQuizQuestion {
 }
 
 const VideoLearning = () => {
+  const { items: adminVideos } = usePublishedSectionContent("videos");
   const [selectedVideo, setSelectedVideo] = useState<number | null>(null);
   const [showQuiz, setShowQuiz] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});

@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { modules } from "@/data/modules";
+import { useAdminModules } from "@/hooks/useAdminModules";
 import {
   BookOpen, MessageSquare, Video, FlaskConical, ClipboardCheck,
-  FolderKanban, LogOut, Play, CheckCircle, Lock
+  FolderKanban, LogOut, Play, CheckCircle, Lock, Sparkles
 } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -23,6 +24,8 @@ const ModuleDetailView = lazy(() => import("@/components/dashboard/ModuleDetailV
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState("modules");
   const [selectedModuleId, setSelectedModuleId] = useState<number | null>(null);
+  const { adminModules } = useAdminModules();
+  const publishedAdminModules = adminModules.filter(m => m.status === "published");
   const overallProgress = 28;
 
   return (

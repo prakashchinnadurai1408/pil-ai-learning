@@ -56,6 +56,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="subscriptions" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <CreditCard className="h-4 w-4" /> Subscriptions
             </TabsTrigger>
+            <TabsTrigger value="content" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Layers className="h-4 w-4" /> Content
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
@@ -73,6 +76,12 @@ const AdminDashboard = () => {
           <TabsContent value="subscriptions">
             <Suspense fallback={<TabSkeleton />}>
               <SubscriptionManagement />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="content">
+            <Suspense fallback={<TabSkeleton />}>
+              <ContentManager />
             </Suspense>
           </TabsContent>
         </Tabs>

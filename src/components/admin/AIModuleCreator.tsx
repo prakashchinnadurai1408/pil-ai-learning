@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Plus, Trash2, GripVertical, Video, BookOpen, Loader2, Check, Edit, Save } from "lucide-react";
+import { Sparkles, Plus, Trash2, GripVertical, Video, Loader2, Check, Edit, Save } from "lucide-react";
 import { toast } from "sonner";
-import { modules } from "@/data/modules";
+import { supabase } from "@/integrations/supabase/client";
+import { useAdminModules } from "@/hooks/useAdminModules";
+import type { AdminModule } from "@/hooks/useAdminModules";
 import { streamChat } from "@/lib/streamChat";
 
 interface GeneratedTopic {
@@ -15,29 +17,14 @@ interface GeneratedTopic {
   suggestedVideos: string[];
 }
 
-interface ModuleItem {
-  id: number;
-  title: string;
-  description: string;
-  topics: GeneratedTopic[];
-  status: "draft" | "published";
-}
-
 const AIModuleCreator = () => {
+  const { adminModules, loading, refetch } = useAdminModules();
   const [moduleTitle, setModuleTitle] = useState("");
   const [moduleDescription, setModuleDescription] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generatedTopics, setGeneratedTopics] = useState<GeneratedTopic[]>([]);
-  const [createdModules, setCreatedModules] = useState<ModuleItem[]>(
-    modules.map(m => ({
-      id: m.id,
-      title: m.title,
-      description: m.description,
-      topics: m.topics.map(t => ({ title: t, description: "", suggestedVideos: [] })),
-      status: "published" as const,
-    }))
-  );
   const [editingTopic, setEditingTopic] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const handleGenerate = async () => {
     if (!moduleTitle.trim()) {
@@ -68,7 +55,6 @@ Return ONLY valid JSON in this exact format, no other text:
         },
         onDone: () => {
           try {
-            // Extract JSON from the response
             const jsonMatch = fullResponse.match(/\[[\s\S]*\]/);
             if (jsonMatch) {
               const parsed = JSON.parse(jsonMatch[0]) as GeneratedTopic[];
@@ -97,28 +83,75 @@ Return ONLY valid JSON in this exact format, no other text:
     setGeneratedTopics(prev => prev.map((t, i) => i === index ? { ...t, [field]: value } : t));
   };
 
-  const handleSaveModule = () => {
+  const handleSaveModule = async (status: "draft" | "published" = "draft") => {
     if (generatedTopics.length === 0) {
       toast.error("Generate topics first");
       return;
     }
-    const newModule: ModuleItem = {
-      id: createdModules.length + 1,
-      title: moduleTitle,
-      description: moduleDescription || `Learn about ${moduleTitle}`,
-      topics: generatedTopics,
-      status: "draft",
-    };
-    setCreatedModules(prev => [...prev, newModule]);
+    setSaving(true);
+
+    const { data: mod, error: modError } = await supabase
+      .from("admin_modules")
+      .insert({
+        title: moduleTitle.trim(),
+        description: moduleDescription.trim() || `Learn about ${moduleTitle}`,
+        status,
+      })
+      .select()
+      .single();
+
+    if (modError || !mod) {
+      toast.error("Failed to save module");
+      setSaving(false);
+      return;
+    }
+
+    const topicRows = generatedTopics.map((t, i) => ({
+      module_id: (mod as any).id,
+      title: t.title,
+      description: t.description,
+      suggested_videos: t.suggestedVideos,
+      sort_order: i,
+    }));
+
+    const { error: topicError } = await supabase.from("admin_module_topics").insert(topicRows);
+
+    if (topicError) {
+      toast.error("Module saved but topics failed to save");
+      setSaving(false);
+      return;
+    }
+
+    toast.success(`Module "${moduleTitle}" saved as ${status}!`);
     setModuleTitle("");
     setModuleDescription("");
     setGeneratedTopics([]);
-    toast.success(`Module "${newModule.title}" saved as draft!`);
+    setSaving(false);
+    refetch();
   };
 
-  const handlePublishModule = (id: number) => {
-    setCreatedModules(prev => prev.map(m => m.id === id ? { ...m, status: "published" } : m));
+  const handlePublishModule = async (id: number) => {
+    const { error } = await supabase
+      .from("admin_modules")
+      .update({ status: "published" })
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Failed to publish module");
+      return;
+    }
     toast.success("Module published!");
+    refetch();
+  };
+
+  const handleDeleteModule = async (id: number) => {
+    const { error } = await supabase.from("admin_modules").delete().eq("id", id);
+    if (error) {
+      toast.error("Failed to delete module");
+      return;
+    }
+    toast.success("Module deleted");
+    refetch();
   };
 
   return (
@@ -158,7 +191,6 @@ Return ONLY valid JSON in this exact format, no other text:
             {generating ? "Generating Topics..." : "Generate Topics with AI"}
           </Button>
 
-          {/* Generated Topics */}
           {generatedTopics.length > 0 && (
             <div className="space-y-3 mt-4">
               <div className="flex items-center justify-between">
@@ -207,9 +239,16 @@ Return ONLY valid JSON in this exact format, no other text:
                 </div>
               ))}
 
-              <Button className="w-full gap-2 bg-gradient-primary border-0 text-primary-foreground" onClick={handleSaveModule}>
-                <Save className="h-4 w-4" /> Save Module as Draft
-              </Button>
+              <div className="flex gap-2">
+                <Button className="flex-1 gap-2 bg-gradient-primary border-0 text-primary-foreground" onClick={() => handleSaveModule("draft")} disabled={saving}>
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save as Draft
+                </Button>
+                <Button className="flex-1 gap-2 bg-gradient-accent border-0 text-accent-foreground" onClick={() => handleSaveModule("published")} disabled={saving}>
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  Save & Publish
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
@@ -217,34 +256,47 @@ Return ONLY valid JSON in this exact format, no other text:
 
       {/* Existing Modules */}
       <div>
-        <h3 className="font-display font-semibold text-card-foreground mb-4">All Modules ({createdModules.length})</h3>
-        <div className="grid gap-3">
-          {createdModules.map((m) => (
-            <div key={m.id} className="bg-card rounded-lg border border-border p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
-                  {m.id}
+        <h3 className="font-display font-semibold text-card-foreground mb-4">
+          All Modules ({loading ? "..." : adminModules.length})
+        </h3>
+        {loading ? (
+          <div className="text-sm text-muted-foreground">Loading modules...</div>
+        ) : adminModules.length === 0 ? (
+          <div className="text-sm text-muted-foreground bg-card border border-border rounded-lg p-8 text-center">
+            No modules created yet. Use the AI generator above to create your first module.
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {adminModules.map((m) => (
+              <div key={m.id} className="bg-card rounded-lg border border-border p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
+                    {m.id}
+                  </div>
+                  <div>
+                    <span className="font-medium text-sm text-card-foreground">{m.title}</span>
+                    <p className="text-xs text-muted-foreground">{m.topics.length} topics · {m.duration}</p>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-medium text-sm text-card-foreground">{m.title}</span>
-                  <p className="text-xs text-muted-foreground">{m.topics.length} topics</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                  m.status === "published" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
-                }`}>
-                  {m.status === "published" ? "Published" : "Draft"}
-                </span>
-                {m.status === "draft" && (
-                  <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => handlePublishModule(m.id)}>
-                    <Check className="h-3 w-3" /> Publish
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    m.status === "published" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+                  }`}>
+                    {m.status === "published" ? "Published" : "Draft"}
+                  </span>
+                  {m.status === "draft" && (
+                    <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => handlePublishModule(m.id)}>
+                      <Check className="h-3 w-3" /> Publish
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDeleteModule(m.id)}>
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
-                )}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

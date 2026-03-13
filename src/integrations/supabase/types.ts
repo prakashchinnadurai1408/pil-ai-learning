@@ -14,6 +14,77 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_module_topics: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          module_id: number
+          sort_order: number
+          suggested_videos: string[]
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          module_id: number
+          sort_order?: number
+          suggested_videos?: string[]
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          module_id?: number
+          sort_order?: number
+          suggested_videos?: string[]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_module_topics_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "admin_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_modules: {
+        Row: {
+          color: string
+          created_at: string
+          description: string
+          duration: string
+          icon_name: string
+          id: number
+          status: string
+          title: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          description?: string
+          duration?: string
+          icon_name?: string
+          id?: number
+          status?: string
+          title: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string
+          duration?: string
+          icon_name?: string
+          id?: number
+          status?: string
+          title?: string
+        }
+        Relationships: []
+      }
       colleges: {
         Row: {
           created_at: string

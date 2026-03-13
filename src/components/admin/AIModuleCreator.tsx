@@ -259,15 +259,15 @@ Return ONLY valid JSON in this exact format, no other text:
               ))}
 
               <div className="flex gap-2">
-                <Button className="flex-1 gap-2 bg-gradient-primary border-0 text-primary-foreground" onClick={() => handleSaveModule("draft")} disabled={saving}>
+                <Button className="flex-1 gap-2 bg-gradient-primary border-0 text-primary-foreground" onClick={() => handleSaveModule()} disabled={saving}>
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Save as Draft
-                </Button>
-                <Button className="flex-1 gap-2 bg-gradient-accent border-0 text-accent-foreground" onClick={() => handleSaveModule("published")} disabled={saving}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                  Save & Publish
+                  Save as Draft for Review
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
+                <AlertTriangle className="h-3 w-3 text-warning" />
+                AI-generated content must be reviewed before publishing to students.
+              </p>
             </div>
           )}
         </CardContent>

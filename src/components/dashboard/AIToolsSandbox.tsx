@@ -49,6 +49,7 @@ const tools = [
 ];
 
 const AIToolsSandbox = () => {
+  const { items: adminTools } = usePublishedSectionContent("tools");
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");

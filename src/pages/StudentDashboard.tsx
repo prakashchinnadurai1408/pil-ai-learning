@@ -26,6 +26,7 @@ const StudentDashboard = () => {
   const [selectedModuleId, setSelectedModuleId] = useState<number | null>(null);
   const { adminModules } = useAdminModules();
   const publishedAdminModules = adminModules.filter(m => m.status === "published");
+  const studentName = sessionStorage.getItem("studentName") || "Student";
   const overallProgress = 28;
 
   return (
@@ -39,7 +40,7 @@ const StudentDashboard = () => {
           </div>
           <div className="flex items-center gap-4">
             <NotificationsPanel studentId={null} />
-            <span className="text-sm text-muted-foreground hidden sm:block">Welcome, Student</span>
+            <span className="text-sm text-muted-foreground hidden sm:block">Welcome, {studentName}</span>
             <Link to="/">
               <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" aria-label="Logout">
                 <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Logout</span>

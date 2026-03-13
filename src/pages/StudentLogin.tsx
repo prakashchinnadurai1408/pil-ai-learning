@@ -40,6 +40,7 @@ const StudentLogin = () => {
       toast.error("Invalid OTP. Please enter 1234");
       return;
     }
+    sessionStorage.setItem("studentName", form.name);
     toast.success("Welcome, " + form.name + "!");
     navigate("/student-dashboard");
   };

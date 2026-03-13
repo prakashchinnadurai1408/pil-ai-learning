@@ -109,7 +109,7 @@ const HeroSection = () => {
 
       {/* Feature Tour Modal */}
       <AnimatePresence>
-        {showTour && <FeatureTour onClose={() => setShowTour(false)} />}
+        {showTour && <DemoVideoModal onClose={() => setShowTour(false)} />}
       </AnimatePresence>
     </>
   );

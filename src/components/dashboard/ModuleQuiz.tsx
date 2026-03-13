@@ -14,10 +14,18 @@ interface ModuleQuizProps {
 }
 
 const ModuleQuiz = ({ moduleId, moduleName, onComplete }: ModuleQuizProps) => {
-  const questions = useMemo(
-    () => mcqBank.filter((q) => q.moduleId === moduleId),
-    [moduleId]
-  );
+  const [retryKey, setRetryKey] = useState(0);
+
+  const questions = useMemo(() => {
+    const pool = mcqBank.filter((q) => q.moduleId === moduleId);
+    // Fisher-Yates shuffle for a unique order each attempt
+    const shuffled = [...pool];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }, [moduleId, retryKey]);
 
   const [currentQ, setCurrentQ] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -56,6 +64,7 @@ const ModuleQuiz = ({ moduleId, moduleName, onComplete }: ModuleQuizProps) => {
   };
 
   const handleRetry = () => {
+    setRetryKey((k) => k + 1); // triggers a fresh shuffle
     setCurrentQ(0);
     setSelectedAnswer(null);
     setIsAnswered(false);

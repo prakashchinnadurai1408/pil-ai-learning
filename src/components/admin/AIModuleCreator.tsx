@@ -133,7 +133,7 @@ Return ONLY valid JSON in this exact format, no other text:
       return;
     }
 
-    toast.success(`Module "${moduleTitle}" saved as ${status}!`);
+    toast.success(`Module "${moduleTitle}" saved as draft — review before publishing!`);
     setModuleTitle("");
     setModuleDescription("");
     setGeneratedTopics([]);

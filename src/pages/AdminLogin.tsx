@@ -19,8 +19,8 @@ const AdminLogin = () => {
       toast.error("Please fill all fields");
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      toast.error("Enter a valid email address");
+    if (form.email !== "Admin" || form.password !== "Admin@123") {
+      toast.error("Invalid admin credentials");
       return;
     }
     toast.success("OTP sent to your email");

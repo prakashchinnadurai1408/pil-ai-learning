@@ -6,6 +6,7 @@ import { ClipboardCheck, Clock, Trophy, ArrowRight, Filter, CheckCircle, RotateC
 import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
 
 const AssessmentsView = () => {
+  const { items: adminAssessments } = usePublishedSectionContent("assessments");
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);

@@ -59,10 +59,10 @@ export const videoLessons: VideoLesson[] = [
   { id: 28, title: "Open Source LLMs — Llama, Mistral & More", moduleId: 6, module: "LLM Models & Providers", duration: "15:20", youtubeId: "HzGJqs_y2Vc", completed: false },
 
   // Module 7: AI Workflow Automation
-  { id: 29, title: "Introduction to AI Workflows", moduleId: 7, module: "AI Workflow Automation", duration: "13:15", youtubeId: "hG0k7tHoJJM", completed: false },
-  { id: 30, title: "Automating Research with AI", moduleId: 7, module: "AI Workflow Automation", duration: "16:40", youtubeId: "7_qA3_VPkWI", completed: false },
-  { id: 31, title: "AI Content Creation Pipelines", moduleId: 7, module: "AI Workflow Automation", duration: "14:55", youtubeId: "rIEhtXRFPfk", completed: false },
-  { id: 32, title: "Study Automation Using AI", moduleId: 7, module: "AI Workflow Automation", duration: "11:30", youtubeId: "IHeUQsuVVAA", completed: false },
+  { id: 29, title: "Introduction to AI Workflows", moduleId: 7, module: "AI Workflow Automation", duration: "39:21", youtubeId: "rZRPElFzrqc", completed: false },
+  { id: 30, title: "Automating Research with AI", moduleId: 7, module: "AI Workflow Automation", duration: "20:51", youtubeId: "GuaKeDS6UKU", completed: false },
+  { id: 31, title: "AI Content Creation Pipelines", moduleId: 7, module: "AI Workflow Automation", duration: "14:19", youtubeId: "qK4FYqe80zI", completed: false },
+  { id: 32, title: "Study Automation Using AI", moduleId: 7, module: "AI Workflow Automation", duration: "11:10", youtubeId: "1IuvqU2skQk", completed: false },
 
   // Module 8: RAG
   { id: 33, title: "What is RAG? Complete Explanation", moduleId: 8, module: "RAG", duration: "17:20", youtubeId: "T-D1OfcDW1M", completed: false },

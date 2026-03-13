@@ -10,9 +10,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Sparkles, Video, MessageSquare, FlaskConical, ClipboardCheck, FolderKanban,
-  Loader2, Trash2, Check, AlertTriangle, Eye
+  Loader2, Trash2, Check, AlertTriangle, Eye, Search, X
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";

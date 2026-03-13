@@ -38,6 +38,58 @@ const ContentManager = () => {
   const [saving, setSaving] = useState(false);
   const [publishConfirmId, setPublishConfirmId] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<any | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<"publish" | "delete" | null>(null);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+
+  const draftItems = items.filter(i => i.status === "draft");
+  const allDraftsSelected = draftItems.length > 0 && draftItems.every(i => selectedIds.has(i.id));
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllDrafts = () => {
+    if (allDraftsSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(draftItems.map(i => i.id)));
+    }
+  };
+
+  const handleBulkPublish = async () => {
+    setBulkProcessing(true);
+    const ids = Array.from(selectedIds);
+    const { error } = await supabase
+      .from("admin_section_content")
+      .update({ status: "published" } as any)
+      .in("id", ids);
+    setBulkProcessing(false);
+    setBulkAction(null);
+    if (error) { toast.error("Bulk publish failed"); return; }
+    toast.success(`${ids.length} items published!`);
+    setSelectedIds(new Set());
+    refetch();
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkProcessing(true);
+    const ids = Array.from(selectedIds);
+    const { error } = await supabase
+      .from("admin_section_content")
+      .delete()
+      .in("id", ids);
+    setBulkProcessing(false);
+    setBulkAction(null);
+    if (error) { toast.error("Bulk delete failed"); return; }
+    toast.success(`${ids.length} items deleted!`);
+    setSelectedIds(new Set());
+    refetch();
+  };
 
   const moduleName = selectedModuleId
     ? adminModules.find(m => m.id === Number(selectedModuleId))?.title || `Module ${selectedModuleId}`

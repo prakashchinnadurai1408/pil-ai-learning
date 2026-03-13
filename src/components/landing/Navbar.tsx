@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
-import { GraduationCap, Users, Menu, X } from "lucide-react";
+import { GraduationCap, Users, Menu, X, Shield } from "lucide-react";
 
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -32,6 +32,12 @@ const Navbar = () => {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
+          <Link to="/admin-login">
+            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
+              <Shield className="h-4 w-4" />
+              <span className="hidden sm:inline">Admin</span>
+            </Button>
+          </Link>
           <Link to="/trainer-login">
             <Button variant="outline" size="sm" className="gap-2">
               <Users className="h-4 w-4" />
@@ -70,6 +76,11 @@ const Navbar = () => {
               About
             </a>
             <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
+              <Link to="/admin-login" onClick={closeMenu}>
+                <Button variant="ghost" size="sm" className="w-full gap-2 text-muted-foreground">
+                  <Shield className="h-4 w-4" /> Admin Login
+                </Button>
+              </Link>
               <Link to="/trainer-login" onClick={closeMenu}>
                 <Button variant="outline" size="sm" className="w-full gap-2">
                   <Users className="h-4 w-4" /> Trainer Login

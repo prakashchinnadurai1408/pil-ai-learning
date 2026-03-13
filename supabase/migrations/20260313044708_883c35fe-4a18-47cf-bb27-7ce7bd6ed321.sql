@@ -1,0 +1,2 @@
+CREATE POLICY "Anyone can delete students" ON public.students FOR DELETE TO public USING (true);
+CREATE POLICY "Anyone can update students" ON public.students FOR UPDATE TO public USING (true) WITH CHECK (true);

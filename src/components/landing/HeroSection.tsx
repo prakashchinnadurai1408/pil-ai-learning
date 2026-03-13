@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ArrowRight, Play, Sparkles } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
-import FeatureTour from "./FeatureTour";
+import DemoVideoModal from "./DemoVideoModal";
 
 const HeroSection = () => {
   const [showTour, setShowTour] = useState(false);

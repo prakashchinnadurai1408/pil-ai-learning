@@ -101,7 +101,6 @@ const StudentDashboard = () => {
                     const Icon = mod.icon;
                     const isCompleted = i < 2;
                     const isActive = i === 2;
-                    const isLocked = i > 3;
                     const progress = isCompleted ? 100 : isActive ? 45 : i === 3 ? 10 : 0;
 
                     return (
@@ -109,15 +108,14 @@ const StudentDashboard = () => {
                         key={mod.id}
                         role="listitem"
                         className={`relative bg-card rounded-lg border p-5 shadow-card transition-all hover:shadow-elevated ${
-                          isLocked ? "opacity-60" : ""
-                        } ${isActive ? "border-primary ring-1 ring-primary/20" : "border-border"}`}
+                          isActive ? "border-primary ring-1 ring-primary/20" : "border-border"
+                        }`}
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${mod.color} flex items-center justify-center`}>
                             <Icon className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
                           </div>
                           {isCompleted && <CheckCircle className="h-5 w-5 text-success" aria-label="Completed" />}
-                          {isLocked && <Lock className="h-4 w-4 text-muted-foreground" aria-label="Locked" />}
                           {isActive && (
                             <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                               In Progress
@@ -129,17 +127,15 @@ const StudentDashboard = () => {
                         <Progress value={progress} className="h-1.5 mb-2" aria-label={`${mod.title} progress: ${progress}%`} />
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-muted-foreground">{progress}% complete</span>
-                          {!isLocked && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 text-xs gap-1 text-primary"
-                              onClick={() => setSelectedModuleId(mod.id)}
-                              aria-label={`${isCompleted ? "Review" : "Continue"} ${mod.title}`}
-                            >
-                              <Play className="h-3 w-3" aria-hidden="true" /> {isCompleted ? "Review" : "Continue"}
-                            </Button>
-                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs gap-1 text-primary"
+                            onClick={() => setSelectedModuleId(mod.id)}
+                            aria-label={`${isCompleted ? "Review" : progress > 0 ? "Continue" : "Start"} ${mod.title}`}
+                          >
+                            <Play className="h-3 w-3" aria-hidden="true" /> {isCompleted ? "Review" : progress > 0 ? "Continue" : "Start"}
+                          </Button>
                         </div>
                       </div>
                     );

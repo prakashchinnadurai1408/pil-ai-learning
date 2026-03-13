@@ -9,6 +9,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Sparkles, Video, MessageSquare, FlaskConical, ClipboardCheck, FolderKanban,
   Loader2, Trash2, Check, AlertTriangle, Eye
@@ -37,6 +38,58 @@ const ContentManager = () => {
   const [saving, setSaving] = useState(false);
   const [publishConfirmId, setPublishConfirmId] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<any | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<"publish" | "delete" | null>(null);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+
+  const draftItems = items.filter(i => i.status === "draft");
+  const allDraftsSelected = draftItems.length > 0 && draftItems.every(i => selectedIds.has(i.id));
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllDrafts = () => {
+    if (allDraftsSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(draftItems.map(i => i.id)));
+    }
+  };
+
+  const handleBulkPublish = async () => {
+    setBulkProcessing(true);
+    const ids = Array.from(selectedIds);
+    const { error } = await supabase
+      .from("admin_section_content")
+      .update({ status: "published" } as any)
+      .in("id", ids);
+    setBulkProcessing(false);
+    setBulkAction(null);
+    if (error) { toast.error("Bulk publish failed"); return; }
+    toast.success(`${ids.length} items published!`);
+    setSelectedIds(new Set());
+    refetch();
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkProcessing(true);
+    const ids = Array.from(selectedIds);
+    const { error } = await supabase
+      .from("admin_section_content")
+      .delete()
+      .in("id", ids);
+    setBulkProcessing(false);
+    setBulkAction(null);
+    if (error) { toast.error("Bulk delete failed"); return; }
+    toast.success(`${ids.length} items deleted!`);
+    setSelectedIds(new Set());
+    refetch();
+  };
 
   const moduleName = selectedModuleId
     ? adminModules.find(m => m.id === Number(selectedModuleId))?.title || `Module ${selectedModuleId}`
@@ -167,7 +220,7 @@ const ContentManager = () => {
 
   return (
     <div className="space-y-6">
-      <Tabs value={activeSection} onValueChange={(v) => { setActiveSection(v); setGeneratedContent(null); setTopic(""); }}>
+      <Tabs value={activeSection} onValueChange={(v) => { setActiveSection(v); setGeneratedContent(null); setTopic(""); setSelectedIds(new Set()); }}>
         <TabsList className="bg-muted p-1 mb-6">
           {SECTION_TYPES.map(s => {
             const Icon = s.icon;
@@ -245,9 +298,34 @@ const ContentManager = () => {
 
             {/* Existing Content */}
             <div>
-              <h3 className="font-display font-semibold text-card-foreground mb-4">
-                {section.label} Content ({loading ? "..." : items.length})
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-display font-semibold text-card-foreground">
+                  {section.label} Content ({loading ? "..." : items.length})
+                </h3>
+                {draftItems.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" className="text-xs gap-1.5" onClick={toggleAllDrafts}>
+                      <Checkbox checked={allDraftsSelected} className="h-3.5 w-3.5" />
+                      {allDraftsSelected ? "Deselect all" : "Select all drafts"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {selectedIds.size > 0 && (
+                <div className="flex items-center gap-2 mb-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <span className="text-sm font-medium text-card-foreground">{selectedIds.size} selected</span>
+                  <div className="ml-auto flex gap-2">
+                    <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setBulkAction("publish")}>
+                      <Check className="h-3 w-3" /> Publish Selected
+                    </Button>
+                    <Button size="sm" variant="destructive" className="gap-1 text-xs" onClick={() => setBulkAction("delete")}>
+                      <Trash2 className="h-3 w-3" /> Delete Selected
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {loading ? (
                 <div className="text-sm text-muted-foreground">Loading...</div>
               ) : items.length === 0 ? (
@@ -259,6 +337,13 @@ const ContentManager = () => {
                   {items.map(item => (
                     <div key={item.id} className="bg-card rounded-lg border border-border p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {item.status === "draft" && (
+                          <Checkbox
+                            checked={selectedIds.has(item.id)}
+                            onCheckedChange={() => toggleSelect(item.id)}
+                            className="flex-shrink-0"
+                          />
+                        )}
                         <section.icon className="h-4 w-4 text-primary flex-shrink-0" />
                         <div className="min-w-0">
                           <span className="font-medium text-sm text-card-foreground block truncate">{item.title}</span>
@@ -308,6 +393,34 @@ const ContentManager = () => {
             <AlertDialogCancel>Go Back & Review</AlertDialogCancel>
             <AlertDialogAction onClick={() => publishConfirmId && handlePublish(publishConfirmId)}>
               Yes, Publish Content
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Action Confirmation */}
+      <AlertDialog open={bulkAction !== null} onOpenChange={(open) => !open && setBulkAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              {bulkAction === "publish" ? "Bulk Publish" : "Bulk Delete"} ({selectedIds.size} items)
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkAction === "publish"
+                ? "Have you reviewed all selected AI-generated content? Once published, students and trainers will see it immediately."
+                : "This will permanently delete the selected items. This action cannot be undone."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkProcessing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={bulkProcessing}
+              onClick={bulkAction === "publish" ? handleBulkPublish : handleBulkDelete}
+              className={bulkAction === "delete" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            >
+              {bulkProcessing && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              {bulkAction === "publish" ? "Publish All" : "Delete All"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

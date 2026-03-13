@@ -141,8 +141,47 @@ const StudentDashboard = () => {
                     </div>
                   </div>
                 );
-              })}
+            })}
             </div>
+
+            {/* Admin-created published modules */}
+            {publishedAdminModules.length > 0 && (
+              <>
+                <div className="flex items-center gap-2 mt-8 mb-4">
+                  <Sparkles className="h-4 w-4 text-accent" />
+                  <h3 className="font-display font-semibold text-card-foreground">Additional Modules</h3>
+                  <span className="text-xs text-muted-foreground">({publishedAdminModules.length} new)</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" role="list">
+                  {publishedAdminModules.map((mod) => (
+                    <div
+                      key={`admin-${mod.id}`}
+                      role="listitem"
+                      className="relative bg-card rounded-lg border border-accent/20 p-5 shadow-card transition-all hover:shadow-elevated"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-accent flex items-center justify-center">
+                          <BookOpen className="h-5 w-5 text-accent-foreground" />
+                        </div>
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent/10 text-accent">New</span>
+                      </div>
+                      <h3 className="font-display font-semibold mb-1 text-card-foreground">{mod.title}</h3>
+                      <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{mod.description}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <BookOpen className="h-3 w-3" /> {mod.topics.length} topics · {mod.duration}
+                      </div>
+                      <Progress value={0} className="h-1.5 mt-3 mb-2" />
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">0% complete</span>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-accent">
+                          <Play className="h-3 w-3" /> Start
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
             )}
           </TabsContent>
 

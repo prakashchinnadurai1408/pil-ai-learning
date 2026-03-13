@@ -77,10 +77,10 @@ export const videoLessons: VideoLesson[] = [
   { id: 40, title: "Building Custom AI Assistants", moduleId: 9, module: "Fine-Tuning AI", duration: "18:30", youtubeId: "VPBXuOEMNOA", completed: false },
 
   // Module 10: AI SaaS Development
-  { id: 41, title: "Building AI Products — Where to Start", moduleId: 10, module: "AI SaaS Development", duration: "16:20", youtubeId: "ky5ZB-mqZKM", completed: false },
-  { id: 42, title: "AI APIs — Integration Guide", moduleId: 10, module: "AI SaaS Development", duration: "19:40", youtubeId: "GizsSo-EevA", completed: false },
-  { id: 43, title: "AI Startup Opportunities for Students", moduleId: 10, module: "AI SaaS Development", duration: "14:30", youtubeId: "Lp7E973zozc", completed: false },
-  { id: 44, title: "Deploying Your First AI App", moduleId: 10, module: "AI SaaS Development", duration: "21:10", youtubeId: "vDHEHVKOoBI", completed: false },
+  { id: 41, title: "Building AI Products — Where to Start", moduleId: 10, module: "AI SaaS Development", duration: "29:27", youtubeId: "y6DSUCB_0uE", completed: false },
+  { id: 42, title: "AI APIs — Integration Guide", moduleId: 10, module: "AI SaaS Development", duration: "23:46", youtubeId: "czvVibB2lRA", completed: false },
+  { id: 43, title: "AI Startup Opportunities for Students", moduleId: 10, module: "AI SaaS Development", duration: "21:58", youtubeId: "fL_l8mxU148", completed: false },
+  { id: 44, title: "Deploying Your First AI App", moduleId: 10, module: "AI SaaS Development", duration: "43:12", youtubeId: "sO6NSSOWDO0", completed: false },
 ];
 
 export const mcqBank: MCQQuestion[] = [

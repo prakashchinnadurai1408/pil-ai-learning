@@ -6,10 +6,11 @@ import { streamChat } from "@/lib/streamChat";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import AIFeedback from "@/components/dashboard/AIFeedback";
+import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
 
 type Message = { role: "user" | "assistant"; content: string };
 
-const promptSuggestions = [
+const defaultSuggestions = [
   "Explain what is Retrieval Augmented Generation (RAG)",
   "Write a prompt to summarize a research paper",
   "Compare GPT-5, Claude and Gemini models",

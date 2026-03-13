@@ -33,7 +33,7 @@ export const videoLessons: VideoLesson[] = [
   { id: 10, title: "GitHub Copilot for Students", moduleId: 2, module: "AI Tools for Students", duration: "16:50", youtubeId: "Fi3AJZZregI", completed: false },
 
   // Module 3: Prompt Engineering
-  { id: 11, title: "What is Prompt Engineering?", moduleId: 3, module: "Prompt Engineering", duration: "13:25", youtubeId: "_ZvnD96BdKQ", completed: false },
+  { id: 11, title: "What is Prompt Engineering?", moduleId: 3, module: "Prompt Engineering", duration: "13:25", youtubeId: "_ZvnD73m40o", completed: false },
   { id: 12, title: "Types of Prompts Explained", moduleId: 3, module: "Prompt Engineering", duration: "11:40", youtubeId: "jC4v5AS4RIM", completed: false },
   { id: 13, title: "Zero-Shot vs Few-Shot Prompting", moduleId: 3, module: "Prompt Engineering", duration: "9:55", youtubeId: "ZZIALwDrlMY", completed: false },
   { id: 14, title: "Chain of Thought Prompting", moduleId: 3, module: "Prompt Engineering", duration: "14:30", youtubeId: "H4YK_7MAckk", completed: false },

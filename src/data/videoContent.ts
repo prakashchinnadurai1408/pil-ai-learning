@@ -73,8 +73,8 @@ export const videoLessons: VideoLesson[] = [
   // Module 9: Fine-Tuning AI
   { id: 37, title: "What is Fine-Tuning?", moduleId: 9, module: "Fine-Tuning AI", duration: "12:40", youtubeId: "kCc8FmEb1nY", completed: false },
   { id: 38, title: "Dataset Preparation for Fine-Tuning", moduleId: 9, module: "Fine-Tuning AI", duration: "15:50", youtubeId: "eC6Hd1hFvos", completed: false },
-  { id: 39, title: "Fine-Tuning GPT Models Tutorial", moduleId: 9, module: "Fine-Tuning AI", duration: "20:15", youtubeId: "pJ9Y0BO7Rr8", completed: false },
-  { id: 40, title: "Building Custom AI Assistants", moduleId: 9, module: "Fine-Tuning AI", duration: "18:30", youtubeId: "VPBXuOEMNOA", completed: false },
+  { id: 39, title: "Fine-Tuning GPT Models Tutorial", moduleId: 9, module: "Fine-Tuning AI", duration: "20:15", youtubeId: "jiYqbEDPw7A", completed: false },
+  { id: 40, title: "Building Custom AI Assistants", moduleId: 9, module: "Fine-Tuning AI", duration: "47:44", youtubeId: "4RAvJt3fWoI", completed: false },
 
   // Module 10: AI SaaS Development
   { id: 41, title: "Building AI Products — Where to Start", moduleId: 10, module: "AI SaaS Development", duration: "29:27", youtubeId: "y6DSUCB_0uE", completed: false },

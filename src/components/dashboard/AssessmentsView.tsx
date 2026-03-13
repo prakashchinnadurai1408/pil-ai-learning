@@ -100,7 +100,7 @@ const AssessmentsView = () => {
                   Score: {score}/{questions.length} ({Math.round((score / questions.length) * 100)}%)
                 </p>
               </div>
-              <Button variant="outline" size="sm" className="gap-1" onClick={() => { setAnswers({}); setSubmitted(false); }}>
+              <Button variant="outline" size="sm" className="gap-1" onClick={() => { setAnswers({}); setSubmitted(false); setShuffleKey((k) => k + 1); }}>
                 <RotateCcw className="h-3 w-3" /> Retry
               </Button>
             </>

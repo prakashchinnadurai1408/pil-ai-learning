@@ -41,10 +41,10 @@ export const videoLessons: VideoLesson[] = [
 
   // Module 4: Multimodal AI
   { id: 16, title: "What is Multimodal AI?", moduleId: 4, module: "Multimodal AI", duration: "10:30", youtubeId: "WkoytlA3MoQ", completed: false },
-  { id: 17, title: "AI Image Generation with DALL-E & Midjourney", moduleId: 4, module: "Multimodal AI", duration: "18:15", youtubeId: "E4lBorCJKkQ", completed: false },
+  { id: 17, title: "AI Image Generation with DALL-E & Midjourney", moduleId: 4, module: "Multimodal AI", duration: "2:41", youtubeId: "xoZG5WQbgMw", completed: false },
   { id: 18, title: "AI Video Creation Tools", moduleId: 4, module: "Multimodal AI", duration: "14:40", youtubeId: "HK6y8DAPN_0", completed: false },
-  { id: 19, title: "Voice AI and Text-to-Speech", moduleId: 4, module: "Multimodal AI", duration: "11:50", youtubeId: "TQTlCHxyuu8", completed: false },
-  { id: 20, title: "Avatar AI — Digital Humans", moduleId: 4, module: "Multimodal AI", duration: "13:20", youtubeId: "MVBDbwEWsWg", completed: false },
+  { id: 19, title: "Voice AI and Text-to-Speech", moduleId: 4, module: "Multimodal AI", duration: "13:44", youtubeId: "1h0X9aZ8Ww8", completed: false },
+  { id: 20, title: "Avatar AI — Digital Humans", moduleId: 4, module: "Multimodal AI", duration: "14:06", youtubeId: "3xNHjd43Umg", completed: false },
 
   // Module 5: AI Agents
   { id: 21, title: "What are AI Agents?", moduleId: 5, module: "AI Agents", duration: "15:10", youtubeId: "F8NKVhkZZWI", completed: false },

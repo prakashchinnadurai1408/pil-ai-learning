@@ -236,7 +236,7 @@ const ContentManager = () => {
 
   return (
     <div className="space-y-6">
-      <Tabs value={activeSection} onValueChange={(v) => { setActiveSection(v); setGeneratedContent(null); setTopic(""); setSelectedIds(new Set()); }}>
+      <Tabs value={activeSection} onValueChange={(v) => { setActiveSection(v); setGeneratedContent(null); setTopic(""); setSelectedIds(new Set()); setSearchQuery(""); setFilterStatus("all"); setFilterModuleId("all"); }}>
         <TabsList className="bg-muted p-1 mb-6">
           {SECTION_TYPES.map(s => {
             const Icon = s.icon;

@@ -116,6 +116,25 @@ const AIToolsSandbox = () => {
             );
           })}
         </div>
+        {adminTools.length > 0 && (
+          <div className="mt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="h-4 w-4 text-accent" />
+              <h4 className="font-display font-semibold text-foreground">Additional AI Exercises</h4>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {adminTools.map(item => (
+                <div key={item.id} className="bg-card rounded-lg border border-accent/20 p-4 shadow-card">
+                  <h5 className="font-medium text-sm text-card-foreground mb-1">{item.title}</h5>
+                  <p className="text-xs text-muted-foreground mb-2">{item.content?.description || ""}</p>
+                  {item.content?.toolType && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">{item.content.toolType}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }

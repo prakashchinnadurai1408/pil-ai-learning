@@ -162,6 +162,29 @@ const AssessmentsView = () => {
           </div>
         ))}
       </div>
+
+      {/* Admin-published assessments */}
+      {adminAssessments.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="h-4 w-4 text-accent" />
+            <h4 className="font-display font-semibold text-card-foreground">Additional Assessments</h4>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {adminAssessments.map(item => (
+              <div key={item.id} className="bg-card rounded-lg border border-accent/20 p-4 shadow-card">
+                <div className="flex items-center gap-2 mb-2">
+                  <ClipboardCheck className="h-4 w-4 text-accent" />
+                  <h5 className="font-medium text-sm text-card-foreground">{item.title}</h5>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {Array.isArray(item.content) ? `${item.content.length} questions` : "Assessment"}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

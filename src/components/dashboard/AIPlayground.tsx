@@ -23,6 +23,11 @@ const FALLBACK_ERROR = "I'm having trouble connecting right now. Please try agai
 const EMPTY_RESPONSE_MSG = "I wasn't able to generate a response for that. Could you try rephrasing your question?";
 
 const AIPlayground = () => {
+  const { items: adminChatItems } = usePublishedSectionContent("ai_chat");
+  const promptSuggestions = [
+    ...defaultSuggestions,
+    ...adminChatItems.map(item => item.content?.prompt).filter(Boolean),
+  ];
   const [messages, setMessages] = useState<Message[]>([
     { role: "assistant", content: "👋 Hi! I'm your **AI learning assistant** powered by real AI. Ask me anything about AI concepts, tools, or prompt engineering. Try the suggestions below to get started!" },
   ]);

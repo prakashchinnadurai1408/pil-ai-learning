@@ -9,6 +9,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Sparkles, Video, MessageSquare, FlaskConical, ClipboardCheck, FolderKanban,
   Loader2, Trash2, Check, AlertTriangle, Eye

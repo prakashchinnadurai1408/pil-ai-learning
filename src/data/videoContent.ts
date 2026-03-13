@@ -20,49 +20,49 @@ export interface MCQQuestion {
 export const videoLessons: VideoLesson[] = [
   // Module 1: Introduction to AI
   { id: 1, title: "What is Artificial Intelligence?", moduleId: 1, module: "Introduction to AI", duration: "11:02", youtubeId: "ad79nYk2keg", completed: true },
-  { id: 2, title: "AI vs Machine Learning vs Deep Learning", moduleId: 1, module: "Introduction to AI", duration: "7:20", youtubeId: "9QaOlanLDZ0", completed: true },
+  { id: 2, title: "AI vs Machine Learning vs Deep Learning", moduleId: 1, module: "Introduction to AI", duration: "7:20", youtubeId: "RIKng6d6Fd8", completed: true },
   { id: 3, title: "How AI is Changing Education", moduleId: 1, module: "Introduction to AI", duration: "12:45", youtubeId: "hJP5GqnTrNo", completed: true },
   { id: 4, title: "AI in Daily Life — Real Examples", moduleId: 1, module: "Introduction to AI", duration: "9:30", youtubeId: "mJeNghZXtMo", completed: false },
   { id: 5, title: "History & Future of AI", moduleId: 1, module: "Introduction to AI", duration: "14:10", youtubeId: "a0_lo_GDcFw", completed: false },
 
   // Module 2: AI Tools for Students
   { id: 6, title: "ChatGPT Tutorial for Beginners", moduleId: 2, module: "AI Tools for Students", duration: "18:30", youtubeId: "JTxsNm9IdYU", completed: false },
-  { id: 7, title: "Google Gemini Complete Guide", moduleId: 2, module: "AI Tools for Students", duration: "15:20", youtubeId: "beFnJpejGxg", completed: false },
-  { id: 8, title: "Claude AI — How to Use It", moduleId: 2, module: "AI Tools for Students", duration: "12:40", youtubeId: "jBfMYz0kTCo", completed: false },
-  { id: 9, title: "Perplexity AI for Research", moduleId: 2, module: "AI Tools for Students", duration: "10:15", youtubeId: "R0yVuwNUDGs", completed: false },
+  { id: 7, title: "Google Gemini Complete Guide", moduleId: 2, module: "AI Tools for Students", duration: "30:00", youtubeId: "ZpXnPLSxjhQ", completed: false },
+  { id: 8, title: "Claude AI — How to Use It", moduleId: 2, module: "AI Tools for Students", duration: "49:16", youtubeId: "rRrBbyv3ChM", completed: false },
+  { id: 9, title: "Perplexity AI for Research", moduleId: 2, module: "AI Tools for Students", duration: "13:18", youtubeId: "ISeZc6qKUSw", completed: false },
   { id: 10, title: "GitHub Copilot for Students", moduleId: 2, module: "AI Tools for Students", duration: "16:50", youtubeId: "Fi3AJZZregI", completed: false },
 
   // Module 3: Prompt Engineering
-  { id: 11, title: "What is Prompt Engineering?", moduleId: 3, module: "Prompt Engineering", duration: "13:25", youtubeId: "_ZvnD96BdKQ", completed: false },
+  { id: 11, title: "What is Prompt Engineering?", moduleId: 3, module: "Prompt Engineering", duration: "13:25", youtubeId: "_ZvnD73m40o", completed: false },
   { id: 12, title: "Types of Prompts Explained", moduleId: 3, module: "Prompt Engineering", duration: "11:40", youtubeId: "jC4v5AS4RIM", completed: false },
-  { id: 13, title: "Zero-Shot vs Few-Shot Prompting", moduleId: 3, module: "Prompt Engineering", duration: "9:55", youtubeId: "ZZIALwDrlMY", completed: false },
+  { id: 13, title: "Zero-Shot vs Few-Shot Prompting", moduleId: 3, module: "Prompt Engineering", duration: "9:55", youtubeId: "sZIV7em3JA8", completed: false },
   { id: 14, title: "Chain of Thought Prompting", moduleId: 3, module: "Prompt Engineering", duration: "14:30", youtubeId: "H4YK_7MAckk", completed: false },
   { id: 15, title: "Advanced Prompt Frameworks", moduleId: 3, module: "Prompt Engineering", duration: "17:20", youtubeId: "1c9iyoVIwDs", completed: false },
 
   // Module 4: Multimodal AI
   { id: 16, title: "What is Multimodal AI?", moduleId: 4, module: "Multimodal AI", duration: "10:30", youtubeId: "WkoytlA3MoQ", completed: false },
-  { id: 17, title: "AI Image Generation with DALL-E & Midjourney", moduleId: 4, module: "Multimodal AI", duration: "18:15", youtubeId: "E4lBorCJKkQ", completed: false },
+  { id: 17, title: "AI Image Generation with DALL-E & Midjourney", moduleId: 4, module: "Multimodal AI", duration: "2:41", youtubeId: "xoZG5WQbgMw", completed: false },
   { id: 18, title: "AI Video Creation Tools", moduleId: 4, module: "Multimodal AI", duration: "14:40", youtubeId: "HK6y8DAPN_0", completed: false },
-  { id: 19, title: "Voice AI and Text-to-Speech", moduleId: 4, module: "Multimodal AI", duration: "11:50", youtubeId: "TQTlCHxyuu8", completed: false },
-  { id: 20, title: "Avatar AI — Digital Humans", moduleId: 4, module: "Multimodal AI", duration: "13:20", youtubeId: "MVBDbwEWsWg", completed: false },
+  { id: 19, title: "Voice AI and Text-to-Speech", moduleId: 4, module: "Multimodal AI", duration: "13:44", youtubeId: "1h0X9aZ8Ww8", completed: false },
+  { id: 20, title: "Avatar AI — Digital Humans", moduleId: 4, module: "Multimodal AI", duration: "14:06", youtubeId: "3xNHjd43Umg", completed: false },
 
   // Module 5: AI Agents
   { id: 21, title: "What are AI Agents?", moduleId: 5, module: "AI Agents", duration: "15:10", youtubeId: "F8NKVhkZZWI", completed: false },
   { id: 22, title: "Building Your First AI Agent", moduleId: 5, module: "AI Agents", duration: "20:30", youtubeId: "sal78ACtGTc", completed: false },
-  { id: 23, title: "Multi-Agent Systems Explained", moduleId: 5, module: "AI Agents", duration: "16:45", youtubeId: "9ZkUm4JA0Ew", completed: false },
-  { id: 24, title: "AI Task Automation with Agents", moduleId: 5, module: "AI Agents", duration: "12:20", youtubeId: "AxsanMCRVhg", completed: false },
+  { id: 23, title: "Multi-Agent Systems Explained", moduleId: 5, module: "AI Agents", duration: "17:39", youtubeId: "Mi5wOpAgixw", completed: false },
+  { id: 24, title: "AI Task Automation with Agents", moduleId: 5, module: "AI Agents", duration: "20:10", youtubeId: "cXnPxN06boY", completed: false },
 
   // Module 6: LLM Models & Providers
   { id: 25, title: "What are Large Language Models?", moduleId: 6, module: "LLM Models & Providers", duration: "14:50", youtubeId: "iR2O2GPbB0E", completed: false },
-  { id: 26, title: "Understanding Tokens & Context Windows", moduleId: 6, module: "LLM Models & Providers", duration: "11:30", youtubeId: "WyDABuVe_hQ", completed: false },
-  { id: 27, title: "OpenAI vs Anthropic vs Google Models", moduleId: 6, module: "LLM Models & Providers", duration: "18:40", youtubeId: "PYbml72y_Xk", completed: false },
-  { id: 28, title: "Open Source LLMs — Llama, Mistral & More", moduleId: 6, module: "LLM Models & Providers", duration: "15:20", youtubeId: "x-5OB7t_5rA", completed: false },
+  { id: 26, title: "Understanding Tokens & Context Windows", moduleId: 6, module: "LLM Models & Providers", duration: "11:30", youtubeId: "-QVoIxEpFkM", completed: false },
+  { id: 27, title: "OpenAI vs Anthropic vs Google Models", moduleId: 6, module: "LLM Models & Providers", duration: "9:58", youtubeId: "CumRswBv07I", completed: false },
+  { id: 28, title: "Open Source LLMs — Llama, Mistral & More", moduleId: 6, module: "LLM Models & Providers", duration: "15:20", youtubeId: "HzGJqs_y2Vc", completed: false },
 
   // Module 7: AI Workflow Automation
-  { id: 29, title: "Introduction to AI Workflows", moduleId: 7, module: "AI Workflow Automation", duration: "13:15", youtubeId: "hG0k7tHoJJM", completed: false },
-  { id: 30, title: "Automating Research with AI", moduleId: 7, module: "AI Workflow Automation", duration: "16:40", youtubeId: "7_qA3_VPkWI", completed: false },
-  { id: 31, title: "AI Content Creation Pipelines", moduleId: 7, module: "AI Workflow Automation", duration: "14:55", youtubeId: "rIEhtXRFPfk", completed: false },
-  { id: 32, title: "Study Automation Using AI", moduleId: 7, module: "AI Workflow Automation", duration: "11:30", youtubeId: "IHeUQsuVVAA", completed: false },
+  { id: 29, title: "Introduction to AI Workflows", moduleId: 7, module: "AI Workflow Automation", duration: "39:21", youtubeId: "rZRPElFzrqc", completed: false },
+  { id: 30, title: "Automating Research with AI", moduleId: 7, module: "AI Workflow Automation", duration: "20:51", youtubeId: "GuaKeDS6UKU", completed: false },
+  { id: 31, title: "AI Content Creation Pipelines", moduleId: 7, module: "AI Workflow Automation", duration: "14:19", youtubeId: "qK4FYqe80zI", completed: false },
+  { id: 32, title: "Study Automation Using AI", moduleId: 7, module: "AI Workflow Automation", duration: "11:10", youtubeId: "1IuvqU2skQk", completed: false },
 
   // Module 8: RAG
   { id: 33, title: "What is RAG? Complete Explanation", moduleId: 8, module: "RAG", duration: "17:20", youtubeId: "T-D1OfcDW1M", completed: false },
@@ -73,8 +73,8 @@ export const videoLessons: VideoLesson[] = [
   // Module 9: Fine-Tuning AI
   { id: 37, title: "What is Fine-Tuning?", moduleId: 9, module: "Fine-Tuning AI", duration: "12:40", youtubeId: "kCc8FmEb1nY", completed: false },
   { id: 38, title: "Dataset Preparation for Fine-Tuning", moduleId: 9, module: "Fine-Tuning AI", duration: "15:50", youtubeId: "eC6Hd1hFvos", completed: false },
-  { id: 39, title: "Fine-Tuning GPT Models Tutorial", moduleId: 9, module: "Fine-Tuning AI", duration: "20:15", youtubeId: "pJ9Y0BO7Rr8", completed: false },
-  { id: 40, title: "Building Custom AI Assistants", moduleId: 9, module: "Fine-Tuning AI", duration: "18:30", youtubeId: "VPBXuOEMNOA", completed: false },
+  { id: 39, title: "Fine-Tuning GPT Models Tutorial", moduleId: 9, module: "Fine-Tuning AI", duration: "20:15", youtubeId: "jiYqbEDPw7A", completed: false },
+  { id: 40, title: "Building Custom AI Assistants", moduleId: 9, module: "Fine-Tuning AI", duration: "47:44", youtubeId: "4RAvJt3fWoI", completed: false },
 
   // Module 10: AI SaaS Development
   { id: 41, title: "Building AI Products — Where to Start", moduleId: 10, module: "AI SaaS Development", duration: "29:27", youtubeId: "y6DSUCB_0uE", completed: false },

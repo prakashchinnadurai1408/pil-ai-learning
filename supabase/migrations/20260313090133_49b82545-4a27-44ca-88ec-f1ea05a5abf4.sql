@@ -1,0 +1,1 @@
+CREATE POLICY "Anyone can delete quiz questions" ON public.quiz_question_bank FOR DELETE TO public USING (true);

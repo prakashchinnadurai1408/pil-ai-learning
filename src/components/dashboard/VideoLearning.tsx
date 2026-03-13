@@ -5,6 +5,7 @@ import { videoLessons, mcqBank, moduleNames } from "@/data/videoContent";
 import { Play, CheckCircle, Clock, ChevronRight, Filter, BookOpen, Trophy, AlertTriangle, RefreshCw, Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
 
 interface AIQuizQuestion {
   question: string;
@@ -14,6 +15,7 @@ interface AIQuizQuestion {
 }
 
 const VideoLearning = () => {
+  const { items: adminVideos } = usePublishedSectionContent("videos");
   const [selectedVideo, setSelectedVideo] = useState<number | null>(null);
   const [showQuiz, setShowQuiz] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -309,6 +311,29 @@ const VideoLearning = () => {
           )}
         </div>
       </div>
+
+      {/* Admin-published video content */}
+      {adminVideos.length > 0 && (
+        <div className="mt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="h-4 w-4 text-accent" />
+            <h3 className="font-display font-semibold text-card-foreground">Additional Video Resources</h3>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {adminVideos.map(item => (
+              <div key={item.id} className="bg-card rounded-lg border border-accent/20 p-4 shadow-card">
+                <h4 className="font-medium text-sm text-card-foreground mb-1">{item.title}</h4>
+                <p className="text-xs text-muted-foreground mb-2">{item.content?.description || ""}</p>
+                {item.content?.duration && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3 w-3" /> {item.content.duration}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -2,12 +2,13 @@ import { lazy, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, BookOpen, CreditCard, LogOut, Shield } from "lucide-react";
+import { Users, BookOpen, CreditCard, LogOut, Shield, Layers } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
 const UserManagement = lazy(() => import("@/components/admin/UserManagement"));
 const AIModuleCreator = lazy(() => import("@/components/admin/AIModuleCreator"));
 const SubscriptionManagement = lazy(() => import("@/components/admin/SubscriptionManagement"));
+const ContentManager = lazy(() => import("@/components/admin/ContentManager"));
 
 const TabSkeleton = () => (
   <div className="space-y-4 animate-pulse">
@@ -55,6 +56,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="subscriptions" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <CreditCard className="h-4 w-4" /> Subscriptions
             </TabsTrigger>
+            <TabsTrigger value="content" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Layers className="h-4 w-4" /> Content
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
@@ -72,6 +76,12 @@ const AdminDashboard = () => {
           <TabsContent value="subscriptions">
             <Suspense fallback={<TabSkeleton />}>
               <SubscriptionManagement />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="content">
+            <Suspense fallback={<TabSkeleton />}>
+              <ContentManager />
             </Suspense>
           </TabsContent>
         </Tabs>

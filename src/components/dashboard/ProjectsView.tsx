@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { FolderKanban, ExternalLink, Clock, Users, Star, ArrowRight, CheckCircle } from "lucide-react";
+import { FolderKanban, ExternalLink, Clock, Users, Star, ArrowRight, CheckCircle, Sparkles } from "lucide-react";
+import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
 
 interface Project {
   id: number;
@@ -126,6 +127,7 @@ const difficultyColor = {
 };
 
 const ProjectsView = () => {
+  const { items: adminProjects } = usePublishedSectionContent("projects");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
 
@@ -259,6 +261,43 @@ const ProjectsView = () => {
           </div>
         ))}
       </div>
+
+      {/* Admin-published projects */}
+      {adminProjects.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="h-4 w-4 text-accent" />
+            <h4 className="font-display font-semibold text-foreground">Additional Projects</h4>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {adminProjects.map(item => {
+              const c = item.content || {};
+              return (
+                <div key={item.id} className="bg-card rounded-lg border border-accent/20 p-5 shadow-card">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                      <FolderKanban className="h-5 w-5 text-accent" />
+                    </div>
+                    {c.difficulty && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        c.difficulty === "Beginner" ? "text-success bg-success/10" :
+                        c.difficulty === "Advanced" ? "text-destructive bg-destructive/10" :
+                        "text-warning bg-warning/10"
+                      }`}>{c.difficulty}</span>
+                    )}
+                  </div>
+                  <h4 className="font-display font-semibold text-card-foreground mb-1">{item.title}</h4>
+                  <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{c.description || ""}</p>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    {c.estimatedTime && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {c.estimatedTime}</span>}
+                    {c.steps && <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {c.steps.length} steps</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

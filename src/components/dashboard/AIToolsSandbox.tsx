@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FlaskConical, FileText, Code, Brain, HelpCircle, Loader2, Copy, CheckCircle, AlertTriangle } from "lucide-react";
+import { FlaskConical, FileText, Code, Brain, HelpCircle, Loader2, Copy, CheckCircle, AlertTriangle, Sparkles } from "lucide-react";
 import { streamChat } from "@/lib/streamChat";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import AIFeedback from "@/components/dashboard/AIFeedback";
+import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
 
 const tools = [
   {
@@ -48,6 +49,7 @@ const tools = [
 ];
 
 const AIToolsSandbox = () => {
+  const { items: adminTools } = usePublishedSectionContent("tools");
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
@@ -114,6 +116,25 @@ const AIToolsSandbox = () => {
             );
           })}
         </div>
+        {adminTools.length > 0 && (
+          <div className="mt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="h-4 w-4 text-accent" />
+              <h4 className="font-display font-semibold text-foreground">Additional AI Exercises</h4>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {adminTools.map(item => (
+                <div key={item.id} className="bg-card rounded-lg border border-accent/20 p-4 shadow-card">
+                  <h5 className="font-medium text-sm text-card-foreground mb-1">{item.title}</h5>
+                  <p className="text-xs text-muted-foreground mb-2">{item.content?.description || ""}</p>
+                  {item.content?.toolType && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">{item.content.toolType}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }

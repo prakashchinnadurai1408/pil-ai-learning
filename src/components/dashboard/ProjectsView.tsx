@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { FolderKanban, ExternalLink, Clock, Users, Star, ArrowRight, CheckCircle } from "lucide-react";
+import { FolderKanban, ExternalLink, Clock, Users, Star, ArrowRight, CheckCircle, Sparkles } from "lucide-react";
+import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
 
 interface Project {
   id: number;

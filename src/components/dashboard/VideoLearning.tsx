@@ -188,10 +188,11 @@ const VideoLearning = () => {
                       <p className="text-xs text-muted-foreground mt-1">{currentVideo.module} · {currentVideo.duration}</p>
                     </div>
                     <Button
-                      onClick={() => { setShowQuiz(true); setAnswers({}); setSubmitted(false); }}
+                      onClick={() => generateQuiz(currentVideo)}
+                      disabled={quizLoading}
                       className="bg-gradient-primary border-0 text-primary-foreground gap-2 flex-shrink-0"
                     >
-                      <Trophy className="h-4 w-4" /> Take Quiz ({currentQuizQuestions.length} Qs)
+                      <Sparkles className="h-4 w-4" /> {quizLoading ? "Generating..." : "Take AI Quiz"}
                     </Button>
                   </div>
                 </>

@@ -162,6 +162,42 @@ export type Database = {
         }
         Relationships: []
       }
+      quiz_question_bank: {
+        Row: {
+          correct: number
+          created_at: string
+          explanation: string
+          id: string
+          module_id: number
+          module_name: string
+          options: Json
+          question: string
+          source: string
+        }
+        Insert: {
+          correct: number
+          created_at?: string
+          explanation?: string
+          id?: string
+          module_id: number
+          module_name: string
+          options?: Json
+          question: string
+          source?: string
+        }
+        Update: {
+          correct?: number
+          created_at?: string
+          explanation?: string
+          id?: string
+          module_id?: number
+          module_name?: string
+          options?: Json
+          question?: string
+          source?: string
+        }
+        Relationships: []
+      }
       student_assessment_scores: {
         Row: {
           attempted_at: string

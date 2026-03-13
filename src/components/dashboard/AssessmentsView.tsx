@@ -8,11 +8,18 @@ const AssessmentsView = () => {
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [shuffleKey, setShuffleKey] = useState(0);
 
-  const questions = useMemo(
-    () => (selectedModule ? mcqBank.filter((q) => q.moduleId === Number(selectedModule)) : []),
-    [selectedModule]
-  );
+  const questions = useMemo(() => {
+    if (!selectedModule) return [];
+    const pool = mcqBank.filter((q) => q.moduleId === Number(selectedModule));
+    const shuffled = [...pool];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }, [selectedModule, shuffleKey]);
 
   const score = useMemo(
     () => questions.filter((q, i) => answers[i] === q.correct).length,
@@ -93,7 +100,7 @@ const AssessmentsView = () => {
                   Score: {score}/{questions.length} ({Math.round((score / questions.length) * 100)}%)
                 </p>
               </div>
-              <Button variant="outline" size="sm" className="gap-1" onClick={() => { setAnswers({}); setSubmitted(false); }}>
+              <Button variant="outline" size="sm" className="gap-1" onClick={() => { setAnswers({}); setSubmitted(false); setShuffleKey((k) => k + 1); }}>
                 <RotateCcw className="h-3 w-3" /> Retry
               </Button>
             </>

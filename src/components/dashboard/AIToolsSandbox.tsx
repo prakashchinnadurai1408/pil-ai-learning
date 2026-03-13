@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FlaskConical, FileText, Code, Brain, HelpCircle, Loader2, Copy, CheckCircle, AlertTriangle } from "lucide-react";
+import { FlaskConical, FileText, Code, Brain, HelpCircle, Loader2, Copy, CheckCircle, AlertTriangle, Sparkles } from "lucide-react";
 import { streamChat } from "@/lib/streamChat";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import AIFeedback from "@/components/dashboard/AIFeedback";
+import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
 
 const tools = [
   {

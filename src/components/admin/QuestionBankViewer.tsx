@@ -2,9 +2,11 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Database, Trash2, Filter, HelpCircle } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Search, Database, Trash2, Filter, HelpCircle, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 
 interface BankQuestion {
@@ -24,6 +26,8 @@ const QuestionBankViewer = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterModule, setFilterModule] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
 
   const fetchQuestions = async () => {
     setLoading(true);
@@ -70,6 +74,37 @@ const QuestionBankViewer = () => {
       setQuestions((prev) => prev.filter((q) => q.id !== id));
       toast.success("Question deleted");
     }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const filteredIds = filtered.map((q) => q.id);
+    const allSelected = filteredIds.every((id) => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredIds));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    const { error } = await supabase.from("quiz_question_bank").delete().in("id", ids);
+    if (error) {
+      toast.error("Failed to delete questions");
+    } else {
+      setQuestions((prev) => prev.filter((q) => !selectedIds.has(q.id)));
+      toast.success(`${ids.length} question(s) deleted`);
+      setSelectedIds(new Set());
+    }
+    setShowBulkConfirm(false);
   };
 
   const stats = useMemo(() => {
@@ -139,6 +174,25 @@ const QuestionBankViewer = () => {
         </Select>
       </div>
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
+          <CheckSquare className="h-4 w-4 text-destructive" />
+          <span className="text-sm font-medium text-card-foreground">{selectedIds.size} selected</span>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="gap-1.5 ml-auto"
+            onClick={() => setShowBulkConfirm(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Delete Selected
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+            Clear
+          </Button>
+        </div>
+      )}
+
       {/* Questions list */}
       {loading ? (
         <div className="space-y-3">
@@ -153,52 +207,86 @@ const QuestionBankViewer = () => {
           <p className="text-xs mt-1">AI-generated questions will appear here after students retake quizzes.</p>
         </div>
       ) : (
-        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-          {filtered.map((q) => (
-            <div key={q.id} className="bg-card rounded-lg border border-border p-4 shadow-card">
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <p className="font-medium text-sm text-card-foreground flex-1">{q.question}</p>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-destructive flex-shrink-0"
-                  onClick={() => handleDelete(q.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 gap-1.5 mb-2">
-                {q.options.map((opt, i) => (
-                  <span
-                    key={i}
-                    className={`text-xs px-2 py-1 rounded border ${
-                      i === q.correct
-                        ? "border-success/30 bg-success/10 text-success"
-                        : "border-border text-muted-foreground"
-                    }`}
+        <>
+          {/* Select all */}
+          <div className="flex items-center gap-2 px-1">
+            <Checkbox
+              checked={filtered.length > 0 && filtered.every((q) => selectedIds.has(q.id))}
+              onCheckedChange={toggleSelectAll}
+            />
+            <span className="text-xs text-muted-foreground">Select all ({filtered.length})</span>
+          </div>
+
+          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+            {filtered.map((q) => (
+              <div key={q.id} className={`bg-card rounded-lg border p-4 shadow-card transition-colors ${selectedIds.has(q.id) ? "border-destructive/40 bg-destructive/5" : "border-border"}`}>
+                <div className="flex items-start gap-3 mb-2">
+                  <Checkbox
+                    checked={selectedIds.has(q.id)}
+                    onCheckedChange={() => toggleSelect(q.id)}
+                    className="mt-0.5"
+                  />
+                  <p className="font-medium text-sm text-card-foreground flex-1">{q.question}</p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive flex-shrink-0"
+                    onClick={() => handleDelete(q.id)}
                   >
-                    {String.fromCharCode(65 + i)}. {opt}
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 mb-2 ml-7">
+                  {q.options.map((opt, i) => (
+                    <span
+                      key={i}
+                      className={`text-xs px-2 py-1 rounded border ${
+                        i === q.correct
+                          ? "border-success/30 bg-success/10 text-success"
+                          : "border-border text-muted-foreground"
+                      }`}
+                    >
+                      {String.fromCharCode(65 + i)}. {opt}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 flex-wrap ml-7">
+                  <Badge variant="secondary" className="text-xs">
+                    Module {q.module_id}: {q.module_name}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {q.source}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    {new Date(q.created_at).toLocaleDateString()}
                   </span>
-                ))}
+                </div>
+                {q.explanation && (
+                  <p className="text-xs text-muted-foreground mt-2 italic ml-7">💡 {q.explanation}</p>
+                )}
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="secondary" className="text-xs">
-                  Module {q.module_id}: {q.module_name}
-                </Badge>
-                <Badge variant="outline" className="text-xs">
-                  {q.source}
-                </Badge>
-                <span className="text-xs text-muted-foreground ml-auto">
-                  {new Date(q.created_at).toLocaleDateString()}
-                </span>
-              </div>
-              {q.explanation && (
-                <p className="text-xs text-muted-foreground mt-2 italic">💡 {q.explanation}</p>
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
+
+      {/* Bulk delete confirmation */}
+      <AlertDialog open={showBulkConfirm} onOpenChange={setShowBulkConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} question(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the selected questions from the question bank. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

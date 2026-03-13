@@ -4,7 +4,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Plus, Trash2, GripVertical, Video, Loader2, Check, Edit, Save } from "lucide-react";
+import { Sparkles, Plus, Trash2, GripVertical, Video, Loader2, Check, Edit, Save, AlertTriangle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminModules } from "@/hooks/useAdminModules";
@@ -25,6 +35,7 @@ const AIModuleCreator = () => {
   const [generatedTopics, setGeneratedTopics] = useState<GeneratedTopic[]>([]);
   const [editingTopic, setEditingTopic] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [publishConfirmId, setPublishConfirmId] = useState<number | null>(null);
 
   const handleGenerate = async () => {
     if (!moduleTitle.trim()) {
@@ -83,11 +94,12 @@ Return ONLY valid JSON in this exact format, no other text:
     setGeneratedTopics(prev => prev.map((t, i) => i === index ? { ...t, [field]: value } : t));
   };
 
-  const handleSaveModule = async (status: "draft" | "published" = "draft") => {
+  const handleSaveModule = async () => {
     if (generatedTopics.length === 0) {
       toast.error("Generate topics first");
       return;
     }
+    // AI-generated content always saves as draft for human review
     setSaving(true);
 
     const { data: mod, error: modError } = await supabase
@@ -95,7 +107,7 @@ Return ONLY valid JSON in this exact format, no other text:
       .insert({
         title: moduleTitle.trim(),
         description: moduleDescription.trim() || `Learn about ${moduleTitle}`,
-        status,
+        status: "draft",
       })
       .select()
       .single();
@@ -122,7 +134,7 @@ Return ONLY valid JSON in this exact format, no other text:
       return;
     }
 
-    toast.success(`Module "${moduleTitle}" saved as ${status}!`);
+    toast.success(`Module "${moduleTitle}" saved as draft — review before publishing!`);
     setModuleTitle("");
     setModuleDescription("");
     setGeneratedTopics([]);
@@ -131,6 +143,13 @@ Return ONLY valid JSON in this exact format, no other text:
   };
 
   const handlePublishModule = async (id: number) => {
+    // CM-01: Block publishing empty courses
+    const mod = adminModules.find(m => m.id === id);
+    if (!mod || mod.topics.length === 0) {
+      toast.error("Cannot publish a module with no topics. Add content first.");
+      return;
+    }
+
     const { error } = await supabase
       .from("admin_modules")
       .update({ status: "published" })
@@ -140,7 +159,8 @@ Return ONLY valid JSON in this exact format, no other text:
       toast.error("Failed to publish module");
       return;
     }
-    toast.success("Module published!");
+    toast.success("Module published after review!");
+    setPublishConfirmId(null);
     refetch();
   };
 
@@ -240,15 +260,15 @@ Return ONLY valid JSON in this exact format, no other text:
               ))}
 
               <div className="flex gap-2">
-                <Button className="flex-1 gap-2 bg-gradient-primary border-0 text-primary-foreground" onClick={() => handleSaveModule("draft")} disabled={saving}>
+                <Button className="flex-1 gap-2 bg-gradient-primary border-0 text-primary-foreground" onClick={() => handleSaveModule()} disabled={saving}>
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Save as Draft
-                </Button>
-                <Button className="flex-1 gap-2 bg-gradient-accent border-0 text-accent-foreground" onClick={() => handleSaveModule("published")} disabled={saving}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                  Save & Publish
+                  Save as Draft for Review
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
+                <AlertTriangle className="h-3 w-3 text-warning" />
+                AI-generated content must be reviewed before publishing to students.
+              </p>
             </div>
           )}
         </CardContent>
@@ -285,8 +305,8 @@ Return ONLY valid JSON in this exact format, no other text:
                     {m.status === "published" ? "Published" : "Draft"}
                   </span>
                   {m.status === "draft" && (
-                    <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => handlePublishModule(m.id)}>
-                      <Check className="h-3 w-3" /> Publish
+                    <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setPublishConfirmId(m.id)}>
+                      <Check className="h-3 w-3" /> Review & Publish
                     </Button>
                   )}
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDeleteModule(m.id)}>
@@ -298,6 +318,27 @@ Return ONLY valid JSON in this exact format, no other text:
           </div>
         )}
       </div>
+
+      {/* Publish Confirmation Dialog */}
+      <AlertDialog open={publishConfirmId !== null} onOpenChange={(open) => !open && setPublishConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Confirm Publication
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Have you reviewed all AI-generated content in this module? Once published, students will be able to access this content immediately. Ensure all topics, descriptions, and video suggestions are accurate.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go Back & Review</AlertDialogCancel>
+            <AlertDialogAction onClick={() => publishConfirmId && handlePublishModule(publishConfirmId)}>
+              Yes, Publish Module
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -27,9 +27,9 @@ export const videoLessons: VideoLesson[] = [
 
   // Module 2: AI Tools for Students
   { id: 6, title: "ChatGPT Tutorial for Beginners", moduleId: 2, module: "AI Tools for Students", duration: "18:30", youtubeId: "JTxsNm9IdYU", completed: false },
-  { id: 7, title: "Google Gemini Complete Guide", moduleId: 2, module: "AI Tools for Students", duration: "15:20", youtubeId: "beFnJpejGxg", completed: false },
-  { id: 8, title: "Claude AI — How to Use It", moduleId: 2, module: "AI Tools for Students", duration: "12:40", youtubeId: "jBfMYz0kTCo", completed: false },
-  { id: 9, title: "Perplexity AI for Research", moduleId: 2, module: "AI Tools for Students", duration: "10:15", youtubeId: "R0yVuwNUDGs", completed: false },
+  { id: 7, title: "Google Gemini Complete Guide", moduleId: 2, module: "AI Tools for Students", duration: "30:00", youtubeId: "ZpXnPLSxjhQ", completed: false },
+  { id: 8, title: "Claude AI — How to Use It", moduleId: 2, module: "AI Tools for Students", duration: "49:16", youtubeId: "rRrBbyv3ChM", completed: false },
+  { id: 9, title: "Perplexity AI for Research", moduleId: 2, module: "AI Tools for Students", duration: "13:18", youtubeId: "ISeZc6qKUSw", completed: false },
   { id: 10, title: "GitHub Copilot for Students", moduleId: 2, module: "AI Tools for Students", duration: "16:50", youtubeId: "Fi3AJZZregI", completed: false },
 
   // Module 3: Prompt Engineering

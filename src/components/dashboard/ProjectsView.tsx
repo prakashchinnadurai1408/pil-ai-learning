@@ -127,6 +127,7 @@ const difficultyColor = {
 };
 
 const ProjectsView = () => {
+  const { items: adminProjects } = usePublishedSectionContent("projects");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
 

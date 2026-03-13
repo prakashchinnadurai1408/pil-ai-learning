@@ -32,6 +32,12 @@ const Navbar = () => {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
+          <Link to="/admin-login">
+            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
+              <Shield className="h-4 w-4" />
+              <span className="hidden sm:inline">Admin</span>
+            </Button>
+          </Link>
           <Link to="/trainer-login">
             <Button variant="outline" size="sm" className="gap-2">
               <Users className="h-4 w-4" />

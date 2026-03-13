@@ -64,6 +64,7 @@ const ModuleQuiz = ({ moduleId, moduleName, onComplete }: ModuleQuizProps) => {
   };
 
   const handleRetry = () => {
+    setRetryKey((k) => k + 1); // triggers a fresh shuffle
     setCurrentQ(0);
     setSelectedAnswer(null);
     setIsAnswered(false);

@@ -19,8 +19,8 @@ const AdminLogin = () => {
       toast.error("Please fill all fields");
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      toast.error("Enter a valid email address");
+    if (form.email !== "Admin" || form.password !== "Admin@123") {
+      toast.error("Invalid admin credentials");
       return;
     }
     toast.success("OTP sent to your email");
@@ -73,10 +73,10 @@ const AdminLogin = () => {
           {step === "form" ? (
             <div className="space-y-4">
               <div>
-                <Label htmlFor="admin-email">Email Address</Label>
+                <Label htmlFor="admin-email">User ID</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="admin-email" type="email" placeholder="admin@pluginlive.com" className="pl-10" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                  <Input id="admin-email" type="text" placeholder="Enter admin user ID" className="pl-10" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
                 </div>
               </div>
               <div>

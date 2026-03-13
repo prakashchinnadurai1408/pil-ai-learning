@@ -383,13 +383,13 @@ const ContentManager = () => {
 
               {loading ? (
                 <div className="text-sm text-muted-foreground">Loading...</div>
-              ) : items.length === 0 ? (
+              ) : filteredItems.length === 0 ? (
                 <div className="text-sm text-muted-foreground bg-card border border-border rounded-lg p-8 text-center">
-                  No {section.label.toLowerCase()} content yet. Use the AI generator above.
+                  {items.length === 0 ? `No ${section.label.toLowerCase()} content yet. Use the AI generator above.` : "No content matches your filters."}
                 </div>
               ) : (
                 <div className="grid gap-3">
-                  {items.map(item => (
+                  {filteredItems.map(item => (
                     <div key={item.id} className="bg-card rounded-lg border border-border p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         {item.status === "draft" && (

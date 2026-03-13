@@ -304,8 +304,8 @@ Return ONLY valid JSON in this exact format, no other text:
                     {m.status === "published" ? "Published" : "Draft"}
                   </span>
                   {m.status === "draft" && (
-                    <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => handlePublishModule(m.id)}>
-                      <Check className="h-3 w-3" /> Publish
+                    <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setPublishConfirmId(m.id)}>
+                      <Check className="h-3 w-3" /> Review & Publish
                     </Button>
                   )}
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDeleteModule(m.id)}>

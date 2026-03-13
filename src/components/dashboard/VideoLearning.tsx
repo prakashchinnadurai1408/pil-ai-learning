@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { videoLessons, mcqBank, moduleNames } from "@/data/videoContent";
-import { Play, CheckCircle, Clock, ChevronRight, Filter, BookOpen, Trophy } from "lucide-react";
+import { Play, CheckCircle, Clock, ChevronRight, Filter, BookOpen, Trophy, AlertTriangle, RefreshCw } from "lucide-react";
 
 const VideoLearning = () => {
   const [selectedVideo, setSelectedVideo] = useState<number | null>(null);
@@ -10,6 +10,8 @@ const VideoLearning = () => {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
   const [selectedModule, setSelectedModule] = useState<string>("all");
+  const [videoError, setVideoError] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(false);
 
   const filteredVideos = useMemo(
     () =>
@@ -26,6 +28,29 @@ const VideoLearning = () => {
   );
 
   const completedCount = filteredVideos.filter((v) => v.completed).length;
+
+  const handleSelectVideo = useCallback((id: number) => {
+    setSelectedVideo(id);
+    setShowQuiz(false);
+    setSubmitted(false);
+    setAnswers({});
+    setVideoError(false);
+    setVideoLoading(true);
+  }, []);
+
+  const handleIframeLoad = useCallback(() => {
+    setVideoLoading(false);
+    setVideoError(false);
+  }, []);
+
+  const handleRetryVideo = useCallback(() => {
+    setVideoError(false);
+    setVideoLoading(true);
+    // Force re-mount by toggling selection
+    const current = selectedVideo;
+    setSelectedVideo(null);
+    setTimeout(() => setSelectedVideo(current), 50);
+  }, [selectedVideo]);
 
   return (
     <div className="space-y-4">
@@ -63,7 +88,7 @@ const VideoLearning = () => {
             {filteredVideos.map((v) => (
               <button
                 key={v.id}
-                onClick={() => { setSelectedVideo(v.id); setShowQuiz(false); setSubmitted(false); setAnswers({}); }}
+                onClick={() => handleSelectVideo(v.id)}
                 aria-label={`Play video: ${v.title}`}
                 aria-current={selectedVideo === v.id ? "true" : undefined}
                 className={`w-full p-3.5 text-left flex items-center gap-3 hover:bg-muted/50 transition-colors ${
@@ -95,15 +120,37 @@ const VideoLearning = () => {
             <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
               {!showQuiz ? (
                 <>
-                  {/* YouTube Embed */}
-                  <div className="aspect-video bg-foreground/5">
+                  {/* YouTube Embed — iOS Safari compatible */}
+                  <div className="aspect-video bg-foreground/5 relative">
+                    {videoError ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-muted/80 z-10">
+                        <AlertTriangle className="h-8 w-8 text-warning" />
+                        <p className="text-sm text-muted-foreground text-center px-4">
+                          Video failed to load. Check your connection and try again.
+                        </p>
+                        <Button variant="outline" size="sm" className="gap-2" onClick={handleRetryVideo}>
+                          <RefreshCw className="h-3.5 w-3.5" /> Retry
+                        </Button>
+                      </div>
+                    ) : videoLoading ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          <span className="text-xs text-muted-foreground">Loading video...</span>
+                        </div>
+                      </div>
+                    ) : null}
                     <iframe
-                      src={`https://www.youtube.com/embed/${currentVideo.youtubeId}?rel=0&playsinline=1`}
+                      key={currentVideo.id}
+                      src={`https://www.youtube.com/embed/${currentVideo.youtubeId}?rel=0&playsinline=1&modestbranding=1`}
                       title={currentVideo.title}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                       allowFullScreen
                       loading="lazy"
                       className="w-full h-full"
+                      style={{ WebkitOverflowScrolling: "touch" }}
+                      onLoad={handleIframeLoad}
+                      onError={() => { setVideoError(true); setVideoLoading(false); }}
                     />
                   </div>
                   <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

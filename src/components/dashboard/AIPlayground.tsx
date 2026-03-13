@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Bot, User, Sparkles, Lightbulb, AlertTriangle } from "lucide-react";
@@ -19,6 +19,7 @@ const promptSuggestions = [
 ];
 
 const FALLBACK_ERROR = "I'm having trouble connecting right now. Please try again in a moment. If the issue persists, check your internet connection.";
+const EMPTY_RESPONSE_MSG = "I wasn't able to generate a response for that. Could you try rephrasing your question?";
 
 const AIPlayground = () => {
   const [messages, setMessages] = useState<Message[]>([
@@ -32,11 +33,14 @@ const AIPlayground = () => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = async (text?: string) => {
+  const handleSend = useCallback(async (text?: string) => {
     const msg = text || input;
+
+    // AI-05: Block empty or whitespace-only messages
     if (!msg.trim() || isLoading) return;
 
-    const userMsg: Message = { role: "user", content: msg };
+    const userMsg: Message = { role: "user", content: msg.trim() };
+    // AI-03: Send full conversation history for context memory
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setInput("");
@@ -56,14 +60,28 @@ const AIPlayground = () => {
 
     try {
       await streamChat({
-        messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
+        // AI-03: Pass complete history (excluding the initial greeting) for context
+        messages: updatedMessages
+          .filter((_, i) => i > 0 || updatedMessages[0].role === "user") // skip greeting
+          .map(m => ({ role: m.role, content: m.content })),
         onDelta: (chunk) => upsertAssistant(chunk),
-        onDone: () => setIsLoading(false),
+        onDone: () => {
+          setIsLoading(false);
+          // AI-05: Handle empty AI response
+          if (!assistantSoFar.trim()) {
+            setMessages(prev => {
+              const last = prev[prev.length - 1];
+              if (last?.role === "assistant" && !last.content.trim()) {
+                return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: EMPTY_RESPONSE_MSG } : m));
+              }
+              return [...prev, { role: "assistant", content: EMPTY_RESPONSE_MSG }];
+            });
+          }
+        },
       });
     } catch (e) {
       console.error(e);
       setIsLoading(false);
-      // Show friendly fallback message instead of raw error
       const errorMessage = e instanceof Error && e.message.includes("Rate limit")
         ? "⏳ Too many requests — please wait a moment and try again."
         : e instanceof Error && e.message.includes("usage limit")
@@ -73,7 +91,7 @@ const AIPlayground = () => {
       setMessages(prev => [...prev, { role: "assistant", content: `⚠️ ${errorMessage}` }]);
       toast.error("AI service temporarily unavailable", { duration: 3000 });
     }
-  };
+  }, [input, isLoading, messages]);
 
   return (
     <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden" role="region" aria-label="AI Chat Playground">
@@ -83,7 +101,7 @@ const AIPlayground = () => {
         </div>
         <div>
           <h3 className="font-display font-semibold text-card-foreground">AI Chat Playground</h3>
-          <p className="text-xs text-muted-foreground">Practice prompt engineering with real AI</p>
+          <p className="text-xs text-muted-foreground">Practice prompt engineering with real AI — remembers your conversation</p>
         </div>
       </div>
 
@@ -107,7 +125,6 @@ const AIPlayground = () => {
                   <div className="prose prose-sm dark:prose-invert max-w-none">
                     <ReactMarkdown>{msg.content}</ReactMarkdown>
                   </div>
-                  {/* Feedback for non-initial, non-error assistant messages */}
                   {i > 0 && !msg.content.startsWith("⚠️") && (
                     <AIFeedback messageIndex={i} />
                   )}

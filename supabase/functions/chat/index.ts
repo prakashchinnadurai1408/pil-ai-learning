@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
@@ -10,10 +10,32 @@ serve(async (req) => {
 
   try {
     const { messages, tool } = await req.json();
+
+    // AI-05: Validate messages are non-empty
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return new Response(JSON.stringify({ error: "No messages provided" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Filter out empty messages
+    const validMessages = messages.filter(
+      (m: { content?: string }) => m.content && m.content.trim().length > 0
+    );
+
+    if (validMessages.length === 0) {
+      return new Response(JSON.stringify({ error: "All messages are empty" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    let systemPrompt = "You are an AI learning assistant for the PluginLive AI LearnHub platform. You help UG/PG students learn about AI concepts, prompt engineering, LLMs, RAG, AI agents, and more. Keep answers clear, educational, and practical. Use markdown formatting with headers, bullet points, and code blocks where appropriate.";
+    // AI-03: System prompt instructs model to use conversation context
+    let systemPrompt = "You are an AI learning assistant for the PluginLive AI LearnHub platform. You help UG/PG students learn about AI concepts, prompt engineering, LLMs, RAG, AI agents, and more. Keep answers clear, educational, and practical. Use markdown formatting with headers, bullet points, and code blocks where appropriate. IMPORTANT: You have access to the full conversation history. Always reference and build upon earlier messages when relevant. If the student asks a follow-up question, connect it to your prior answers.";
 
     if (tool === "summarize") {
       systemPrompt = "You are a text summarization expert. Summarize the given text concisely while preserving key points. Use bullet points for clarity.";
@@ -35,7 +57,7 @@ serve(async (req) => {
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          ...messages,
+          ...validMessages,
         ],
         stream: true,
       }),

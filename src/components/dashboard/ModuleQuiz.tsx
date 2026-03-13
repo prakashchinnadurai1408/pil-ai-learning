@@ -1,10 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { mcqBank } from "@/data/videoContent";
+import { useQuizQuestions } from "@/hooks/useQuizQuestions";
 import {
   Trophy, CheckCircle, XCircle, RotateCcw,
-  ArrowRight, Clock, Sparkles, Target, ChevronRight,
+  ArrowRight, Clock, Sparkles, Target, ChevronRight, Loader2,
 } from "lucide-react";
 
 interface ModuleQuizProps {
@@ -14,18 +14,7 @@ interface ModuleQuizProps {
 }
 
 const ModuleQuiz = ({ moduleId, moduleName, onComplete }: ModuleQuizProps) => {
-  const [retryKey, setRetryKey] = useState(0);
-
-  const questions = useMemo(() => {
-    const pool = mcqBank.filter((q) => q.moduleId === moduleId);
-    // Fisher-Yates shuffle for a unique order each attempt
-    const shuffled = [...pool];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  }, [moduleId, retryKey]);
+  const { questions, loading, loadQuestions, attemptCount } = useQuizQuestions(moduleId, moduleName);
 
   const [currentQ, setCurrentQ] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -39,6 +28,26 @@ const ModuleQuiz = ({ moduleId, moduleName, onComplete }: ModuleQuizProps) => {
   const totalQuestions = questions.length;
   const progressPercent = totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0;
 
+  const resetQuizState = () => {
+    setCurrentQ(0);
+    setSelectedAnswer(null);
+    setIsAnswered(false);
+    setCorrectCount(0);
+    setAnsweredCount(0);
+    setShowResults(false);
+  };
+
+  const handleStart = async () => {
+    resetQuizState();
+    await loadQuestions(false);
+    setStarted(true);
+  };
+
+  const handleRetry = async () => {
+    resetQuizState();
+    await loadQuestions(true);
+  };
+
   const handleSelect = (optionIndex: number) => {
     if (isAnswered) return;
     setSelectedAnswer(optionIndex);
@@ -47,8 +56,7 @@ const ModuleQuiz = ({ moduleId, moduleName, onComplete }: ModuleQuizProps) => {
   const handleConfirm = () => {
     if (selectedAnswer === null) return;
     setIsAnswered(true);
-    const isCorrect = selectedAnswer === question.correct;
-    if (isCorrect) setCorrectCount((c) => c + 1);
+    if (selectedAnswer === question.correct) setCorrectCount((c) => c + 1);
     setAnsweredCount((c) => c + 1);
   };
 
@@ -59,25 +67,18 @@ const ModuleQuiz = ({ moduleId, moduleName, onComplete }: ModuleQuizProps) => {
       setIsAnswered(false);
     } else {
       setShowResults(true);
-      onComplete?.(correctCount + (selectedAnswer === question.correct ? 0 : 0), totalQuestions);
+      onComplete?.(correctCount, totalQuestions);
     }
   };
 
-  const handleRetry = () => {
-    setRetryKey((k) => k + 1); // triggers a fresh shuffle
-    setCurrentQ(0);
-    setSelectedAnswer(null);
-    setIsAnswered(false);
-    setCorrectCount(0);
-    setAnsweredCount(0);
-    setShowResults(false);
-    setStarted(true);
-  };
-
-  if (totalQuestions === 0) {
+  // Loading state
+  if (loading) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">No quiz questions available for this module yet.</p>
+      <div className="flex flex-col items-center justify-center py-16 gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">
+          {attemptCount > 0 ? "Generating fresh AI questions..." : "Loading questions..."}
+        </p>
       </div>
     );
   }
@@ -94,24 +95,33 @@ const ModuleQuiz = ({ moduleId, moduleName, onComplete }: ModuleQuizProps) => {
             {moduleName} — Module Quiz
           </h3>
           <p className="text-sm text-muted-foreground">
-            Test your understanding of this module with {totalQuestions} questions. Answer each question to proceed to the next.
+            Test your understanding of this module. Each retake generates fresh AI questions for a unique challenge.
           </p>
         </div>
         <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <Target className="h-4 w-4 text-primary" /> {totalQuestions} Questions
+            <Target className="h-4 w-4 text-primary" /> ~10 Questions
           </span>
           <span className="flex items-center gap-1.5">
-            <Clock className="h-4 w-4 text-warning" /> ~{totalQuestions * 1.5} min
+            <Clock className="h-4 w-4 text-warning" /> ~15 min
           </span>
         </div>
         <Button
-          onClick={() => setStarted(true)}
+          onClick={handleStart}
           className="bg-gradient-primary border-0 text-primary-foreground gap-2 px-8"
           size="lg"
         >
           <Sparkles className="h-4 w-4" /> Start Quiz
         </Button>
+      </div>
+    );
+  }
+
+  // No questions available
+  if (totalQuestions === 0 && !loading) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">No quiz questions available for this module yet.</p>
       </div>
     );
   }
@@ -162,9 +172,12 @@ const ModuleQuiz = ({ moduleId, moduleName, onComplete }: ModuleQuizProps) => {
 
         <div className="flex items-center justify-center gap-3">
           <Button variant="outline" onClick={handleRetry} className="gap-2">
-            <RotateCcw className="h-4 w-4" /> Retry Quiz
+            <RotateCcw className="h-4 w-4" /> Retake with New Questions
           </Button>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Attempt #{attemptCount} · Retake generates fresh AI questions
+        </p>
       </div>
     );
   }

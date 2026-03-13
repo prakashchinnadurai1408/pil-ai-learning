@@ -60,6 +60,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="content" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <Layers className="h-4 w-4" /> Content
             </TabsTrigger>
+            <TabsTrigger value="question-bank" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Database className="h-4 w-4" /> Question Bank
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">

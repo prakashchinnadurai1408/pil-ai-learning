@@ -142,6 +142,13 @@ Return ONLY valid JSON in this exact format, no other text:
   };
 
   const handlePublishModule = async (id: number) => {
+    // CM-01: Block publishing empty courses
+    const mod = adminModules.find(m => m.id === id);
+    if (!mod || mod.topics.length === 0) {
+      toast.error("Cannot publish a module with no topics. Add content first.");
+      return;
+    }
+
     const { error } = await supabase
       .from("admin_modules")
       .update({ status: "published" })
@@ -151,7 +158,8 @@ Return ONLY valid JSON in this exact format, no other text:
       toast.error("Failed to publish module");
       return;
     }
-    toast.success("Module published!");
+    toast.success("Module published after review!");
+    setPublishConfirmId(null);
     refetch();
   };
 

@@ -49,8 +49,8 @@ export const videoLessons: VideoLesson[] = [
   // Module 5: AI Agents
   { id: 21, title: "What are AI Agents?", moduleId: 5, module: "AI Agents", duration: "15:10", youtubeId: "F8NKVhkZZWI", completed: false },
   { id: 22, title: "Building Your First AI Agent", moduleId: 5, module: "AI Agents", duration: "20:30", youtubeId: "sal78ACtGTc", completed: false },
-  { id: 23, title: "Multi-Agent Systems Explained", moduleId: 5, module: "AI Agents", duration: "16:45", youtubeId: "9ZkUm4JA0Ew", completed: false },
-  { id: 24, title: "AI Task Automation with Agents", moduleId: 5, module: "AI Agents", duration: "12:20", youtubeId: "AxsanMCRVhg", completed: false },
+  { id: 23, title: "Multi-Agent Systems Explained", moduleId: 5, module: "AI Agents", duration: "17:39", youtubeId: "Mi5wOpAgixw", completed: false },
+  { id: 24, title: "AI Task Automation with Agents", moduleId: 5, module: "AI Agents", duration: "20:10", youtubeId: "cXnPxN06boY", completed: false },
 
   // Module 6: LLM Models & Providers
   { id: 25, title: "What are Large Language Models?", moduleId: 6, module: "LLM Models & Providers", duration: "14:50", youtubeId: "iR2O2GPbB0E", completed: false },

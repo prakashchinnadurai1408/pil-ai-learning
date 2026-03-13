@@ -34,10 +34,27 @@ const VideoLearning = () => {
   );
 
   const currentVideo = videoLessons.find((v) => v.id === selectedVideo);
-  const currentQuizQuestions = useMemo(
-    () => (currentVideo ? mcqBank.filter((q) => q.moduleId === currentVideo.moduleId) : []),
-    [currentVideo]
-  );
+  const generateQuiz = useCallback(async (video: typeof currentVideo) => {
+    if (!video) return;
+    setQuizLoading(true);
+    setQuizError(false);
+    setAiQuizQuestions([]);
+    setAnswers({});
+    setSubmitted(false);
+    setShowQuiz(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-video-quiz", {
+        body: { videoTitle: video.title, moduleName: video.module, questionCount: 5 },
+      });
+      if (error || !data?.questions) throw new Error("Failed");
+      setAiQuizQuestions(data.questions);
+    } catch {
+      setQuizError(true);
+      toast.error("Failed to generate quiz. Please try again.");
+    } finally {
+      setQuizLoading(false);
+    }
+  }, []);
 
   const completedCount = filteredVideos.filter((v) => v.completed).length;
 

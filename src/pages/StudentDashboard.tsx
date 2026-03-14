@@ -170,7 +170,7 @@ const StudentDashboard = () => {
                           <Progress value={0} className="h-1.5 mt-3 mb-2" />
                           <div className="flex justify-between items-center">
                             <span className="text-xs text-muted-foreground">0% complete</span>
-                            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-accent">
+                            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-accent" onClick={() => setSelectedModuleId(mod.id)}>
                               <Play className="h-3 w-3" /> Start
                             </Button>
                           </div>

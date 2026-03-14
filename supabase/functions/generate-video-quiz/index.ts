@@ -46,7 +46,7 @@ Respond ONLY with valid JSON in this exact format, no markdown:
   }
 ]`;
 
-    const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

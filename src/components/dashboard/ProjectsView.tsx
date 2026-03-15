@@ -143,6 +143,11 @@ const ProjectsView = () => {
             onToggleExpand={() => setExpandedStep(expandedStep === step.stepNumber ? null : step.stepNumber)}
             onToggleDoc={toggleDoc}
             onMarkStepDone={() => markStepDone(step.stepNumber)}
+            uploadedDocs={getDocsForStep(step.stepNumber)}
+            uploading={uploading}
+            onUpload={uploadFile}
+            onDeleteFile={deleteFile}
+            getPublicUrl={getPublicUrl}
           />
         ))}
       </div>

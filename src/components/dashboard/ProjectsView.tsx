@@ -6,6 +6,8 @@ import {
   FileText, Clock, Target, AlertCircle, Lightbulb, Layers
 } from "lucide-react";
 import { techStream, nonTechStream, type ProjectStream, type ProjectStep } from "@/data/projectGuideData";
+import { useProjectDocuments } from "@/hooks/useProjectDocuments";
+import StepFileUpload from "./StepFileUpload";
 
 const ProjectsView = () => {
   const [selectedStream, setSelectedStream] = useState<ProjectStream | null>(null);

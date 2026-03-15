@@ -290,6 +290,16 @@ const StepCard = ({
             </div>
           )}
 
+          {/* File Uploads */}
+          <StepFileUpload
+            stepNumber={step.stepNumber}
+            uploadedDocs={uploadedDocs}
+            uploading={uploading}
+            onUpload={onUpload}
+            onDelete={onDeleteFile}
+            getPublicUrl={getPublicUrl}
+          />
+
           {/* Footer: Deliverable + Mark Complete */}
           <div className="flex items-center justify-between pt-2 border-t border-border">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">

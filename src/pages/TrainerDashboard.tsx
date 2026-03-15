@@ -7,13 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Users, BarChart3, ClipboardCheck, LogOut,
-  TrendingUp, Eye, Loader2, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Download
+  TrendingUp, Eye, Loader2, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FolderKanban
 } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { moduleNames, mcqBank } from "@/data/videoContent";
 import { useTrainerData } from "@/hooks/useTrainerData";
 import { StudentDetailModal } from "@/components/trainer/StudentDetailModal";
 import ComposeMessageDialog from "@/components/trainer/ComposeMessageDialog";
+import TrainerProjectReview from "@/components/trainer/TrainerProjectReview";
 import type { StudentData } from "@/hooks/useTrainerData";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -149,6 +150,9 @@ const TrainerDashboard = () => {
             </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <BarChart3 className="h-4 w-4" /> Analytics
+            </TabsTrigger>
+            <TabsTrigger value="projects" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <FolderKanban className="h-4 w-4" /> Projects
             </TabsTrigger>
           </TabsList>
 
@@ -369,6 +373,11 @@ const TrainerDashboard = () => {
                 </ResponsiveContainer>
               </div>
             </div>
+          </TabsContent>
+
+          {/* Projects Tab */}
+          <TabsContent value="projects">
+            <TrainerProjectReview />
           </TabsContent>
         </Tabs>
       </div>

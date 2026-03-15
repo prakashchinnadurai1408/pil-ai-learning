@@ -167,12 +167,18 @@ interface StepCardProps {
   onToggleExpand: () => void;
   onToggleDoc: (key: string) => void;
   onMarkStepDone: () => void;
+  uploadedDocs: import("@/hooks/useProjectDocuments").UploadedDoc[];
+  uploading: boolean;
+  onUpload: (file: File, stepNumber: number, docCode?: string) => Promise<void>;
+  onDeleteFile: (doc: import("@/hooks/useProjectDocuments").UploadedDoc) => Promise<void>;
+  getPublicUrl: (filePath: string) => string;
 }
 
 const StepCard = ({
   step, isExpanded, isCompleted, completedDocs,
   accentClass, accentBg, accentBorder, isTech,
   onToggleExpand, onToggleDoc, onMarkStepDone,
+  uploadedDocs, uploading, onUpload, onDeleteFile, getPublicUrl,
 }: StepCardProps) => {
   const docsDone = step.documents.filter(d => completedDocs[`${step.stepNumber}-${d.code}`]).length;
 

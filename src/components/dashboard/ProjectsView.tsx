@@ -14,6 +14,11 @@ const ProjectsView = () => {
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const [completedDocs, setCompletedDocs] = useState<Record<string, boolean>>({});
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
+  const studentName = sessionStorage.getItem("studentName") || "Student";
+  const { uploading, uploadFile, deleteFile, getPublicUrl, getDocsForStep } = useProjectDocuments(
+    studentName,
+    selectedStream?.id || null
+  );
 
   const toggleDoc = (key: string) => {
     setCompletedDocs(prev => ({ ...prev, [key]: !prev[key] }));

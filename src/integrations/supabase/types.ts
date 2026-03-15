@@ -313,6 +313,42 @@ export type Database = {
           },
         ]
       }
+      student_project_documents: {
+        Row: {
+          doc_code: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          step_number: number
+          stream_id: string
+          student_name: string
+          uploaded_at: string
+        }
+        Insert: {
+          doc_code?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number
+          id?: string
+          step_number: number
+          stream_id: string
+          student_name: string
+          uploaded_at?: string
+        }
+        Update: {
+          doc_code?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          step_number?: number
+          stream_id?: string
+          student_name?: string
+          uploaded_at?: string
+        }
+        Relationships: []
+      }
       students: {
         Row: {
           college: string

@@ -6,12 +6,19 @@ import {
   FileText, Clock, Target, AlertCircle, Lightbulb, Layers
 } from "lucide-react";
 import { techStream, nonTechStream, type ProjectStream, type ProjectStep } from "@/data/projectGuideData";
+import { useProjectDocuments } from "@/hooks/useProjectDocuments";
+import StepFileUpload from "./StepFileUpload";
 
 const ProjectsView = () => {
   const [selectedStream, setSelectedStream] = useState<ProjectStream | null>(null);
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const [completedDocs, setCompletedDocs] = useState<Record<string, boolean>>({});
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
+  const studentName = sessionStorage.getItem("studentName") || "Student";
+  const { uploading, uploadFile, deleteFile, getPublicUrl, getDocsForStep } = useProjectDocuments(
+    studentName,
+    selectedStream?.id || null
+  );
 
   const toggleDoc = (key: string) => {
     setCompletedDocs(prev => ({ ...prev, [key]: !prev[key] }));
@@ -136,6 +143,11 @@ const ProjectsView = () => {
             onToggleExpand={() => setExpandedStep(expandedStep === step.stepNumber ? null : step.stepNumber)}
             onToggleDoc={toggleDoc}
             onMarkStepDone={() => markStepDone(step.stepNumber)}
+            uploadedDocs={getDocsForStep(step.stepNumber)}
+            uploading={uploading}
+            onUpload={uploadFile}
+            onDeleteFile={deleteFile}
+            getPublicUrl={getPublicUrl}
           />
         ))}
       </div>
@@ -155,12 +167,18 @@ interface StepCardProps {
   onToggleExpand: () => void;
   onToggleDoc: (key: string) => void;
   onMarkStepDone: () => void;
+  uploadedDocs: import("@/hooks/useProjectDocuments").UploadedDoc[];
+  uploading: boolean;
+  onUpload: (file: File, stepNumber: number, docCode?: string) => Promise<void>;
+  onDeleteFile: (doc: import("@/hooks/useProjectDocuments").UploadedDoc) => Promise<void>;
+  getPublicUrl: (filePath: string) => string;
 }
 
 const StepCard = ({
   step, isExpanded, isCompleted, completedDocs,
   accentClass, accentBg, accentBorder, isTech,
   onToggleExpand, onToggleDoc, onMarkStepDone,
+  uploadedDocs, uploading, onUpload, onDeleteFile, getPublicUrl,
 }: StepCardProps) => {
   const docsDone = step.documents.filter(d => completedDocs[`${step.stepNumber}-${d.code}`]).length;
 
@@ -271,6 +289,16 @@ const StepCard = ({
               </ul>
             </div>
           )}
+
+          {/* File Uploads */}
+          <StepFileUpload
+            stepNumber={step.stepNumber}
+            uploadedDocs={uploadedDocs}
+            uploading={uploading}
+            onUpload={onUpload}
+            onDelete={onDeleteFile}
+            getPublicUrl={getPublicUrl}
+          />
 
           {/* Footer: Deliverable + Mark Complete */}
           <div className="flex items-center justify-between pt-2 border-t border-border">

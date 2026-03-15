@@ -151,6 +151,9 @@ const TrainerDashboard = () => {
             <TabsTrigger value="analytics" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <BarChart3 className="h-4 w-4" /> Analytics
             </TabsTrigger>
+            <TabsTrigger value="projects" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <FolderKanban className="h-4 w-4" /> Projects
+            </TabsTrigger>
           </TabsList>
 
           {/* Students Tab */}

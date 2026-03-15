@@ -106,8 +106,7 @@ const ProjectsView = () => {
           onClick={() => {
             setSelectedStream(null);
             setExpandedStep(null);
-            setCompletedDocs({});
-            setCompletedSteps({});
+            reset();
           }}
           className="gap-2"
         >

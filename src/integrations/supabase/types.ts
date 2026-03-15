@@ -349,6 +349,33 @@ export type Database = {
         }
         Relationships: []
       }
+      student_project_progress: {
+        Row: {
+          completed_docs: Json
+          completed_steps: Json
+          id: string
+          stream_id: string
+          student_name: string
+          updated_at: string
+        }
+        Insert: {
+          completed_docs?: Json
+          completed_steps?: Json
+          id?: string
+          stream_id: string
+          student_name: string
+          updated_at?: string
+        }
+        Update: {
+          completed_docs?: Json
+          completed_steps?: Json
+          id?: string
+          stream_id?: string
+          student_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       students: {
         Row: {
           college: string

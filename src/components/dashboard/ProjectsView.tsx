@@ -25,13 +25,7 @@ const ProjectsView = () => {
     selectedStream?.id || null
   );
 
-  const toggleDoc = (key: string) => {
-    setCompletedDocs(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const markStepDone = (stepNum: number) => {
-    setCompletedSteps(prev => ({ ...prev, [stepNum]: !prev[stepNum] }));
-  };
+  const markStepDone = (stepNum: number) => toggleStep(stepNum);
 
   const completedStepCount = selectedStream
     ? selectedStream.steps.filter(s => completedSteps[s.stepNumber]).length

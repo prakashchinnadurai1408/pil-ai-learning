@@ -374,6 +374,11 @@ const TrainerDashboard = () => {
               </div>
             </div>
           </TabsContent>
+
+          {/* Projects Tab */}
+          <TabsContent value="projects">
+            <TrainerProjectReview />
+          </TabsContent>
         </Tabs>
       </div>
 

@@ -7,14 +7,19 @@ import {
 } from "lucide-react";
 import { techStream, nonTechStream, type ProjectStream, type ProjectStep } from "@/data/projectGuideData";
 import { useProjectDocuments } from "@/hooks/useProjectDocuments";
+import { useProjectProgress } from "@/hooks/useProjectProgress";
 import StepFileUpload from "./StepFileUpload";
 
 const ProjectsView = () => {
   const [selectedStream, setSelectedStream] = useState<ProjectStream | null>(null);
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
-  const [completedDocs, setCompletedDocs] = useState<Record<string, boolean>>({});
-  const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
   const studentName = sessionStorage.getItem("studentName") || "Student";
+
+  const { completedSteps, completedDocs, toggleStep, toggleDoc, reset, loaded } = useProjectProgress(
+    studentName,
+    selectedStream?.id || null
+  );
+
   const { uploading, uploadFile, deleteFile, getPublicUrl, getDocsForStep } = useProjectDocuments(
     studentName,
     selectedStream?.id || null

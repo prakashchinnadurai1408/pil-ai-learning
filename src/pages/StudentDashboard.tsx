@@ -20,6 +20,7 @@ const AssessmentsView = lazy(() => import("@/components/dashboard/AssessmentsVie
 const AIToolsSandbox = lazy(() => import("@/components/dashboard/AIToolsSandbox"));
 const ProjectsView = lazy(() => import("@/components/dashboard/ProjectsView"));
 const ModuleDetailView = lazy(() => import("@/components/dashboard/ModuleDetailView"));
+const ProgrammingModule = lazy(() => import("@/components/dashboard/ProgrammingModule"));
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState("modules");

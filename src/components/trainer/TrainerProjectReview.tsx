@@ -141,6 +141,31 @@ const TrainerProjectReview = () => {
     return Math.round(perStudent.reduce((a, b) => a + b, 0) / perStudent.length);
   }, [studentSummaries]);
 
+  const getPublicUrl = (filePath: string) => {
+    const { data } = supabase.storage.from("project-documents").getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
+        Loading project data...
+      </div>
+    );
+  }
+
+  if (studentSummaries.length === 0) {
+    return (
+      <div className="bg-card rounded-lg border border-border p-8 text-center shadow-card">
+        <FolderOpen className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+        <h4 className="font-display font-semibold text-card-foreground mb-1">No Project Data Yet</h4>
+        <p className="text-sm text-muted-foreground">
+          Student project progress and uploads will appear here once students start working.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Summary Statistics */}

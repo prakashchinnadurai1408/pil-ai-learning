@@ -127,6 +127,25 @@ const TrainerProjectReview = () => {
     [studentSummaries, searchQuery]
   );
 
+  const totalStudentsWithProjects = studentSummaries.length;
+  const totalUploadsAll = documentsData.length;
+  const avgCompletion = useMemo(() => {
+    if (studentSummaries.length === 0) return 0;
+    const perStudent = studentSummaries.map((s) => {
+      const best = s.streams.reduce(
+        (b, st) => Math.max(b, st.totalSteps > 0 ? Math.round((st.completedStepCount / st.totalSteps) * 100) : 0),
+        0
+      );
+      return best;
+    });
+    return Math.round(perStudent.reduce((a, b) => a + b, 0) / perStudent.length);
+  }, [studentSummaries]);
+
+  const getPublicUrl = (filePath: string) => {
+    const { data } = supabase.storage.from("project-documents").getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
@@ -147,13 +166,38 @@ const TrainerProjectReview = () => {
     );
   }
 
-  const getPublicUrl = (filePath: string) => {
-    const { data } = supabase.storage.from("project-documents").getPublicUrl(filePath);
-    return data.publicUrl;
-  };
-
   return (
     <div className="space-y-4">
+      {/* Summary Statistics */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-card rounded-lg border border-border shadow-card p-4 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <FolderOpen className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-card-foreground">{totalStudentsWithProjects}</p>
+            <p className="text-xs text-muted-foreground">Students with Projects</p>
+          </div>
+        </div>
+        <div className="bg-card rounded-lg border border-border shadow-card p-4 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
+            <CheckCircle className="h-5 w-5 text-accent" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-card-foreground">{avgCompletion}%</p>
+            <p className="text-xs text-muted-foreground">Avg Completion Rate</p>
+          </div>
+        </div>
+        <div className="bg-card rounded-lg border border-border shadow-card p-4 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <FileText className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-card-foreground">{totalUploadsAll}</p>
+            <p className="text-xs text-muted-foreground">Total Uploads</p>
+          </div>
+        </div>
+      </div>
       <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
         <div className="p-4 border-b border-border flex items-center justify-between gap-4">
           <h3 className="font-display font-semibold text-card-foreground">

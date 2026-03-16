@@ -7,7 +7,7 @@ import { modules } from "@/data/modules";
 import { useAdminModules } from "@/hooks/useAdminModules";
 import {
   BookOpen, MessageSquare, Video, FlaskConical, ClipboardCheck,
-  FolderKanban, LogOut, Play, CheckCircle, Sparkles
+  FolderKanban, LogOut, Play, CheckCircle, Sparkles, Code2
 } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import ErrorBoundary from "@/components/ErrorBoundary";

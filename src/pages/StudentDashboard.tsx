@@ -69,11 +69,12 @@ const StudentDashboard = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-3 sm:grid-cols-6 mb-8 h-auto gap-1 bg-muted p-1" aria-label="Dashboard sections">
+          <TabsList className="grid grid-cols-4 sm:grid-cols-7 mb-8 h-auto gap-1 bg-muted p-1" aria-label="Dashboard sections">
             {[
               { value: "modules", icon: BookOpen, label: "Modules" },
               { value: "videos", icon: Video, label: "Videos" },
               { value: "playground", icon: MessageSquare, label: "AI Chat" },
+              { value: "coding", icon: Code2, label: "Coding" },
               { value: "tools", icon: FlaskConical, label: "Tools" },
               { value: "assessments", icon: ClipboardCheck, label: "Assess" },
               { value: "projects", icon: FolderKanban, label: "Projects" },

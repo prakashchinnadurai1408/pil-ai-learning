@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   programmingChallenges,
   supportedLanguages,
@@ -14,8 +15,9 @@ import {
 } from "@/data/programmingChallenges";
 import {
   Play, ChevronLeft, Search, Code2, Terminal,
-  Loader2, CheckCircle, XCircle, Clock
+  Loader2, CheckCircle, XCircle, Clock, Trophy
 } from "lucide-react";
+import CodingLeaderboard from "./CodingLeaderboard";
 
 const PISTON_API = "https://emkc.org/api/v2/piston/execute";
 

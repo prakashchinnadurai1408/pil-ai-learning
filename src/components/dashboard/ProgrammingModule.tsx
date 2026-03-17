@@ -161,9 +161,15 @@ const ProgrammingModule = () => {
           </Select>
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Code2 className="h-4 w-4" />
-          <span>{filteredChallenges.length} challenges found</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Code2 className="h-4 w-4" />
+            <span>{filteredChallenges.length} challenges found · {solvedIds.size} solved</span>
+          </div>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowLeaderboard(!showLeaderboard)}>
+            <Trophy className="h-4 w-4" />
+            {showLeaderboard ? "Hide Leaderboard" : "Leaderboard"}
+          </Button>
         </div>
 
         <ScrollArea className="h-[60vh]">

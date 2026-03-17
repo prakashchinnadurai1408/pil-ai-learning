@@ -5,18 +5,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Multiple code execution APIs with fallback
-const CODEX_API = "https://api.codex.jaagrav.in";
+// JDoodle API - free tier: 200 credits/day
+const JDOODLE_API = "https://api.jdoodle.com/v1/execute";
 
-const codexLangMap: Record<string, string> = {
-  python3: "py",
-  javascript: "js",
-  typescript: "ts",
-  java: "java",
-  c: "c",
-  cpp: "cpp",
-  go: "go",
-  rust: "rs",
+const jdoodleLangs: Record<string, { language: string; versionIndex: string }> = {
+  python3:    { language: "python3", versionIndex: "4" },
+  javascript: { language: "nodejs", versionIndex: "4" },
+  typescript: { language: "typescript", versionIndex: "0" },
+  java:       { language: "java", versionIndex: "4" },
+  c:          { language: "c", versionIndex: "5" },
+  cpp:        { language: "cpp17", versionIndex: "1" },
+  go:         { language: "go", versionIndex: "4" },
+  rust:       { language: "rust", versionIndex: "4" },
 };
 
 serve(async (req) => {
@@ -32,24 +32,29 @@ serve(async (req) => {
       });
     }
 
-    // Try CodeX API first
-    const codexResult = await tryCodeX(language, code, stdin || "");
-    if (codexResult) {
-      return new Response(JSON.stringify(codexResult), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Try JDoodle first (if credentials available)
+    const clientId = Deno.env.get("JDOODLE_CLIENT_ID");
+    const clientSecret = Deno.env.get("JDOODLE_CLIENT_SECRET");
+
+    if (clientId && clientSecret) {
+      const result = await tryJDoodle(language, code, stdin || "", clientId, clientSecret);
+      if (result) {
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
-    // Fallback: Rextester API
-    const rextesterResult = await tryRextester(language, code, stdin || "");
-    if (rextesterResult) {
-      return new Response(JSON.stringify(rextesterResult), {
+    // Fallback: Use AI to evaluate code output
+    const aiResult = await tryAIExecution(language, code, stdin || "");
+    if (aiResult) {
+      return new Response(JSON.stringify(aiResult), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     return new Response(JSON.stringify({
-      run: { output: "", stderr: "All compiler services are temporarily unavailable. Please try again later." }
+      run: { output: "", stderr: "Code execution service is temporarily unavailable. Please try again later." }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -65,78 +70,98 @@ serve(async (req) => {
   }
 });
 
-async function tryCodeX(language: string, code: string, stdin: string) {
-  const lang = codexLangMap[language];
-  if (!lang) return null;
+async function tryJDoodle(language: string, code: string, stdin: string, clientId: string, clientSecret: string) {
+  const config = jdoodleLangs[language];
+  if (!config) return null;
 
   try {
-    console.log(`Trying CodeX API for ${language}`);
-    const formData = new URLSearchParams();
-    formData.append("code", code);
-    formData.append("language", lang);
-    formData.append("input", stdin);
-
-    const res = await fetch(CODEX_API, {
+    console.log(`Executing ${language} via JDoodle`);
+    const res = await fetch(JDOODLE_API, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: formData.toString(),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clientId,
+        clientSecret,
+        script: code,
+        stdin,
+        language: config.language,
+        versionIndex: config.versionIndex,
+      }),
     });
 
     if (!res.ok) {
-      console.error("CodeX error:", res.status);
+      console.error("JDoodle error:", res.status);
       return null;
     }
 
     const data = await res.json();
-    const output = (data.output || "").replace(/\n$/, "");
-    const error = data.error || "";
+    if (data.error) {
+      return { run: { output: "", stderr: data.error } };
+    }
 
-    return { run: { output: error ? "" : output, stderr: error } };
+    const output = (data.output || "").replace(/\n$/, "");
+    return { run: { output, stderr: "" } };
   } catch (err) {
-    console.error("CodeX exception:", err);
+    console.error("JDoodle exception:", err);
     return null;
   }
 }
 
-async function tryRextester(language: string, code: string, stdin: string) {
-  // Rextester language IDs
-  const rextesterLangs: Record<string, number> = {
-    python3: 24,
-    javascript: 23,
-    java: 4,
-    c: 6,
-    cpp: 7,
-    go: 20,
-  };
-
-  const langId = rextesterLangs[language];
-  if (langId === undefined) return null;
+async function tryAIExecution(language: string, code: string, stdin: string) {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) return null;
 
   try {
-    console.log(`Trying Rextester for ${language}`);
-    const formData = new URLSearchParams();
-    formData.append("LanguageChoice", String(langId));
-    formData.append("Program", code);
-    formData.append("Input", stdin);
+    console.log(`Using AI to evaluate ${language} code`);
 
-    const res = await fetch("https://rextester.com/rundotnet/api", {
+    const prompt = `You are a code execution engine. Execute the following ${language} code mentally and return ONLY the exact output that would be printed to stdout. No explanations, no markdown, no code blocks - just the raw output.
+
+${stdin ? `Standard input (stdin):\n${stdin}\n\n` : ""}Code:
+\`\`\`${language}
+${code}
+\`\`\`
+
+Rules:
+- Return ONLY what would be printed to stdout
+- If there's a runtime error, start your response with "ERROR:" followed by the error message
+- If there's a compilation error, start with "ERROR:" followed by the error
+- Do NOT include any explanation or formatting
+- Return the exact output including spacing and newlines`;
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: formData.toString(),
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "You are a precise code execution simulator. Output ONLY the exact stdout output of the given code. Never add explanations." },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0,
+      }),
     });
 
     if (!res.ok) {
-      console.error("Rextester error:", res.status);
+      console.error("AI execution error:", res.status);
       return null;
     }
 
     const data = await res.json();
-    const output = (data.Result || "").replace(/\n$/, "");
-    const errors = data.Errors || "";
+    let output = data.choices?.[0]?.message?.content || "";
+    
+    // Clean any accidental markdown
+    output = output.replace(/^```\w*\n?/, "").replace(/\n?```$/, "").trim();
 
-    return { run: { output: errors ? "" : output, stderr: errors } };
+    if (output.startsWith("ERROR:")) {
+      return { run: { output: "", stderr: output } };
+    }
+
+    return { run: { output, stderr: "", ai_evaluated: true } };
   } catch (err) {
-    console.error("Rextester exception:", err);
+    console.error("AI execution exception:", err);
     return null;
   }
 }

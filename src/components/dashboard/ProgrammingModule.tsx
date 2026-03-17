@@ -172,31 +172,43 @@ const ProgrammingModule = () => {
           </Button>
         </div>
 
-        <ScrollArea className="h-[60vh]">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredChallenges.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => selectChallenge(c)}
-                className="text-left bg-card border border-border rounded-lg p-4 hover:shadow-elevated hover:border-primary/30 transition-all group"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <span className="text-xs font-mono text-muted-foreground">#{c.id}</span>
-                  <Badge variant="outline" className={difficultyColor[c.difficulty]}>
-                    {c.difficulty}
-                  </Badge>
-                </div>
-                <h4 className="font-semibold text-sm text-card-foreground group-hover:text-primary transition-colors mb-1">
-                  {c.title}
-                </h4>
-                <p className="text-xs text-muted-foreground line-clamp-2">{c.description}</p>
-                <div className="mt-2">
-                  <Badge variant="secondary" className="text-[10px]">{c.category}</Badge>
-                </div>
-              </button>
-            ))}
-          </div>
-        </ScrollArea>
+        <div className={`grid gap-4 ${showLeaderboard ? "grid-cols-1 lg:grid-cols-3" : ""}`}>
+          <ScrollArea className={`h-[60vh] ${showLeaderboard ? "lg:col-span-2" : ""}`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredChallenges.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => selectChallenge(c)}
+                  className={`text-left bg-card border rounded-lg p-4 hover:shadow-elevated hover:border-primary/30 transition-all group ${
+                    solvedIds.has(c.id) ? "border-success/30 bg-success/5" : "border-border"
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-mono text-muted-foreground">#{c.id}</span>
+                      {solvedIds.has(c.id) && <CheckCircle className="h-3.5 w-3.5 text-success" />}
+                    </div>
+                    <Badge variant="outline" className={difficultyColor[c.difficulty]}>
+                      {c.difficulty}
+                    </Badge>
+                  </div>
+                  <h4 className="font-semibold text-sm text-card-foreground group-hover:text-primary transition-colors mb-1">
+                    {c.title}
+                  </h4>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{c.description}</p>
+                  <div className="mt-2">
+                    <Badge variant="secondary" className="text-[10px]">{c.category}</Badge>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
+          {showLeaderboard && (
+            <div className="lg:col-span-1">
+              <CodingLeaderboard />
+            </div>
+          )}
+        </div>
       </div>
     );
   }

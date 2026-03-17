@@ -19,8 +19,6 @@ import {
 } from "lucide-react";
 import CodingLeaderboard from "./CodingLeaderboard";
 
-const PISTON_API = "https://emkc.org/api/v2/piston/execute";
-
 const difficultyColor: Record<string, string> = {
   Easy: "bg-success/10 text-success border-success/20",
   Medium: "bg-warning/10 text-warning border-warning/20",
@@ -38,9 +36,34 @@ const ProgrammingModule = () => {
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [difficultyFilter, setDifficultyFilter] = useState("All");
   const [solvedIds, setSolvedIds] = useState<Set<number>>(new Set());
+  const [solvedStringIds, setSolvedStringIds] = useState<Set<string>>(new Set());
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [dbChallenges, setDbChallenges] = useState<ProgrammingChallenge[]>([]);
   const studentName = sessionStorage.getItem("studentName") || "";
 
+  // Fetch DB challenges
+  useEffect(() => {
+    supabase
+      .from("coding_challenges")
+      .select("*")
+      .order("created_at", { ascending: true })
+      .then(({ data }) => {
+        if (data) {
+          setDbChallenges(data.map((c: any, i: number) => ({
+            id: 1000 + i, // offset to avoid collision with static challenges
+            _dbId: c.id,
+            title: c.title,
+            difficulty: c.difficulty as "Easy" | "Medium" | "Hard",
+            category: c.category,
+            description: c.description,
+            sampleInput: c.sample_input || undefined,
+            sampleOutput: c.sample_output || undefined,
+          })));
+        }
+      });
+  }, []);
+
+  // Fetch solved challenges
   useEffect(() => {
     if (!studentName) return;
     supabase
@@ -51,6 +74,16 @@ const ProgrammingModule = () => {
         if (data) setSolvedIds(new Set(data.map((d: any) => d.challenge_id)));
       });
   }, [studentName]);
+
+  const allChallenges = useMemo(() => {
+    return [...programmingChallenges, ...dbChallenges];
+  }, [dbChallenges]);
+
+  // Dynamic categories from all challenges
+  const allCategories = useMemo(() => {
+    const cats = new Set(allChallenges.map(c => c.category));
+    return ["All", ...Array.from(cats)];
+  }, [allChallenges]);
 
   const markSolved = useCallback(async (challengeId: number, lang: string) => {
     if (!studentName || solvedIds.has(challengeId)) return;
@@ -64,13 +97,13 @@ const ProgrammingModule = () => {
   }, [studentName, solvedIds]);
 
   const filteredChallenges = useMemo(() => {
-    return programmingChallenges.filter((c) => {
+    return allChallenges.filter((c) => {
       const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = categoryFilter === "All" || c.category === categoryFilter;
       const matchesDifficulty = difficultyFilter === "All" || c.difficulty === difficultyFilter;
       return matchesSearch && matchesCategory && matchesDifficulty;
     });
-  }, [searchQuery, categoryFilter, difficultyFilter]);
+  }, [searchQuery, categoryFilter, difficultyFilter, allChallenges]);
 
   const selectChallenge = useCallback((challenge: ProgrammingChallenge) => {
     setSelectedChallenge(challenge);
@@ -90,29 +123,25 @@ const ProgrammingModule = () => {
   const runCode = useCallback(async () => {
     setIsRunning(true);
     setOutput("");
-    const lang = supportedLanguages.find((l) => l.id === selectedLang);
-    if (!lang) return;
 
     try {
-      const res = await fetch(PISTON_API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          language: lang.id === "cpp" ? "c++" : lang.id === "python3" ? "python" : lang.id,
-          version: lang.version,
-          files: [{ content: code }],
+      const { data, error } = await supabase.functions.invoke("execute-code", {
+        body: {
+          language: selectedLang,
+          code,
           stdin,
-        }),
+        },
       });
 
-      if (!res.ok) throw new Error(`API error: ${res.status}`);
-      const data = await res.json();
+      if (error) throw new Error(error.message);
 
-      if (data.run) {
+      if (data?.run) {
         const result = data.run.stderr
           ? `ERROR:\n${data.run.stderr}`
           : data.run.output || "(No output)";
         setOutput(result);
+      } else if (data?.error) {
+        setOutput(`ERROR:\n${data.error}`);
       } else {
         setOutput("Unexpected response from compiler.");
       }
@@ -125,7 +154,7 @@ const ProgrammingModule = () => {
     }
   }, [selectedLang, code, stdin]);
 
-  // Compute correctness for both views
+  // Compute correctness
   const expectedOutput = selectedChallenge?.sampleOutput?.trim() ?? "";
   const actualOutput = output.trim();
   const hasOutput = output.length > 0;
@@ -157,7 +186,7 @@ const ProgrammingModule = () => {
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
-              {challengeCategories.map((cat) => (
+              {allCategories.map((cat) => (
                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
               ))}
             </SelectContent>
@@ -211,6 +240,7 @@ const ProgrammingModule = () => {
                   <p className="text-xs text-muted-foreground line-clamp-2">{c.description}</p>
                   <div className="mt-2">
                     <Badge variant="secondary" className="text-[10px]">{c.category}</Badge>
+                    {c.id >= 1000 && <Badge variant="outline" className="text-[10px] ml-1">AI</Badge>}
                   </div>
                 </button>
               ))}
@@ -229,7 +259,6 @@ const ProgrammingModule = () => {
   // === CODE EDITOR VIEW ===
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" onClick={() => { setSelectedChallenge(null); setOutput(""); }}>
           <ChevronLeft className="h-4 w-4 mr-1" /> Back
@@ -246,7 +275,6 @@ const ProgrammingModule = () => {
         </div>
       </div>
 
-      {/* Problem Statement */}
       <div className="bg-card border border-border rounded-lg p-4">
         <p className="text-sm text-card-foreground">{selectedChallenge.description}</p>
         {selectedChallenge.sampleInput && (
@@ -265,7 +293,6 @@ const ProgrammingModule = () => {
         )}
       </div>
 
-      {/* Language Selector + Run */}
       <div className="flex items-center gap-3">
         <Select value={selectedLang} onValueChange={changeLang}>
           <SelectTrigger className="w-[180px]">
@@ -296,7 +323,6 @@ const ProgrammingModule = () => {
         )}
       </div>
 
-      {/* Code Editor + Input */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-2">
           <label className="text-xs font-semibold text-muted-foreground">Code Editor</label>

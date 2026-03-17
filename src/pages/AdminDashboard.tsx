@@ -64,6 +64,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="question-bank" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <Database className="h-4 w-4" /> Question Bank
             </TabsTrigger>
+            <TabsTrigger value="coding" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Code2 className="h-4 w-4" /> Coding Challenges
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
@@ -93,6 +96,12 @@ const AdminDashboard = () => {
           <TabsContent value="question-bank">
             <Suspense fallback={<TabSkeleton />}>
               <QuestionBankViewer />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="coding">
+            <Suspense fallback={<TabSkeleton />}>
+              <CodingChallengeManager />
             </Suspense>
           </TabsContent>
         </Tabs>

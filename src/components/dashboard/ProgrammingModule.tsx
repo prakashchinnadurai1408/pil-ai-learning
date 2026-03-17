@@ -37,6 +37,31 @@ const ProgrammingModule = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [difficultyFilter, setDifficultyFilter] = useState("All");
+  const [solvedIds, setSolvedIds] = useState<Set<number>>(new Set());
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const studentName = sessionStorage.getItem("studentName") || "";
+
+  useEffect(() => {
+    if (!studentName) return;
+    supabase
+      .from("student_solved_challenges")
+      .select("challenge_id")
+      .eq("student_name", studentName)
+      .then(({ data }) => {
+        if (data) setSolvedIds(new Set(data.map((d: any) => d.challenge_id)));
+      });
+  }, [studentName]);
+
+  const markSolved = useCallback(async (challengeId: number, lang: string) => {
+    if (!studentName || solvedIds.has(challengeId)) return;
+    const { error } = await supabase
+      .from("student_solved_challenges")
+      .upsert({ student_name: studentName, challenge_id: challengeId, language: lang }, { onConflict: "student_name,challenge_id" });
+    if (!error) {
+      setSolvedIds(prev => new Set(prev).add(challengeId));
+      toast({ title: "Challenge Solved! 🎉", description: "Added to your leaderboard score." });
+    }
+  }, [studentName, solvedIds]);
 
   const filteredChallenges = useMemo(() => {
     return programmingChallenges.filter((c) => {

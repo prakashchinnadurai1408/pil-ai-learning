@@ -5,17 +5,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const GLOT_API = "https://glot.io/api/run";
+// Multiple code execution APIs with fallback
+const CODEX_API = "https://api.codex.jaagrav.in";
 
-const langConfig: Record<string, { glotLang: string; filename: string }> = {
-  python3:    { glotLang: "python", filename: "main.py" },
-  javascript: { glotLang: "javascript", filename: "main.js" },
-  typescript: { glotLang: "typescript", filename: "main.ts" },
-  java:       { glotLang: "java", filename: "Main.java" },
-  c:          { glotLang: "c", filename: "main.c" },
-  cpp:        { glotLang: "cpp", filename: "main.cpp" },
-  go:         { glotLang: "go", filename: "main.go" },
-  rust:       { glotLang: "rust", filename: "main.rs" },
+const codexLangMap: Record<string, string> = {
+  python3: "py",
+  javascript: "js",
+  typescript: "ts",
+  java: "java",
+  c: "c",
+  cpp: "cpp",
+  go: "go",
+  rust: "rs",
 };
 
 serve(async (req) => {
@@ -31,54 +32,24 @@ serve(async (req) => {
       });
     }
 
-    const config = langConfig[language];
-    if (!config) {
-      return new Response(JSON.stringify({
-        run: { output: "", stderr: `Unsupported language: ${language}` }
-      }), {
-        status: 400,
+    // Try CodeX API first
+    const codexResult = await tryCodeX(language, code, stdin || "");
+    if (codexResult) {
+      return new Response(JSON.stringify(codexResult), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`Executing ${language} via Glot.io`);
-
-    const glotUrl = `${GLOT_API}/${config.glotLang}/latest`;
-    
-    const res = await fetch(glotUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        stdin: stdin || "",
-        files: [{ name: config.filename, content: code }],
-      }),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error("Glot.io error:", res.status, errText);
-      
-      // Fallback: try Wandbox
-      const wandboxResult = await tryWandbox(language, code, stdin || "");
-      if (wandboxResult) {
-        return new Response(JSON.stringify(wandboxResult), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(JSON.stringify({
-        run: { output: "", stderr: `Compiler service temporarily unavailable (${res.status}). Please try again.` }
-      }), {
+    // Fallback: Rextester API
+    const rextesterResult = await tryRextester(language, code, stdin || "");
+    if (rextesterResult) {
+      return new Response(JSON.stringify(rextesterResult), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const data = await res.json();
-    const output = (data.stdout || "").replace(/\n$/, "");
-    const stderr = data.stderr || data.error || "";
 
     return new Response(JSON.stringify({
-      run: { output, stderr }
+      run: { output: "", stderr: "All compiler services are temporarily unavailable. Please try again later." }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -94,37 +65,78 @@ serve(async (req) => {
   }
 });
 
-// Fallback: Wandbox API
-async function tryWandbox(language: string, code: string, stdin: string) {
-  const compilerMap: Record<string, string> = {
-    python3: "cpython-head",
-    javascript: "nodejs-head",
-    typescript: "typescript-head",
-    java: "openjdk-head",
-    c: "gcc-head",
-    cpp: "gcc-head",
-    go: "go-head",
-    rust: "rust-head",
-  };
-
-  const compiler = compilerMap[language];
-  if (!compiler) return null;
+async function tryCodeX(language: string, code: string, stdin: string) {
+  const lang = codexLangMap[language];
+  if (!lang) return null;
 
   try {
-    const res = await fetch("https://wandbox.org/api/compile.json", {
+    console.log(`Trying CodeX API for ${language}`);
+    const formData = new URLSearchParams();
+    formData.append("code", code);
+    formData.append("language", lang);
+    formData.append("input", stdin);
+
+    const res = await fetch(CODEX_API, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, compiler, stdin }),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formData.toString(),
     });
-    if (!res.ok) return null;
+
+    if (!res.ok) {
+      console.error("CodeX error:", res.status);
+      return null;
+    }
+
     const data = await res.json();
-    return {
-      run: {
-        output: (data.program_output || "").replace(/\n$/, ""),
-        stderr: data.compiler_error || data.program_error || "",
-      }
-    };
-  } catch {
+    const output = (data.output || "").replace(/\n$/, "");
+    const error = data.error || "";
+
+    return { run: { output: error ? "" : output, stderr: error } };
+  } catch (err) {
+    console.error("CodeX exception:", err);
+    return null;
+  }
+}
+
+async function tryRextester(language: string, code: string, stdin: string) {
+  // Rextester language IDs
+  const rextesterLangs: Record<string, number> = {
+    python3: 24,
+    javascript: 23,
+    java: 4,
+    c: 6,
+    cpp: 7,
+    go: 20,
+  };
+
+  const langId = rextesterLangs[language];
+  if (langId === undefined) return null;
+
+  try {
+    console.log(`Trying Rextester for ${language}`);
+    const formData = new URLSearchParams();
+    formData.append("LanguageChoice", String(langId));
+    formData.append("Program", code);
+    formData.append("Input", stdin);
+
+    const res = await fetch("https://rextester.com/rundotnet/api", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formData.toString(),
+    });
+
+    if (!res.ok) {
+      console.error("Rextester error:", res.status);
+      return null;
+    }
+
+    const data = await res.json();
+    const output = (data.Result || "").replace(/\n$/, "");
+    const errors = data.Errors || "";
+
+    return { run: { output: errors ? "" : output, stderr: errors } };
+  } catch (err) {
+    console.error("Rextester exception:", err);
     return null;
   }
 }

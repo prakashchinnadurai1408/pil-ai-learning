@@ -376,6 +376,30 @@ export type Database = {
         }
         Relationships: []
       }
+      student_solved_challenges: {
+        Row: {
+          challenge_id: number
+          id: string
+          language: string
+          solved_at: string
+          student_name: string
+        }
+        Insert: {
+          challenge_id: number
+          id?: string
+          language: string
+          solved_at?: string
+          student_name: string
+        }
+        Update: {
+          challenge_id?: number
+          id?: string
+          language?: string
+          solved_at?: string
+          student_name?: string
+        }
+        Relationships: []
+      }
       students: {
         Row: {
           college: string

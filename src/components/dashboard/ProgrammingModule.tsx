@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   programmingChallenges,
   supportedLanguages,
@@ -14,8 +15,9 @@ import {
 } from "@/data/programmingChallenges";
 import {
   Play, ChevronLeft, Search, Code2, Terminal,
-  Loader2, CheckCircle, XCircle, Clock
+  Loader2, CheckCircle, XCircle, Clock, Trophy
 } from "lucide-react";
+import CodingLeaderboard from "./CodingLeaderboard";
 
 const PISTON_API = "https://emkc.org/api/v2/piston/execute";
 
@@ -35,6 +37,31 @@ const ProgrammingModule = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [difficultyFilter, setDifficultyFilter] = useState("All");
+  const [solvedIds, setSolvedIds] = useState<Set<number>>(new Set());
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const studentName = sessionStorage.getItem("studentName") || "";
+
+  useEffect(() => {
+    if (!studentName) return;
+    supabase
+      .from("student_solved_challenges")
+      .select("challenge_id")
+      .eq("student_name", studentName)
+      .then(({ data }) => {
+        if (data) setSolvedIds(new Set(data.map((d: any) => d.challenge_id)));
+      });
+  }, [studentName]);
+
+  const markSolved = useCallback(async (challengeId: number, lang: string) => {
+    if (!studentName || solvedIds.has(challengeId)) return;
+    const { error } = await supabase
+      .from("student_solved_challenges")
+      .upsert({ student_name: studentName, challenge_id: challengeId, language: lang }, { onConflict: "student_name,challenge_id" });
+    if (!error) {
+      setSolvedIds(prev => new Set(prev).add(challengeId));
+      toast({ title: "Challenge Solved! 🎉", description: "Added to your leaderboard score." });
+    }
+  }, [studentName, solvedIds]);
 
   const filteredChallenges = useMemo(() => {
     return programmingChallenges.filter((c) => {
@@ -98,6 +125,19 @@ const ProgrammingModule = () => {
     }
   }, [selectedLang, code, stdin]);
 
+  // Compute correctness for both views
+  const expectedOutput = selectedChallenge?.sampleOutput?.trim() ?? "";
+  const actualOutput = output.trim();
+  const hasOutput = output.length > 0;
+  const isCorrect = hasOutput && !output.startsWith("ERROR") && !output.startsWith("Failed") && actualOutput === expectedOutput;
+
+  // Auto-save when correct
+  useEffect(() => {
+    if (isCorrect && selectedChallenge) {
+      markSolved(selectedChallenge.id, selectedLang);
+    }
+  }, [isCorrect, selectedChallenge, selectedLang, markSolved]);
+
   // === CHALLENGE LIST VIEW ===
   if (!selectedChallenge) {
     return (
@@ -134,46 +174,59 @@ const ProgrammingModule = () => {
           </Select>
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Code2 className="h-4 w-4" />
-          <span>{filteredChallenges.length} challenges found</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Code2 className="h-4 w-4" />
+            <span>{filteredChallenges.length} challenges found · {solvedIds.size} solved</span>
+          </div>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowLeaderboard(!showLeaderboard)}>
+            <Trophy className="h-4 w-4" />
+            {showLeaderboard ? "Hide Leaderboard" : "Leaderboard"}
+          </Button>
         </div>
 
-        <ScrollArea className="h-[60vh]">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredChallenges.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => selectChallenge(c)}
-                className="text-left bg-card border border-border rounded-lg p-4 hover:shadow-elevated hover:border-primary/30 transition-all group"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <span className="text-xs font-mono text-muted-foreground">#{c.id}</span>
-                  <Badge variant="outline" className={difficultyColor[c.difficulty]}>
-                    {c.difficulty}
-                  </Badge>
-                </div>
-                <h4 className="font-semibold text-sm text-card-foreground group-hover:text-primary transition-colors mb-1">
-                  {c.title}
-                </h4>
-                <p className="text-xs text-muted-foreground line-clamp-2">{c.description}</p>
-                <div className="mt-2">
-                  <Badge variant="secondary" className="text-[10px]">{c.category}</Badge>
-                </div>
-              </button>
-            ))}
-          </div>
-        </ScrollArea>
+        <div className={`grid gap-4 ${showLeaderboard ? "grid-cols-1 lg:grid-cols-3" : ""}`}>
+          <ScrollArea className={`h-[60vh] ${showLeaderboard ? "lg:col-span-2" : ""}`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredChallenges.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => selectChallenge(c)}
+                  className={`text-left bg-card border rounded-lg p-4 hover:shadow-elevated hover:border-primary/30 transition-all group ${
+                    solvedIds.has(c.id) ? "border-success/30 bg-success/5" : "border-border"
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-mono text-muted-foreground">#{c.id}</span>
+                      {solvedIds.has(c.id) && <CheckCircle className="h-3.5 w-3.5 text-success" />}
+                    </div>
+                    <Badge variant="outline" className={difficultyColor[c.difficulty]}>
+                      {c.difficulty}
+                    </Badge>
+                  </div>
+                  <h4 className="font-semibold text-sm text-card-foreground group-hover:text-primary transition-colors mb-1">
+                    {c.title}
+                  </h4>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{c.description}</p>
+                  <div className="mt-2">
+                    <Badge variant="secondary" className="text-[10px]">{c.category}</Badge>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
+          {showLeaderboard && (
+            <div className="lg:col-span-1">
+              <CodingLeaderboard />
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
   // === CODE EDITOR VIEW ===
-  const expectedOutput = selectedChallenge.sampleOutput?.trim();
-  const actualOutput = output.trim();
-  const hasOutput = output.length > 0;
-  const isCorrect = hasOutput && !output.startsWith("ERROR") && !output.startsWith("Failed") && actualOutput === expectedOutput;
-
   return (
     <div className="space-y-4">
       {/* Header */}

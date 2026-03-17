@@ -12,9 +12,9 @@ interface LeaderboardEntry {
 }
 
 const rankIcons = [
-  <Trophy className="h-5 w-5 text-yellow-500" />,
-  <Medal className="h-5 w-5 text-gray-400" />,
-  <Award className="h-5 w-5 text-amber-600" />,
+  <Trophy className="h-5 w-5 text-warning" />,
+  <Medal className="h-5 w-5 text-muted-foreground" />,
+  <Award className="h-5 w-5 text-primary" />,
 ];
 
 const CodingLeaderboard = () => {

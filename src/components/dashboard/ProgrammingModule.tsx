@@ -125,6 +125,19 @@ const ProgrammingModule = () => {
     }
   }, [selectedLang, code, stdin]);
 
+  // Compute correctness for both views
+  const expectedOutput = selectedChallenge?.sampleOutput?.trim() ?? "";
+  const actualOutput = output.trim();
+  const hasOutput = output.length > 0;
+  const isCorrect = hasOutput && !output.startsWith("ERROR") && !output.startsWith("Failed") && actualOutput === expectedOutput;
+
+  // Auto-save when correct
+  useEffect(() => {
+    if (isCorrect && selectedChallenge) {
+      markSolved(selectedChallenge.id, selectedLang);
+    }
+  }, [isCorrect, selectedChallenge, selectedLang, markSolved]);
+
   // === CHALLENGE LIST VIEW ===
   if (!selectedChallenge) {
     return (
@@ -214,18 +227,6 @@ const ProgrammingModule = () => {
   }
 
   // === CODE EDITOR VIEW ===
-  const expectedOutput = selectedChallenge.sampleOutput?.trim();
-  const actualOutput = output.trim();
-  const hasOutput = output.length > 0;
-  const isCorrect = hasOutput && !output.startsWith("ERROR") && !output.startsWith("Failed") && actualOutput === expectedOutput;
-
-  // Auto-save when correct
-  useEffect(() => {
-    if (isCorrect && selectedChallenge) {
-      markSolved(selectedChallenge.id, selectedLang);
-    }
-  }, [isCorrect, selectedChallenge, selectedLang, markSolved]);
-
   return (
     <div className="space-y-4">
       {/* Header */}

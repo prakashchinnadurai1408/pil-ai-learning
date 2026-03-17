@@ -5,18 +5,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const WANDBOX_API = "https://wandbox.org/api/compile.json";
+const GLOT_API = "https://glot.io/api/run";
 
-// Use "head" (latest) versions which are always available on Wandbox
-const compilerMap: Record<string, { compiler: string; options?: string }> = {
-  python3:    { compiler: "cpython-head" },
-  javascript: { compiler: "nodejs-head" },
-  typescript: { compiler: "typescript-head" },
-  java:       { compiler: "openjdk-head" },
-  c:          { compiler: "gcc-head" },
-  cpp:        { compiler: "gcc-head", options: "warning,c++17" },
-  go:         { compiler: "go-head" },
-  rust:       { compiler: "rust-head" },
+const langConfig: Record<string, { glotLang: string; filename: string }> = {
+  python3:    { glotLang: "python", filename: "main.py" },
+  javascript: { glotLang: "javascript", filename: "main.js" },
+  typescript: { glotLang: "typescript", filename: "main.ts" },
+  java:       { glotLang: "java", filename: "Main.java" },
+  c:          { glotLang: "c", filename: "main.c" },
+  cpp:        { glotLang: "cpp", filename: "main.cpp" },
+  go:         { glotLang: "go", filename: "main.go" },
+  rust:       { glotLang: "rust", filename: "main.rs" },
 };
 
 serve(async (req) => {
@@ -32,9 +31,9 @@ serve(async (req) => {
       });
     }
 
-    const config = compilerMap[language];
+    const config = langConfig[language];
     if (!config) {
-      return new Response(JSON.stringify({ 
+      return new Response(JSON.stringify({
         run: { output: "", stderr: `Unsupported language: ${language}` }
       }), {
         status: 400,
@@ -42,47 +41,44 @@ serve(async (req) => {
       });
     }
 
-    const payload: Record<string, string> = {
-      code,
-      compiler: config.compiler,
-      stdin: stdin || "",
-    };
-    if (config.options) payload.options = config.options;
+    console.log(`Executing ${language} via Glot.io`);
 
-    console.log(`Executing ${language} with compiler ${config.compiler}`);
-
-    const res = await fetch(WANDBOX_API, {
+    const glotUrl = `${GLOT_API}/${config.glotLang}/latest`;
+    
+    const res = await fetch(glotUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        stdin: stdin || "",
+        files: [{ name: config.filename, content: code }],
+      }),
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error("Wandbox error:", res.status, errText);
+      console.error("Glot.io error:", res.status, errText);
+      
+      // Fallback: try Wandbox
+      const wandboxResult = await tryWandbox(language, code, stdin || "");
+      if (wandboxResult) {
+        return new Response(JSON.stringify(wandboxResult), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       return new Response(JSON.stringify({
-        run: { output: "", stderr: `Compiler service temporarily unavailable. Please try again shortly.` }
+        run: { output: "", stderr: `Compiler service temporarily unavailable (${res.status}). Please try again.` }
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const data = await res.json();
-    
-    const output = data.program_output || "";
-    const stderr = data.compiler_error || data.program_error || "";
-    const signal = data.signal || "";
-
-    let finalStderr = stderr;
-    if (!stderr && signal) {
-      finalStderr = `Program terminated with signal: ${signal}`;
-    }
+    const output = (data.stdout || "").replace(/\n$/, "");
+    const stderr = data.stderr || data.error || "";
 
     return new Response(JSON.stringify({
-      run: {
-        output: output.replace(/\n$/, ""), // trim trailing newline
-        stderr: finalStderr,
-      }
+      run: { output, stderr }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -97,3 +93,38 @@ serve(async (req) => {
     });
   }
 });
+
+// Fallback: Wandbox API
+async function tryWandbox(language: string, code: string, stdin: string) {
+  const compilerMap: Record<string, string> = {
+    python3: "cpython-head",
+    javascript: "nodejs-head",
+    typescript: "typescript-head",
+    java: "openjdk-head",
+    c: "gcc-head",
+    cpp: "gcc-head",
+    go: "go-head",
+    rust: "rust-head",
+  };
+
+  const compiler = compilerMap[language];
+  if (!compiler) return null;
+
+  try {
+    const res = await fetch("https://wandbox.org/api/compile.json", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, compiler, stdin }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      run: {
+        output: (data.program_output || "").replace(/\n$/, ""),
+        stderr: data.compiler_error || data.program_error || "",
+      }
+    };
+  } catch {
+    return null;
+  }
+}

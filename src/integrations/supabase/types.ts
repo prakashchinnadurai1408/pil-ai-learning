@@ -126,6 +126,42 @@ export type Database = {
           },
         ]
       }
+      coding_challenges: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          difficulty: string
+          id: string
+          sample_input: string | null
+          sample_output: string | null
+          source: string
+          title: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description: string
+          difficulty?: string
+          id?: string
+          sample_input?: string | null
+          sample_output?: string | null
+          source?: string
+          title: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          difficulty?: string
+          id?: string
+          sample_input?: string | null
+          sample_output?: string | null
+          source?: string
+          title?: string
+        }
+        Relationships: []
+      }
       colleges: {
         Row: {
           created_at: string

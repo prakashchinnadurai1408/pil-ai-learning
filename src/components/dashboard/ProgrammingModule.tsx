@@ -219,6 +219,13 @@ const ProgrammingModule = () => {
   const hasOutput = output.length > 0;
   const isCorrect = hasOutput && !output.startsWith("ERROR") && !output.startsWith("Failed") && actualOutput === expectedOutput;
 
+  // Auto-save when correct
+  useEffect(() => {
+    if (isCorrect && selectedChallenge) {
+      markSolved(selectedChallenge.id, selectedLang);
+    }
+  }, [isCorrect, selectedChallenge, selectedLang, markSolved]);
+
   return (
     <div className="space-y-4">
       {/* Header */}

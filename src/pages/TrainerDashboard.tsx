@@ -15,6 +15,9 @@ import { useTrainerData } from "@/hooks/useTrainerData";
 import { StudentDetailModal } from "@/components/trainer/StudentDetailModal";
 import ComposeMessageDialog from "@/components/trainer/ComposeMessageDialog";
 import TrainerProjectReview from "@/components/trainer/TrainerProjectReview";
+import { lazy, Suspense } from "react";
+
+const TrainerCodingAnalytics = lazy(() => import("@/components/trainer/TrainerCodingAnalytics"));
 import type { StudentData } from "@/hooks/useTrainerData";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,

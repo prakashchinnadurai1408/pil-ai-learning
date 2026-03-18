@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Users, BarChart3, ClipboardCheck, LogOut,
-  TrendingUp, Eye, Loader2, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FolderKanban
+  TrendingUp, Eye, Loader2, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FolderKanban, Code2
 } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { moduleNames, mcqBank } from "@/data/videoContent";
@@ -15,6 +15,9 @@ import { useTrainerData } from "@/hooks/useTrainerData";
 import { StudentDetailModal } from "@/components/trainer/StudentDetailModal";
 import ComposeMessageDialog from "@/components/trainer/ComposeMessageDialog";
 import TrainerProjectReview from "@/components/trainer/TrainerProjectReview";
+import { lazy, Suspense } from "react";
+
+const TrainerCodingAnalytics = lazy(() => import("@/components/trainer/TrainerCodingAnalytics"));
 import type { StudentData } from "@/hooks/useTrainerData";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -153,6 +156,9 @@ const TrainerDashboard = () => {
             </TabsTrigger>
             <TabsTrigger value="projects" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <FolderKanban className="h-4 w-4" /> Projects
+            </TabsTrigger>
+            <TabsTrigger value="coding" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Code2 className="h-4 w-4" /> Coding
             </TabsTrigger>
           </TabsList>
 
@@ -378,6 +384,13 @@ const TrainerDashboard = () => {
           {/* Projects Tab */}
           <TabsContent value="projects">
             <TrainerProjectReview />
+          </TabsContent>
+
+          {/* Coding Analytics Tab */}
+          <TabsContent value="coding">
+            <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+              <TrainerCodingAnalytics />
+            </Suspense>
           </TabsContent>
         </Tabs>
       </div>

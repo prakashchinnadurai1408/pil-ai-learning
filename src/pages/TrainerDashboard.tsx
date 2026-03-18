@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Users, BarChart3, ClipboardCheck, LogOut,
-  TrendingUp, Eye, Loader2, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FolderKanban
+  TrendingUp, Eye, Loader2, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FolderKanban, Code2
 } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { moduleNames, mcqBank } from "@/data/videoContent";

@@ -104,6 +104,7 @@ const VideoLearning = () => {
       return `https://www.youtube.com/results?search_query=${encodeURIComponent(video.youtubeQuery)}`;
     }
     return "";
+  };
 
   const generateQuiz = useCallback(async (video: UnifiedVideo | undefined) => {
     if (!video) return;

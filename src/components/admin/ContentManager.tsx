@@ -356,7 +356,7 @@ const ContentManager = () => {
                     {generatingAllTopics ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
                     {generatingAllTopics ? "Generating for all topics..." : "Generate Videos for All Topics"}
                   </Button>
-                )
+                )}
 
                 {generatedContent && generatedContent.length > 0 && (
                   <div className="space-y-3 mt-4">

@@ -161,6 +161,60 @@ const ContentManager = () => {
     refetch();
   };
 
+  const handleGenerateAllTopicVideos = async () => {
+    const publishedModules = adminModules.filter(m => m.status === "published" || m.status === "draft");
+    if (publishedModules.length === 0) {
+      toast.error("No modules found. Create modules first.");
+      return;
+    }
+    setGeneratingAllTopics(true);
+    let totalGenerated = 0;
+
+    for (const mod of publishedModules) {
+      for (const topic of mod.topics) {
+        try {
+          const { data, error } = await supabase.functions.invoke("generate-section-content", {
+            body: { sectionType: "videos", topic: topic.title, moduleName: mod.title },
+          });
+          if (error || !data?.content) continue;
+
+          const rows = data.content.map((item: any, i: number) => ({
+            module_id: mod.id,
+            section_type: "videos",
+            title: item.title || `${topic.title} - Video ${i + 1}`,
+            content: item,
+            status: "draft",
+            sort_order: i,
+          }));
+
+          await supabase.from("admin_section_content").insert(rows as any);
+          totalGenerated += rows.length;
+        } catch {
+          // continue with next topic
+        }
+      }
+    }
+
+    setGeneratingAllTopics(false);
+    toast.success(`Generated ${totalGenerated} videos across all module topics! Review and publish them.`);
+    refetch();
+  };
+
+  const handleSaveYoutubeId = async (itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+    const updatedContent = { ...(item.content as any), youtubeId: youtubeIdInput.trim() || null };
+    const { error } = await supabase
+      .from("admin_section_content")
+      .update({ content: updatedContent } as any)
+      .eq("id", itemId);
+    if (error) { toast.error("Failed to save YouTube ID"); return; }
+    toast.success("YouTube ID saved!");
+    setEditingYoutubeId(null);
+    setYoutubeIdInput("");
+    refetch();
+  };
+
   const handlePublish = async (id: string) => {
     const { error } = await supabase
       .from("admin_section_content")

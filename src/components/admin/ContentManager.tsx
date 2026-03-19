@@ -458,42 +458,77 @@ const ContentManager = () => {
                 </div>
               ) : (
                 <div className="grid gap-3">
-                  {filteredItems.map(item => (
-                    <div key={item.id} className="bg-card rounded-lg border border-border p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        {item.status === "draft" && (
-                          <Checkbox
-                            checked={selectedIds.has(item.id)}
-                            onCheckedChange={() => toggleSelect(item.id)}
-                            className="flex-shrink-0"
-                          />
-                        )}
-                        <section.icon className="h-4 w-4 text-primary flex-shrink-0" />
-                        <div className="min-w-0">
-                          <span className="font-medium text-sm text-card-foreground block truncate">{item.title}</span>
-                          <p className="text-xs text-muted-foreground truncate">{renderContentPreview(item.content)}</p>
+                  {filteredItems.map(item => {
+                    const contentData = item.content as any;
+                    const hasYoutubeId = !!contentData?.youtubeId;
+                    return (
+                    <div key={item.id} className="bg-card rounded-lg border border-border p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {item.status === "draft" && (
+                            <Checkbox
+                              checked={selectedIds.has(item.id)}
+                              onCheckedChange={() => toggleSelect(item.id)}
+                              className="flex-shrink-0"
+                            />
+                          )}
+                          <section.icon className="h-4 w-4 text-primary flex-shrink-0" />
+                          <div className="min-w-0">
+                            <span className="font-medium text-sm text-card-foreground block truncate">{item.title}</span>
+                            <p className="text-xs text-muted-foreground truncate">{renderContentPreview(item.content)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            item.status === "published" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+                          }`}>
+                            {item.status === "published" ? "Published" : "Draft"}
+                          </span>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setPreviewItem(item)}>
+                            <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                          </Button>
+                          {item.status === "draft" && (
+                            <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setPublishConfirmId(item.id)}>
+                              <Check className="h-3 w-3" /> Publish
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDelete(item.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          item.status === "published" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
-                        }`}>
-                          {item.status === "published" ? "Published" : "Draft"}
-                        </span>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setPreviewItem(item)}>
-                          <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                        </Button>
-                        {item.status === "draft" && (
-                          <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setPublishConfirmId(item.id)}>
-                            <Check className="h-3 w-3" /> Publish
-                          </Button>
-                        )}
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDelete(item.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
+                      {/* YouTube ID editing for video items */}
+                      {activeSection === "videos" && (
+                        <div className="flex items-center gap-2 pl-7">
+                          {editingYoutubeId === item.id ? (
+                            <>
+                              <Input
+                                placeholder="Paste YouTube Video ID (e.g. dQw4w9WgXcQ)"
+                                value={youtubeIdInput}
+                                onChange={e => setYoutubeIdInput(e.target.value)}
+                                className="h-7 text-xs flex-1 max-w-xs"
+                              />
+                              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => handleSaveYoutubeId(item.id)}>
+                                <Check className="h-3 w-3" /> Save
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setEditingYoutubeId(null); setYoutubeIdInput(""); }}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => { setEditingYoutubeId(item.id); setYoutubeIdInput(contentData?.youtubeId || ""); }}
+                              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                            >
+                              <Video className="h-3 w-3" />
+                              {hasYoutubeId ? `YouTube ID: ${contentData.youtubeId}` : "⚠️ No YouTube ID — click to add"}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

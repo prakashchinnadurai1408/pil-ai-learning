@@ -44,6 +44,9 @@ const ContentManager = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterModuleId, setFilterModuleId] = useState<string>("all");
+  const [generatingAllTopics, setGeneratingAllTopics] = useState(false);
+  const [editingYoutubeId, setEditingYoutubeId] = useState<string | null>(null);
+  const [youtubeIdInput, setYoutubeIdInput] = useState("");
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {

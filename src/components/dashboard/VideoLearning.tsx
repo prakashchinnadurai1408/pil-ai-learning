@@ -96,12 +96,14 @@ const VideoLearning = () => {
     if (video.youtubeId) {
       return `https://www.youtube.com/embed/${video.youtubeId}?rel=0&playsinline=1&modestbranding=1`;
     }
-    if (video.youtubeQuery) {
-      const query = encodeURIComponent(video.youtubeQuery);
-      return `https://www.youtube.com/embed?listType=search&list=${query}&rel=0&playsinline=1`;
-    }
     return "";
   };
+
+  const getYoutubeSearchUrl = (video: UnifiedVideo): string => {
+    if (video.youtubeQuery) {
+      return `https://www.youtube.com/results?search_query=${encodeURIComponent(video.youtubeQuery)}`;
+    }
+    return "";
 
   const generateQuiz = useCallback(async (video: UnifiedVideo | undefined) => {
     if (!video) return;

@@ -44,6 +44,9 @@ const ContentManager = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterModuleId, setFilterModuleId] = useState<string>("all");
+  const [generatingAllTopics, setGeneratingAllTopics] = useState(false);
+  const [editingYoutubeId, setEditingYoutubeId] = useState<string | null>(null);
+  const [youtubeIdInput, setYoutubeIdInput] = useState("");
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
@@ -155,6 +158,60 @@ const ContentManager = () => {
     setGeneratedContent(null);
     setTopic("");
     setSaving(false);
+    refetch();
+  };
+
+  const handleGenerateAllTopicVideos = async () => {
+    const publishedModules = adminModules.filter(m => m.status === "published" || m.status === "draft");
+    if (publishedModules.length === 0) {
+      toast.error("No modules found. Create modules first.");
+      return;
+    }
+    setGeneratingAllTopics(true);
+    let totalGenerated = 0;
+
+    for (const mod of publishedModules) {
+      for (const topic of mod.topics) {
+        try {
+          const { data, error } = await supabase.functions.invoke("generate-section-content", {
+            body: { sectionType: "videos", topic: topic.title, moduleName: mod.title },
+          });
+          if (error || !data?.content) continue;
+
+          const rows = data.content.map((item: any, i: number) => ({
+            module_id: mod.id,
+            section_type: "videos",
+            title: item.title || `${topic.title} - Video ${i + 1}`,
+            content: item,
+            status: "draft",
+            sort_order: i,
+          }));
+
+          await supabase.from("admin_section_content").insert(rows as any);
+          totalGenerated += rows.length;
+        } catch {
+          // continue with next topic
+        }
+      }
+    }
+
+    setGeneratingAllTopics(false);
+    toast.success(`Generated ${totalGenerated} videos across all module topics! Review and publish them.`);
+    refetch();
+  };
+
+  const handleSaveYoutubeId = async (itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+    const updatedContent = { ...(item.content as any), youtubeId: youtubeIdInput.trim() || null };
+    const { error } = await supabase
+      .from("admin_section_content")
+      .update({ content: updatedContent } as any)
+      .eq("id", itemId);
+    if (error) { toast.error("Failed to save YouTube ID"); return; }
+    toast.success("YouTube ID saved!");
+    setEditingYoutubeId(null);
+    setYoutubeIdInput("");
     refetch();
   };
 
@@ -289,6 +346,18 @@ const ContentManager = () => {
                   {generating ? "Generating..." : `Generate ${section.label} with AI`}
                 </Button>
 
+                {section.id === "videos" && (
+                  <Button
+                    variant="outline"
+                    className="gap-2 text-sm"
+                    onClick={handleGenerateAllTopicVideos}
+                    disabled={generatingAllTopics || generating}
+                  >
+                    {generatingAllTopics ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
+                    {generatingAllTopics ? "Generating for all topics..." : "Generate Videos for All Topics"}
+                  </Button>
+                )}
+
                 {generatedContent && generatedContent.length > 0 && (
                   <div className="space-y-3 mt-4">
                     <h4 className="font-display font-semibold text-sm text-card-foreground">
@@ -389,42 +458,77 @@ const ContentManager = () => {
                 </div>
               ) : (
                 <div className="grid gap-3">
-                  {filteredItems.map(item => (
-                    <div key={item.id} className="bg-card rounded-lg border border-border p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        {item.status === "draft" && (
-                          <Checkbox
-                            checked={selectedIds.has(item.id)}
-                            onCheckedChange={() => toggleSelect(item.id)}
-                            className="flex-shrink-0"
-                          />
-                        )}
-                        <section.icon className="h-4 w-4 text-primary flex-shrink-0" />
-                        <div className="min-w-0">
-                          <span className="font-medium text-sm text-card-foreground block truncate">{item.title}</span>
-                          <p className="text-xs text-muted-foreground truncate">{renderContentPreview(item.content)}</p>
+                  {filteredItems.map(item => {
+                    const contentData = item.content as any;
+                    const hasYoutubeId = !!contentData?.youtubeId;
+                    return (
+                    <div key={item.id} className="bg-card rounded-lg border border-border p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {item.status === "draft" && (
+                            <Checkbox
+                              checked={selectedIds.has(item.id)}
+                              onCheckedChange={() => toggleSelect(item.id)}
+                              className="flex-shrink-0"
+                            />
+                          )}
+                          <section.icon className="h-4 w-4 text-primary flex-shrink-0" />
+                          <div className="min-w-0">
+                            <span className="font-medium text-sm text-card-foreground block truncate">{item.title}</span>
+                            <p className="text-xs text-muted-foreground truncate">{renderContentPreview(item.content)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            item.status === "published" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+                          }`}>
+                            {item.status === "published" ? "Published" : "Draft"}
+                          </span>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setPreviewItem(item)}>
+                            <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                          </Button>
+                          {item.status === "draft" && (
+                            <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setPublishConfirmId(item.id)}>
+                              <Check className="h-3 w-3" /> Publish
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDelete(item.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          item.status === "published" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
-                        }`}>
-                          {item.status === "published" ? "Published" : "Draft"}
-                        </span>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setPreviewItem(item)}>
-                          <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                        </Button>
-                        {item.status === "draft" && (
-                          <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setPublishConfirmId(item.id)}>
-                            <Check className="h-3 w-3" /> Publish
-                          </Button>
-                        )}
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDelete(item.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
+                      {/* YouTube ID editing for video items */}
+                      {activeSection === "videos" && (
+                        <div className="flex items-center gap-2 pl-7">
+                          {editingYoutubeId === item.id ? (
+                            <>
+                              <Input
+                                placeholder="Paste YouTube Video ID (e.g. dQw4w9WgXcQ)"
+                                value={youtubeIdInput}
+                                onChange={e => setYoutubeIdInput(e.target.value)}
+                                className="h-7 text-xs flex-1 max-w-xs"
+                              />
+                              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => handleSaveYoutubeId(item.id)}>
+                                <Check className="h-3 w-3" /> Save
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setEditingYoutubeId(null); setYoutubeIdInput(""); }}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => { setEditingYoutubeId(item.id); setYoutubeIdInput(contentData?.youtubeId || ""); }}
+                              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                            >
+                              <Video className="h-3 w-3" />
+                              {hasYoutubeId ? `YouTube ID: ${contentData.youtubeId}` : "⚠️ No YouTube ID — click to add"}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

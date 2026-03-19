@@ -96,9 +96,12 @@ const VideoLearning = () => {
     if (video.youtubeId) {
       return `https://www.youtube.com/embed/${video.youtubeId}?rel=0&playsinline=1&modestbranding=1`;
     }
+    return "";
+  };
+
+  const getYoutubeSearchUrl = (video: UnifiedVideo): string => {
     if (video.youtubeQuery) {
-      const query = encodeURIComponent(video.youtubeQuery);
-      return `https://www.youtube.com/embed?listType=search&list=${query}&rel=0&playsinline=1`;
+      return `https://www.youtube.com/results?search_query=${encodeURIComponent(video.youtubeQuery)}`;
     }
     return "";
   };
@@ -262,6 +265,21 @@ const VideoLearning = () => {
                         onLoad={handleIframeLoad}
                         onError={() => { setVideoError(true); setVideoLoading(false); }}
                       />
+                    ) : getYoutubeSearchUrl(currentVideo) ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-muted/30">
+                        <Play className="h-12 w-12 text-primary" />
+                        <p className="text-sm text-muted-foreground text-center px-4">
+                          This video doesn't have a direct embed. Search on YouTube:
+                        </p>
+                        <a
+                          href={getYoutubeSearchUrl(currentVideo)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+                        >
+                          <Play className="h-4 w-4" /> Watch on YouTube
+                        </a>
+                      </div>
                     ) : (
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
                         <Play className="h-10 w-10 text-muted-foreground" />

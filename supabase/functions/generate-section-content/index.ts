@@ -6,10 +6,10 @@ const corsHeaders = {
 };
 
 const sectionPrompts: Record<string, (topic: string, moduleName: string) => string> = {
-  videos: (topic, moduleName) => `Generate 3-5 video lesson suggestions for the topic "${topic}" in the module "${moduleName}". Each video should have a title, description, duration estimate, and a YouTube search query to find relevant content.
+  videos: (topic, moduleName) => `Generate 3-5 video lesson suggestions for the topic "${topic}" in the module "${moduleName}". Each video should have a title, description, duration estimate, a YouTube search query, AND if you know a real YouTube video ID for a popular educational video on this exact topic, include it as "youtubeId". Only include youtubeId if you are confident the video exists.
 
 Return ONLY valid JSON:
-[{"title":"...","description":"...","duration":"12:30","youtubeQuery":"search query for youtube"}]`,
+[{"title":"...","description":"...","duration":"12:30","youtubeQuery":"search query for youtube","youtubeId":"dQw4w9WgXcQ or null"}]`,
 
   ai_chat: (topic, moduleName) => `Generate 4-6 AI chat prompt suggestions for the topic "${topic}" in the module "${moduleName}". These are starter prompts that students can click to begin a conversation with an AI tutor about this topic.
 

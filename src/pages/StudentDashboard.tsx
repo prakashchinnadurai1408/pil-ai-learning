@@ -42,7 +42,7 @@ const StudentDashboard = () => {
           <div className="flex items-center gap-4">
             <NotificationsPanel studentId={null} />
             <span className="text-sm text-muted-foreground hidden sm:block">Welcome, {studentName}</span>
-            <Link to="/">
+            <Link to="/student-login" onClick={() => sessionStorage.clear()}>
               <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" aria-label="Logout">
                 <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Logout</span>
               </Button>

@@ -19,7 +19,7 @@ const AdminLogin = () => {
       toast.error("Please fill all fields");
       return;
     }
-    if (form.email !== "Admin" || form.password !== "Admin@123") {
+    if (form.email !== "prakash.chinnadurai@gmail.com" || form.password !== "Chandra@1408") {
       toast.error("Invalid admin credentials");
       return;
     }
@@ -73,10 +73,10 @@ const AdminLogin = () => {
           {step === "form" ? (
             <div className="space-y-4">
               <div>
-                <Label htmlFor="admin-email">User ID</Label>
+                <Label htmlFor="admin-email">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="admin-email" type="text" placeholder="Enter admin user ID" className="pl-10" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                  <Input id="admin-email" type="email" placeholder="Enter admin email" className="pl-10" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
                 </div>
               </div>
               <div>

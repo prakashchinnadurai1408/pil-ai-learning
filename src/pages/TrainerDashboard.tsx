@@ -114,7 +114,7 @@ const TrainerDashboard = () => {
             <img src={pluginliveLogo} alt="PluginLive" className="h-7" />
             <span className="font-display font-bold text-gradient-accent">Trainer Portal</span>
           </div>
-          <Link to="/">
+          <Link to="/trainer-login" onClick={() => sessionStorage.clear()}>
             <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
               <LogOut className="h-4 w-4" /> Logout
             </Button>

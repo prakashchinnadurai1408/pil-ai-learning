@@ -403,6 +403,7 @@ const ContentManager = () => {
                   </Button>
                 )}
 
+                {generatedContent && generatedContent.length > 0 && (
                   <div className="space-y-3 mt-4">
                     <h4 className="font-display font-semibold text-sm text-card-foreground">
                       Generated Content ({generatedContent.length} items)

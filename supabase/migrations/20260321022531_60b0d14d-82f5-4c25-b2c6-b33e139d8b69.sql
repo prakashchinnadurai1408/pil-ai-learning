@@ -1,0 +1,1 @@
+ALTER TABLE public.students ADD CONSTRAINT students_mobile_unique UNIQUE (mobile);

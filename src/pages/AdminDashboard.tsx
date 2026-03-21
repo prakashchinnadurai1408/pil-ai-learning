@@ -33,7 +33,7 @@ const AdminDashboard = () => {
               <span className="font-display font-bold text-gradient-primary">Admin Panel</span>
             </div>
           </div>
-          <Link to="/">
+          <Link to="/admin-login" onClick={() => sessionStorage.clear()}>
             <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
               <LogOut className="h-4 w-4" /> Logout
             </Button>

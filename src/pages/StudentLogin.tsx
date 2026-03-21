@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, GraduationCap, Phone, Shield } from "lucide-react";
+import { ArrowLeft, GraduationCap, Phone, Shield, Mail } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "sonner";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
@@ -12,26 +12,29 @@ import { supabase } from "@/integrations/supabase/client";
 const StudentLogin = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<"register" | "otp">("register");
-  const [form, setForm] = useState({ name: "", mobile: "", college: "", location: "" });
+  const [form, setForm] = useState({ name: "", email: "", mobile: "", college: "", location: "" });
   const [otp, setOtp] = useState("");
 
   const handleSendOTP = async () => {
-    if (!form.name || !form.mobile || !form.college || !form.location) {
+    if (!form.name || !form.email || !form.mobile || !form.college || !form.location) {
       toast.error("Please fill all fields");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      toast.error("Enter a valid email address");
       return;
     }
     if (form.mobile.length < 10) {
       toast.error("Enter a valid 10-digit mobile number");
       return;
     }
-    // Save location and college incrementally (ignore duplicates)
     await supabase.from("locations").upsert({ name: form.location.trim() }, { onConflict: "name" });
     await supabase.from("colleges").upsert({ name: form.college.trim() }, { onConflict: "name" });
     toast.success("OTP sent to " + form.mobile);
     setStep("otp");
   };
 
-  const handleVerifyOTP = () => {
+  const handleVerifyOTP = async () => {
     if (otp.length < 4) {
       toast.error("Enter the complete 4-digit OTP");
       return;
@@ -40,14 +43,28 @@ const StudentLogin = () => {
       toast.error("Invalid OTP. Please enter 1234");
       return;
     }
+
+    // Upsert student record
+    const { error } = await supabase.from("students").upsert(
+      {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        mobile: form.mobile.trim(),
+        college: form.college.trim(),
+        location: form.location.trim(),
+      },
+      { onConflict: "mobile" }
+    );
+    if (error) console.error("Student upsert error:", error);
+
     sessionStorage.setItem("studentName", form.name);
+    sessionStorage.setItem("studentMobile", form.mobile);
     toast.success("Welcome, " + form.name + "!");
     navigate("/student-dashboard");
   };
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-hero relative items-center justify-center p-12">
         <div className="relative z-10 max-w-md">
           <img src={pluginliveLogo} alt="PluginLive" className="h-12 mb-8 animate-float" />
@@ -68,7 +85,6 @@ const StudentLogin = () => {
         </div>
       </div>
 
-      {/* Right Panel */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8">
@@ -79,10 +95,10 @@ const StudentLogin = () => {
             <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
               <GraduationCap className="h-5 w-5 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-display font-bold text-foreground">Student Login</h1>
+            <h1 className="text-2xl font-display font-bold text-foreground">Student Registration</h1>
           </div>
           <p className="text-muted-foreground mb-8">
-            {step === "register" ? "Register with your details and mobile number" : "Enter the OTP sent to your mobile"}
+            {step === "register" ? "Register with your details to get started" : "Enter the OTP sent to your mobile"}
           </p>
 
           {step === "register" ? (
@@ -90,6 +106,13 @@ const StudentLogin = () => {
               <div>
                 <Label htmlFor="name">Full Name</Label>
                 <Input id="name" placeholder="Enter your full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div>
+                <Label htmlFor="email">Email Address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input id="email" type="email" placeholder="you@example.com" className="pl-10" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                </div>
               </div>
               <div>
                 <Label htmlFor="mobile">Mobile Number</Label>
@@ -126,10 +149,10 @@ const StudentLogin = () => {
                 </InputOTP>
               </div>
               <Button className="w-full bg-gradient-primary border-0 text-primary-foreground hover:opacity-90" size="lg" onClick={handleVerifyOTP}>
-                Verify & Login
+                Verify & Register
               </Button>
-              <button className="w-full text-sm text-muted-foreground hover:text-primary" onClick={() => setStep("register")}>
-                ← Change Number
+              <button className="w-full text-sm text-muted-foreground hover:text-primary" onClick={() => { setStep("register"); setOtp(""); }}>
+                ← Change Details
               </button>
             </div>
           )}

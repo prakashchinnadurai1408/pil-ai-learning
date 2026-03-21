@@ -248,6 +248,7 @@ const ContentManager = () => {
     refetch();
   };
 
+  const handlePublish = async (id: string) => {
     const { error } = await supabase
       .from("admin_section_content")
       .update({ status: "published" } as any)

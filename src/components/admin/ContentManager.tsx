@@ -391,7 +391,18 @@ const ContentManager = () => {
                   </Button>
                 )}
 
-                {generatedContent && generatedContent.length > 0 && (
+                {section.id === "videos" && (
+                  <Button
+                    variant="outline"
+                    className="gap-2 text-sm"
+                    onClick={handleBulkFetchYoutubeIds}
+                    disabled={fetchingYoutubeIds}
+                  >
+                    {fetchingYoutubeIds ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    {fetchingYoutubeIds ? "Fetching IDs..." : "Auto-Fetch YouTube IDs"}
+                  </Button>
+                )}
+
                   <div className="space-y-3 mt-4">
                     <h4 className="font-display font-semibold text-sm text-card-foreground">
                       Generated Content ({generatedContent.length} items)

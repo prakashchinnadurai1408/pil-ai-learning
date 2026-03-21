@@ -216,7 +216,38 @@ const ContentManager = () => {
     refetch();
   };
 
-  const handlePublish = async (id: string) => {
+  const handleBulkFetchYoutubeIds = async () => {
+    const videosWithoutId = items.filter(item => {
+      const c = item.content as any;
+      return !c?.youtubeId && c?.youtubeQuery;
+    });
+    if (videosWithoutId.length === 0) {
+      toast.info("All videos already have YouTube IDs!");
+      return;
+    }
+    setFetchingYoutubeIds(true);
+    let updated = 0;
+    for (const item of videosWithoutId) {
+      try {
+        const c = item.content as any;
+        const { data } = await supabase.functions.invoke("youtube-search", {
+          body: { query: c.youtubeQuery },
+        });
+        if (data?.videoId) {
+          const updatedContent = { ...c, youtubeId: data.videoId };
+          await supabase
+            .from("admin_section_content")
+            .update({ content: updatedContent } as any)
+            .eq("id", item.id);
+          updated++;
+        }
+      } catch { /* continue */ }
+    }
+    setFetchingYoutubeIds(false);
+    toast.success(`Fetched YouTube IDs for ${updated}/${videosWithoutId.length} videos!`);
+    refetch();
+  };
+
     const { error } = await supabase
       .from("admin_section_content")
       .update({ status: "published" } as any)

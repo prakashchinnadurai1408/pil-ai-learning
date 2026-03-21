@@ -98,6 +98,35 @@ serve(async (req) => {
 
     const parsed = JSON.parse(content);
 
+    // Auto-fetch YouTube video IDs for video content
+    if (sectionType === "videos") {
+      const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY");
+      if (YOUTUBE_API_KEY) {
+        for (const item of parsed) {
+          if (!item.youtubeId && item.youtubeQuery) {
+            try {
+              const params = new URLSearchParams({
+                part: "snippet",
+                q: item.youtubeQuery,
+                type: "video",
+                maxResults: "1",
+                videoEmbeddable: "true",
+                key: YOUTUBE_API_KEY,
+              });
+              const ytRes = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
+              if (ytRes.ok) {
+                const ytData = await ytRes.json();
+                const videoId = ytData.items?.[0]?.id?.videoId;
+                if (videoId) item.youtubeId = videoId;
+              }
+            } catch (e) {
+              console.error("YouTube search failed for:", item.youtubeQuery, e);
+            }
+          }
+        }
+      }
+    }
+
     return new Response(JSON.stringify({ content: parsed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

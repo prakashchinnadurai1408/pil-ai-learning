@@ -47,6 +47,7 @@ const ContentManager = () => {
   const [generatingAllTopics, setGeneratingAllTopics] = useState(false);
   const [editingYoutubeId, setEditingYoutubeId] = useState<string | null>(null);
   const [youtubeIdInput, setYoutubeIdInput] = useState("");
+  const [fetchingYoutubeIds, setFetchingYoutubeIds] = useState(false);
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {

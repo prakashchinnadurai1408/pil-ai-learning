@@ -36,7 +36,7 @@ const TrainerLogin = () => {
     setStep("otp");
   };
 
-  const handleVerifyOTP = () => {
+  const handleVerifyOTP = async () => {
     if (otp.length < 4) {
       toast.error("Enter the complete 4-digit OTP");
       return;
@@ -45,6 +45,8 @@ const TrainerLogin = () => {
       toast.error("Invalid OTP. Please enter 1234");
       return;
     }
+    sessionStorage.setItem("trainerName", form.name);
+    sessionStorage.setItem("trainerEmail", form.email);
     toast.success("Welcome, " + form.name + "!");
     navigate("/trainer-dashboard");
   };

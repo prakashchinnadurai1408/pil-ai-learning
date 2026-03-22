@@ -3,20 +3,25 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, GraduationCap, Phone, Shield, Mail } from "lucide-react";
+import { ArrowLeft, GraduationCap, Phone, Shield, Mail, Lock, KeyRound } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "sonner";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 
+type Step = "register" | "signin" | "otp" | "forgot" | "reset-otp" | "new-password";
+
 const StudentLogin = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState<"register" | "otp">("register");
-  const [form, setForm] = useState({ name: "", email: "", mobile: "", college: "", location: "" });
+  const [step, setStep] = useState<Step>("signin");
+  const [form, setForm] = useState({ name: "", email: "", mobile: "", college: "", location: "", password: "" });
+  const [signinForm, setSigninForm] = useState({ mobile: "", password: "" });
   const [otp, setOtp] = useState("");
+  const [forgotMobile, setForgotMobile] = useState("");
+  const [newPassword, setNewPassword] = useState({ password: "", confirm: "" });
 
-  const handleSendOTP = async () => {
-    if (!form.name || !form.email || !form.mobile || !form.college || !form.location) {
+  const handleRegisterSendOTP = async () => {
+    if (!form.name || !form.email || !form.mobile || !form.college || !form.location || !form.password) {
       toast.error("Please fill all fields");
       return;
     }
@@ -28,39 +33,79 @@ const StudentLogin = () => {
       toast.error("Enter a valid 10-digit mobile number");
       return;
     }
+    if (form.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    // Check if mobile already registered
+    const { data: existing } = await supabase.from("students").select("id").eq("mobile", form.mobile).maybeSingle();
+    if (existing) {
+      toast.error("Mobile number already registered. Please sign in.");
+      return;
+    }
     await supabase.from("locations").upsert({ name: form.location.trim() }, { onConflict: "name" });
     await supabase.from("colleges").upsert({ name: form.college.trim() }, { onConflict: "name" });
     toast.success("OTP sent to " + form.mobile);
     setStep("otp");
   };
 
-  const handleVerifyOTP = async () => {
-    if (otp.length < 4) {
-      toast.error("Enter the complete 4-digit OTP");
-      return;
-    }
-    if (otp !== "1234") {
-      toast.error("Invalid OTP. Please enter 1234");
-      return;
-    }
-
-    // Upsert student record
-    const { error } = await supabase.from("students").upsert(
-      {
-        name: form.name.trim(),
-        email: form.email.trim(),
-        mobile: form.mobile.trim(),
-        college: form.college.trim(),
-        location: form.location.trim(),
-      },
-      { onConflict: "mobile" }
-    );
-    if (error) console.error("Student upsert error:", error);
-
+  const handleVerifyRegisterOTP = async () => {
+    if (otp.length < 4) { toast.error("Enter the complete 4-digit OTP"); return; }
+    if (otp !== "1234") { toast.error("Invalid OTP. Please enter 1234"); return; }
+    const { error } = await supabase.from("students").insert({
+      name: form.name.trim(), email: form.email.trim(), mobile: form.mobile.trim(),
+      college: form.college.trim(), location: form.location.trim(), password: form.password,
+    });
+    if (error) { console.error("Student insert error:", error); toast.error("Registration failed"); return; }
     sessionStorage.setItem("studentName", form.name);
     sessionStorage.setItem("studentMobile", form.mobile);
     toast.success("Welcome, " + form.name + "!");
     navigate("/student-dashboard");
+  };
+
+  const handleSignIn = async () => {
+    if (!signinForm.mobile || !signinForm.password) { toast.error("Please fill all fields"); return; }
+    const { data, error } = await supabase.from("students").select("*").eq("mobile", signinForm.mobile).eq("password", signinForm.password).maybeSingle();
+    if (error || !data) { toast.error("Invalid mobile number or password"); return; }
+    sessionStorage.setItem("studentName", data.name);
+    sessionStorage.setItem("studentMobile", data.mobile);
+    toast.success("Welcome back, " + data.name + "!");
+    navigate("/student-dashboard");
+  };
+
+  const handleForgotSendOTP = async () => {
+    if (forgotMobile.length < 10) { toast.error("Enter a valid 10-digit mobile number"); return; }
+    const { data } = await supabase.from("students").select("id").eq("mobile", forgotMobile).maybeSingle();
+    if (!data) { toast.error("Mobile number not registered"); return; }
+    toast.success("OTP sent to " + forgotMobile);
+    setOtp("");
+    setStep("reset-otp");
+  };
+
+  const handleVerifyResetOTP = () => {
+    if (otp.length < 4) { toast.error("Enter the complete 4-digit OTP"); return; }
+    if (otp !== "1234") { toast.error("Invalid OTP. Please enter 1234"); return; }
+    setOtp("");
+    setStep("new-password");
+  };
+
+  const handleResetPassword = async () => {
+    if (newPassword.password.length < 6) { toast.error("Password must be at least 6 characters"); return; }
+    if (newPassword.password !== newPassword.confirm) { toast.error("Passwords do not match"); return; }
+    const { error } = await supabase.from("students").update({ password: newPassword.password }).eq("mobile", forgotMobile);
+    if (error) { toast.error("Failed to reset password"); return; }
+    toast.success("Password reset successfully! Please sign in.");
+    setStep("signin");
+    setNewPassword({ password: "", confirm: "" });
+  };
+
+  const subtitle: Record<Step, string> = {
+    signin: "Sign in with your credentials",
+    register: "Register with your details to get started",
+    otp: "Enter the OTP sent to your mobile",
+    forgot: "Enter your registered mobile number",
+    "reset-otp": "Enter the OTP sent to your mobile",
+    "new-password": "Set your new password",
   };
 
   return (
@@ -68,12 +113,8 @@ const StudentLogin = () => {
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-hero relative items-center justify-center p-12">
         <div className="relative z-10 max-w-md">
           <img src={pluginliveLogo} alt="PluginLive" className="h-12 mb-8 animate-float" />
-          <h2 className="text-3xl font-display font-bold mb-4" style={{ color: "hsl(0, 0%, 95%)" }}>
-            Begin Your AI Journey
-          </h2>
-          <p style={{ color: "hsl(220, 15%, 65%)" }}>
-            Join thousands of students mastering AI tools, prompt engineering, and more through our structured learning platform.
-          </p>
+          <h2 className="text-3xl font-display font-bold mb-4" style={{ color: "hsl(0, 0%, 95%)" }}>Begin Your AI Journey</h2>
+          <p style={{ color: "hsl(220, 15%, 65%)" }}>Join thousands of students mastering AI tools, prompt engineering, and more through our structured learning platform.</p>
           <div className="mt-8 grid grid-cols-2 gap-4">
             {["10 Modules", "50+ Videos", "AI Playground", "Assessments"].map((item) => (
               <div key={item} className="flex items-center gap-2 text-sm" style={{ color: "hsl(196, 80%, 60%)" }}>
@@ -95,13 +136,37 @@ const StudentLogin = () => {
             <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
               <GraduationCap className="h-5 w-5 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-display font-bold text-foreground">Student Registration</h1>
+            <h1 className="text-2xl font-display font-bold text-foreground">
+              {step === "register" || step === "otp" ? "Student Registration" : step === "signin" ? "Student Sign In" : "Reset Password"}
+            </h1>
           </div>
-          <p className="text-muted-foreground mb-8">
-            {step === "register" ? "Register with your details to get started" : "Enter the OTP sent to your mobile"}
-          </p>
+          <p className="text-muted-foreground mb-8">{subtitle[step]}</p>
 
-          {step === "register" ? (
+          {step === "signin" && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="s-mobile">Mobile Number</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input id="s-mobile" placeholder="10-digit mobile number" className="pl-10" maxLength={10} value={signinForm.mobile} onChange={(e) => setSigninForm({ ...signinForm, mobile: e.target.value.replace(/\D/g, "") })} />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="s-pass">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input id="s-pass" type="password" placeholder="Enter your password" className="pl-10" value={signinForm.password} onChange={(e) => setSigninForm({ ...signinForm, password: e.target.value })} />
+                </div>
+              </div>
+              <button className="text-sm text-primary hover:underline" onClick={() => setStep("forgot")}>Forgot Password?</button>
+              <Button className="w-full bg-gradient-primary border-0 text-primary-foreground hover:opacity-90 mt-2" size="lg" onClick={handleSignIn}>Sign In</Button>
+              <p className="text-center text-sm text-muted-foreground">Don't have an account?{" "}
+                <button className="text-primary font-medium hover:underline" onClick={() => setStep("register")}>Register</button>
+              </p>
+            </div>
+          )}
+
+          {step === "register" && (
             <div className="space-y-4">
               <div>
                 <Label htmlFor="name">Full Name</Label>
@@ -129,11 +194,21 @@ const StudentLogin = () => {
                 <Label htmlFor="location">Location</Label>
                 <Input id="location" placeholder="Enter your location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
               </div>
-              <Button className="w-full bg-gradient-primary border-0 text-primary-foreground hover:opacity-90 mt-2" size="lg" onClick={handleSendOTP}>
-                Send OTP
-              </Button>
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input id="password" type="password" placeholder="Create a password (min 6 chars)" className="pl-10" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                </div>
+              </div>
+              <Button className="w-full bg-gradient-primary border-0 text-primary-foreground hover:opacity-90 mt-2" size="lg" onClick={handleRegisterSendOTP}>Send OTP</Button>
+              <p className="text-center text-sm text-muted-foreground">Already have an account?{" "}
+                <button className="text-primary font-medium hover:underline" onClick={() => setStep("signin")}>Sign In</button>
+              </p>
             </div>
-          ) : (
+          )}
+
+          {step === "otp" && (
             <div className="space-y-6">
               <div className="flex items-center gap-3 p-4 rounded-lg bg-muted">
                 <Shield className="h-5 w-5 text-primary" />
@@ -141,27 +216,67 @@ const StudentLogin = () => {
               </div>
               <div className="flex justify-center">
                 <InputOTP maxLength={4} value={otp} onChange={setOtp}>
-                  <InputOTPGroup>
-                    {[0, 1, 2, 3].map((i) => (
-                      <InputOTPSlot key={i} index={i} />
-                    ))}
-                  </InputOTPGroup>
+                  <InputOTPGroup>{[0, 1, 2, 3].map((i) => <InputOTPSlot key={i} index={i} />)}</InputOTPGroup>
                 </InputOTP>
               </div>
-              <Button className="w-full bg-gradient-primary border-0 text-primary-foreground hover:opacity-90" size="lg" onClick={handleVerifyOTP}>
-                Verify & Register
-              </Button>
-              <button className="w-full text-sm text-muted-foreground hover:text-primary" onClick={() => { setStep("register"); setOtp(""); }}>
-                ← Change Details
-              </button>
+              <Button className="w-full bg-gradient-primary border-0 text-primary-foreground hover:opacity-90" size="lg" onClick={handleVerifyRegisterOTP}>Verify & Register</Button>
+              <button className="w-full text-sm text-muted-foreground hover:text-primary" onClick={() => { setStep("register"); setOtp(""); }}>← Change Details</button>
+            </div>
+          )}
+
+          {step === "forgot" && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="forgot-mobile">Registered Mobile Number</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input id="forgot-mobile" placeholder="10-digit mobile number" className="pl-10" maxLength={10} value={forgotMobile} onChange={(e) => setForgotMobile(e.target.value.replace(/\D/g, ""))} />
+                </div>
+              </div>
+              <Button className="w-full bg-gradient-primary border-0 text-primary-foreground hover:opacity-90" size="lg" onClick={handleForgotSendOTP}>Send Reset OTP</Button>
+              <button className="w-full text-sm text-muted-foreground hover:text-primary" onClick={() => setStep("signin")}>← Back to Sign In</button>
+            </div>
+          )}
+
+          {step === "reset-otp" && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted">
+                <Shield className="h-5 w-5 text-primary" />
+                <p className="text-sm text-muted-foreground">OTP sent to <span className="font-medium text-foreground">{forgotMobile}</span></p>
+              </div>
+              <div className="flex justify-center">
+                <InputOTP maxLength={4} value={otp} onChange={setOtp}>
+                  <InputOTPGroup>{[0, 1, 2, 3].map((i) => <InputOTPSlot key={i} index={i} />)}</InputOTPGroup>
+                </InputOTP>
+              </div>
+              <Button className="w-full bg-gradient-primary border-0 text-primary-foreground hover:opacity-90" size="lg" onClick={handleVerifyResetOTP}>Verify OTP</Button>
+              <button className="w-full text-sm text-muted-foreground hover:text-primary" onClick={() => setStep("forgot")}>← Change Number</button>
+            </div>
+          )}
+
+          {step === "new-password" && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="new-pass">New Password</Label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input id="new-pass" type="password" placeholder="Min 6 characters" className="pl-10" value={newPassword.password} onChange={(e) => setNewPassword({ ...newPassword, password: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="confirm-pass">Confirm Password</Label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input id="confirm-pass" type="password" placeholder="Re-enter password" className="pl-10" value={newPassword.confirm} onChange={(e) => setNewPassword({ ...newPassword, confirm: e.target.value })} />
+                </div>
+              </div>
+              <Button className="w-full bg-gradient-primary border-0 text-primary-foreground hover:opacity-90" size="lg" onClick={handleResetPassword}>Reset Password</Button>
             </div>
           )}
 
           <p className="mt-8 text-center text-sm text-muted-foreground">
             Are you a trainer?{" "}
-            <Link to="/trainer-login" className="text-primary font-medium hover:underline">
-              Login as Trainer
-            </Link>
+            <Link to="/trainer-login" className="text-primary font-medium hover:underline">Login as Trainer</Link>
           </p>
         </div>
       </div>

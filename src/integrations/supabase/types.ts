@@ -445,6 +445,7 @@ export type Database = {
           location: string
           mobile: string
           name: string
+          password: string
         }
         Insert: {
           college: string
@@ -454,6 +455,7 @@ export type Database = {
           location: string
           mobile: string
           name: string
+          password?: string
         }
         Update: {
           college?: string
@@ -463,6 +465,7 @@ export type Database = {
           location?: string
           mobile?: string
           name?: string
+          password?: string
         }
         Relationships: []
       }
@@ -487,6 +490,39 @@ export type Database = {
           recipient_count?: number
           sent_at?: string
           subject?: string
+        }
+        Relationships: []
+      }
+      trainers: {
+        Row: {
+          college: string
+          created_at: string
+          email: string
+          id: string
+          location: string
+          mobile: string
+          name: string
+          password: string
+        }
+        Insert: {
+          college: string
+          created_at?: string
+          email: string
+          id?: string
+          location: string
+          mobile: string
+          name: string
+          password?: string
+        }
+        Update: {
+          college?: string
+          created_at?: string
+          email?: string
+          id?: string
+          location?: string
+          mobile?: string
+          name?: string
+          password?: string
         }
         Relationships: []
       }

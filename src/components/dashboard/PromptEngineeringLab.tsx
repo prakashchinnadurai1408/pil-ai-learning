@@ -455,12 +455,16 @@ Respond in EXACTLY this JSON format, nothing else:
                 placeholder="Enter any prompt to test... Experiment with different frameworks and techniques from the lessons."
                 className="min-h-[120px] mb-3"
               />
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button onClick={() => runPrompt(sandboxPrompt, setSandboxResponse, setSandboxLoading, sandboxRole)} disabled={sandboxLoading || !sandboxPrompt.trim()} className="gap-2">
                   {sandboxLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   Run Prompt
                 </Button>
-                <Button variant="outline" onClick={() => { setSandboxPrompt(""); setSandboxResponse(""); }}>
+                <Button variant="secondary" onClick={() => evaluatePrompt(sandboxPrompt)} disabled={isEvaluating || !sandboxPrompt.trim()} className="gap-2">
+                  {isEvaluating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Award className="h-4 w-4" />}
+                  Score My Prompt
+                </Button>
+                <Button variant="outline" onClick={() => { setSandboxPrompt(""); setSandboxResponse(""); setEvaluation(null); }}>
                   <RotateCcw className="h-4 w-4 mr-1" /> Clear
                 </Button>
               </div>

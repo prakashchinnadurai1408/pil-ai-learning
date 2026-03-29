@@ -471,6 +471,8 @@ Respond in EXACTLY this JSON format, nothing else:
             </div>
 
             {evaluation && <PromptScoreCard evaluation={evaluation} />}
+
+            {sandboxResponse && (
               <div className="bg-card border border-border rounded-lg p-4 shadow-card">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="h-4 w-4 text-primary" />

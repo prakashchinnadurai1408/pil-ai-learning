@@ -11,8 +11,10 @@ import ReactMarkdown from "react-markdown";
 import {
   MessageSquare, Send, Loader2, BookOpen, Target,
   Lightbulb, ChevronRight, RotateCcw, Sparkles, GraduationCap,
-  FileText, Code2, Pencil, Search, BarChart3
+  FileText, Code2, Pencil, Search, BarChart3, Award, CheckCircle2
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/integrations/supabase/client";
 
 // --- Lesson Data ---
 const lessons = [
@@ -120,6 +122,41 @@ const challenges = [
   },
 ];
 
+const scoreColor = (score: number) =>
+  score >= 80 ? "text-success" : score >= 50 ? "text-warning" : "text-destructive";
+const scoreBg = (score: number) =>
+  score >= 80 ? "bg-success/10" : score >= 50 ? "bg-warning/10" : "bg-destructive/10";
+
+const PromptScoreCard = ({ evaluation }: { evaluation: { clarity: number; specificity: number; framework: number; overall: number; feedback: string } }) => (
+  <div className="bg-card border border-border rounded-lg p-5 shadow-card">
+    <div className="flex items-center gap-2 mb-4">
+      <Award className="h-5 w-5 text-primary" />
+      <span className="font-display font-bold text-card-foreground">Prompt Score</span>
+      <div className={`ml-auto text-2xl font-display font-bold ${scoreColor(evaluation.overall)}`}>
+        {evaluation.overall}/100
+      </div>
+    </div>
+    <div className="grid grid-cols-3 gap-3 mb-4">
+      {([
+        { label: "Clarity", value: evaluation.clarity, icon: CheckCircle2 },
+        { label: "Specificity", value: evaluation.specificity, icon: Target },
+        { label: "Framework", value: evaluation.framework, icon: Lightbulb },
+      ] as const).map(({ label, value, icon: Icon }) => (
+        <div key={label} className={`rounded-lg p-3 ${scoreBg(value)} text-center`}>
+          <Icon className={`h-4 w-4 mx-auto mb-1 ${scoreColor(value)}`} />
+          <div className={`text-lg font-bold ${scoreColor(value)}`}>{value}</div>
+          <div className="text-[10px] text-muted-foreground font-medium">{label}</div>
+          <Progress value={value} className="h-1 mt-1.5" />
+        </div>
+      ))}
+    </div>
+    <div className="bg-muted rounded-md p-3">
+      <p className="text-xs font-semibold text-muted-foreground mb-1">AI Feedback</p>
+      <p className="text-sm text-card-foreground">{evaluation.feedback}</p>
+    </div>
+  </div>
+);
+
 const PromptEngineeringLab = () => {
   const [activeTab, setActiveTab] = useState("learn");
   const [selectedLesson, setSelectedLesson] = useState<number | null>(null);
@@ -132,14 +169,8 @@ const PromptEngineeringLab = () => {
   const [sandboxResponse, setSandboxResponse] = useState("");
   const [sandboxLoading, setSandboxLoading] = useState(false);
   const [sandboxRole, setSandboxRole] = useState("general");
-
-  const roles: Record<string, string> = {
-    general: "You are a helpful AI assistant.",
-    researcher: "You are an academic research assistant with expertise in literature reviews, methodology, and APA formatting.",
-    coder: "You are a senior software engineer. Provide clean, well-documented code with explanations.",
-    analyst: "You are a data analyst. Provide structured analysis with statistical insights.",
-    writer: "You are an academic writing tutor. Help improve writing clarity, structure, and grammar.",
-  };
+  const [evaluation, setEvaluation] = useState<{ clarity: number; specificity: number; framework: number; overall: number; feedback: string } | null>(null);
+  const [isEvaluating, setIsEvaluating] = useState(false);
 
   const runPrompt = useCallback(async (prompt: string, setter: React.Dispatch<React.SetStateAction<string>>, loadSetter: (v: boolean) => void, systemRole: string) => {
     if (!prompt.trim()) return;
@@ -156,6 +187,79 @@ const PromptEngineeringLab = () => {
     } catch {
       toast({ title: "Error", description: "Failed to get AI response. Please try again.", variant: "destructive" });
       loadSetter(false);
+    }
+  }, []);
+
+  const evaluatePrompt = useCallback(async (prompt: string) => {
+    if (!prompt.trim()) return;
+    setIsEvaluating(true);
+    setEvaluation(null);
+    try {
+      const evalPrompt = `You are a prompt engineering evaluator. Score this student's prompt on 3 criteria (each 0-100):
+
+PROMPT TO EVALUATE:
+"""
+${prompt}
+"""
+
+Score these criteria:
+1. **Clarity** (0-100): Is the prompt clear, unambiguous, and easy to understand?
+2. **Specificity** (0-100): Does it include specific details, constraints, format requirements, and context?
+3. **Framework Usage** (0-100): Does it use prompt engineering techniques (role assignment, examples, chain-of-thought, structured output, constraints)?
+
+Respond in EXACTLY this JSON format, nothing else:
+{"clarity":85,"specificity":70,"framework":60,"feedback":"2-3 sentences of constructive feedback with specific improvement suggestions."}`;
+
+      const { data, error } = await supabase.functions.invoke("chat", {
+        body: { messages: [{ role: "user", content: evalPrompt }], tool: "evaluator" },
+      });
+
+      if (error) throw error;
+
+      // Parse streamed response - collect all chunks
+      const reader = new Response(data).body?.getReader();
+      if (!reader) throw new Error("No reader");
+      const decoder = new TextDecoder();
+      let fullText = "";
+      
+      // If data is already parsed (non-streaming response)
+      if (typeof data === "object" && data.choices) {
+        fullText = data.choices[0]?.message?.content || "";
+      } else if (typeof data === "string") {
+        fullText = data;
+      } else {
+        // Try reading as stream
+        let done = false;
+        while (!done) {
+          const chunk = await reader.read();
+          done = chunk.done;
+          if (chunk.value) {
+            const text = decoder.decode(chunk.value, { stream: true });
+            for (const line of text.split("\n")) {
+              if (!line.startsWith("data: ") || line.includes("[DONE]")) continue;
+              try {
+                const parsed = JSON.parse(line.slice(6));
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) fullText += content;
+              } catch { /* skip */ }
+            }
+          }
+        }
+      }
+
+      // Extract JSON from response
+      const jsonMatch = fullText.match(/\{[\s\S]*?"clarity"[\s\S]*?\}/);
+      if (jsonMatch) {
+        const scores = JSON.parse(jsonMatch[0]);
+        const overall = Math.round((scores.clarity + scores.specificity + scores.framework) / 3);
+        setEvaluation({ ...scores, overall });
+      } else {
+        throw new Error("Could not parse evaluation");
+      }
+    } catch {
+      toast({ title: "Evaluation Failed", description: "Could not evaluate prompt. Please try again.", variant: "destructive" });
+    } finally {
+      setIsEvaluating(false);
     }
   }, []);
 
@@ -238,7 +342,7 @@ const PromptEngineeringLab = () => {
         <TabsContent value="practice" className="mt-4">
           {currentChallenge ? (
             <div className="space-y-4">
-              <Button variant="ghost" size="sm" onClick={() => { setSelectedChallenge(null); setAiResponse(""); setUserPrompt(""); setShowHint(false); }}>
+              <Button variant="ghost" size="sm" onClick={() => { setSelectedChallenge(null); setAiResponse(""); setUserPrompt(""); setShowHint(false); setEvaluation(null); }}>
                 ← Back to Challenges
               </Button>
               <div className="bg-card border border-border rounded-lg p-5 shadow-card">
@@ -265,16 +369,22 @@ const PromptEngineeringLab = () => {
                   placeholder="Write your prompt here... Try to be as specific and well-structured as possible."
                   className="min-h-[150px]"
                 />
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button onClick={() => runPrompt(userPrompt, setAiResponse, setIsLoading, "general")} disabled={isLoading || !userPrompt.trim()} className="gap-2">
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     Test Prompt
                   </Button>
-                  <Button variant="outline" onClick={() => { setUserPrompt(""); setAiResponse(""); }}>
+                  <Button variant="secondary" onClick={() => evaluatePrompt(userPrompt)} disabled={isEvaluating || !userPrompt.trim()} className="gap-2">
+                    {isEvaluating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Award className="h-4 w-4" />}
+                    Score My Prompt
+                  </Button>
+                  <Button variant="outline" onClick={() => { setUserPrompt(""); setAiResponse(""); setEvaluation(null); }}>
                     <RotateCcw className="h-4 w-4 mr-1" /> Reset
                   </Button>
                 </div>
               </div>
+
+              {evaluation && <PromptScoreCard evaluation={evaluation} />}
 
               {aiResponse && (
                 <div className="bg-card border border-border rounded-lg p-4 shadow-card">
@@ -345,18 +455,22 @@ const PromptEngineeringLab = () => {
                 placeholder="Enter any prompt to test... Experiment with different frameworks and techniques from the lessons."
                 className="min-h-[120px] mb-3"
               />
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button onClick={() => runPrompt(sandboxPrompt, setSandboxResponse, setSandboxLoading, sandboxRole)} disabled={sandboxLoading || !sandboxPrompt.trim()} className="gap-2">
                   {sandboxLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   Run Prompt
                 </Button>
-                <Button variant="outline" onClick={() => { setSandboxPrompt(""); setSandboxResponse(""); }}>
+                <Button variant="secondary" onClick={() => evaluatePrompt(sandboxPrompt)} disabled={isEvaluating || !sandboxPrompt.trim()} className="gap-2">
+                  {isEvaluating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Award className="h-4 w-4" />}
+                  Score My Prompt
+                </Button>
+                <Button variant="outline" onClick={() => { setSandboxPrompt(""); setSandboxResponse(""); setEvaluation(null); }}>
                   <RotateCcw className="h-4 w-4 mr-1" /> Clear
                 </Button>
               </div>
             </div>
 
-            {sandboxResponse && (
+            {evaluation && <PromptScoreCard evaluation={evaluation} />}
               <div className="bg-card border border-border rounded-lg p-4 shadow-card">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="h-4 w-4 text-primary" />

@@ -11,8 +11,10 @@ import ReactMarkdown from "react-markdown";
 import {
   MessageSquare, Send, Loader2, BookOpen, Target,
   Lightbulb, ChevronRight, RotateCcw, Sparkles, GraduationCap,
-  FileText, Code2, Pencil, Search, BarChart3
+  FileText, Code2, Pencil, Search, BarChart3, Award, CheckCircle2
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/integrations/supabase/client";
 
 // --- Lesson Data ---
 const lessons = [
@@ -132,14 +134,8 @@ const PromptEngineeringLab = () => {
   const [sandboxResponse, setSandboxResponse] = useState("");
   const [sandboxLoading, setSandboxLoading] = useState(false);
   const [sandboxRole, setSandboxRole] = useState("general");
-
-  const roles: Record<string, string> = {
-    general: "You are a helpful AI assistant.",
-    researcher: "You are an academic research assistant with expertise in literature reviews, methodology, and APA formatting.",
-    coder: "You are a senior software engineer. Provide clean, well-documented code with explanations.",
-    analyst: "You are a data analyst. Provide structured analysis with statistical insights.",
-    writer: "You are an academic writing tutor. Help improve writing clarity, structure, and grammar.",
-  };
+  const [evaluation, setEvaluation] = useState<{ clarity: number; specificity: number; framework: number; overall: number; feedback: string } | null>(null);
+  const [isEvaluating, setIsEvaluating] = useState(false);
 
   const runPrompt = useCallback(async (prompt: string, setter: React.Dispatch<React.SetStateAction<string>>, loadSetter: (v: boolean) => void, systemRole: string) => {
     if (!prompt.trim()) return;
@@ -156,6 +152,79 @@ const PromptEngineeringLab = () => {
     } catch {
       toast({ title: "Error", description: "Failed to get AI response. Please try again.", variant: "destructive" });
       loadSetter(false);
+    }
+  }, []);
+
+  const evaluatePrompt = useCallback(async (prompt: string) => {
+    if (!prompt.trim()) return;
+    setIsEvaluating(true);
+    setEvaluation(null);
+    try {
+      const evalPrompt = `You are a prompt engineering evaluator. Score this student's prompt on 3 criteria (each 0-100):
+
+PROMPT TO EVALUATE:
+"""
+${prompt}
+"""
+
+Score these criteria:
+1. **Clarity** (0-100): Is the prompt clear, unambiguous, and easy to understand?
+2. **Specificity** (0-100): Does it include specific details, constraints, format requirements, and context?
+3. **Framework Usage** (0-100): Does it use prompt engineering techniques (role assignment, examples, chain-of-thought, structured output, constraints)?
+
+Respond in EXACTLY this JSON format, nothing else:
+{"clarity":85,"specificity":70,"framework":60,"feedback":"2-3 sentences of constructive feedback with specific improvement suggestions."}`;
+
+      const { data, error } = await supabase.functions.invoke("chat", {
+        body: { messages: [{ role: "user", content: evalPrompt }], tool: "evaluator" },
+      });
+
+      if (error) throw error;
+
+      // Parse streamed response - collect all chunks
+      const reader = new Response(data).body?.getReader();
+      if (!reader) throw new Error("No reader");
+      const decoder = new TextDecoder();
+      let fullText = "";
+      
+      // If data is already parsed (non-streaming response)
+      if (typeof data === "object" && data.choices) {
+        fullText = data.choices[0]?.message?.content || "";
+      } else if (typeof data === "string") {
+        fullText = data;
+      } else {
+        // Try reading as stream
+        let done = false;
+        while (!done) {
+          const chunk = await reader.read();
+          done = chunk.done;
+          if (chunk.value) {
+            const text = decoder.decode(chunk.value, { stream: true });
+            for (const line of text.split("\n")) {
+              if (!line.startsWith("data: ") || line.includes("[DONE]")) continue;
+              try {
+                const parsed = JSON.parse(line.slice(6));
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) fullText += content;
+              } catch { /* skip */ }
+            }
+          }
+        }
+      }
+
+      // Extract JSON from response
+      const jsonMatch = fullText.match(/\{[\s\S]*?"clarity"[\s\S]*?\}/);
+      if (jsonMatch) {
+        const scores = JSON.parse(jsonMatch[0]);
+        const overall = Math.round((scores.clarity + scores.specificity + scores.framework) / 3);
+        setEvaluation({ ...scores, overall });
+      } else {
+        throw new Error("Could not parse evaluation");
+      }
+    } catch {
+      toast({ title: "Evaluation Failed", description: "Could not evaluate prompt. Please try again.", variant: "destructive" });
+    } finally {
+      setIsEvaluating(false);
     }
   }, []);
 

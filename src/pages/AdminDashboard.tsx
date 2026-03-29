@@ -2,7 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2 } from "lucide-react";
+import { Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2, LayoutDashboard } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
 const UserManagement = lazy(() => import("@/components/admin/UserManagement"));
@@ -11,6 +11,7 @@ const SubscriptionManagement = lazy(() => import("@/components/admin/Subscriptio
 const ContentManager = lazy(() => import("@/components/admin/ContentManager"));
 const QuestionBankViewer = lazy(() => import("@/components/admin/QuestionBankViewer"));
 const CodingChallengeManager = lazy(() => import("@/components/admin/CodingChallengeManager"));
+const DashboardOverview = lazy(() => import("@/components/admin/DashboardOverview"));
 
 const TabSkeleton = () => (
   <div className="space-y-4 animate-pulse">

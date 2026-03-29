@@ -14,7 +14,6 @@ import {
   FileText, Code2, Pencil, Search, BarChart3, Award, CheckCircle2
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { supabase } from "@/integrations/supabase/client";
 
 // --- Lesson Data ---
 const lessons = [

@@ -8,14 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Sparkles, Plus, Trash2, Loader2, Upload, Database, ClipboardCheck,
-  Search, ArrowRight, X
+  Search, ArrowRight, X, Pencil
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminModules } from "@/hooks/useAdminModules";
 import {
   useAssessments,
+  useAssessmentQuestions,
   createAssessment,
+  updateAssessment,
 } from "@/hooks/useAssessments";
 
 interface QuestionDraft {
@@ -34,6 +36,7 @@ const AssessmentCreator = () => {
   const { adminModules } = useAdminModules();
   const { assessments, loading: loadingAssessments, refetch } = useAssessments();
   const [creating, setCreating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -194,29 +197,71 @@ const AssessmentCreator = () => {
     setBankQuestions([]); setSelectedBankIds(new Set());
   };
 
+  const handleEdit = async (assessment: any) => {
+    setEditingId(assessment.id);
+    setTitle(assessment.title);
+    setDescription(assessment.description);
+    setSelectedModuleIds(assessment.module_id ? [assessment.module_id] : []);
+    setTimeLimitMinutes(assessment.time_limit_minutes ? String(assessment.time_limit_minutes) : "");
+    setMaxAttempts(assessment.max_attempts ? String(assessment.max_attempts) : "");
+    setPassingScore(String(assessment.passing_score));
+    setAssignedColleges(assessment.assigned_colleges || []);
+    
+    // Load existing questions
+    const { data } = await supabase.from("assessment_questions").select("*").eq("assessment_id", assessment.id).order("sort_order");
+    if (data && data.length > 0) {
+      setQuestions(data.map((q: any) => ({
+        question: q.question,
+        options: Array.isArray(q.options) ? q.options : JSON.parse(q.options),
+        correct: q.correct,
+        explanation: q.explanation || "",
+        source: q.source || "manual",
+      })));
+    } else {
+      setQuestions([emptyQuestion()]);
+    }
+    setShowForm(true);
+  };
+
+  const resetForm = () => {
+    setTitle(""); setDescription(""); setSelectedModuleIds([]);
+    setTimeLimitMinutes(""); setMaxAttempts(""); setPassingScore("60");
+    setAssignedColleges([]); setQuestions([emptyQuestion()]);
+    setEditingId(null); setShowForm(false);
+  };
+
   const handleCreate = async () => {
     if (!title.trim()) { toast.error("Enter assessment title"); return; }
     const validQs = questions.filter(q => q.question.trim() && q.options.every(o => o.trim()));
     if (validQs.length === 0) { toast.error("Add at least one complete question"); return; }
     setCreating(true);
-    const creatorName = sessionStorage.getItem("trainerName") || sessionStorage.getItem("adminEmail") || "Admin";
-    const creatorRole = sessionStorage.getItem("trainerName") ? "trainer" : "admin";
 
-    await createAssessment({
-      title: title.trim(), description: description.trim(),
-      module_id: selectedModuleIds[0] || null,
-      created_by: creatorRole, created_by_name: creatorName,
-      assigned_colleges: assignedColleges,
-      time_limit_minutes: timeLimitMinutes ? Number(timeLimitMinutes) : null,
-      max_attempts: maxAttempts ? Number(maxAttempts) : null,
-      passing_score: Number(passingScore) || 60,
-      questions: validQs.map((q, i) => ({ ...q, sort_order: i })),
-    });
+    if (editingId) {
+      await updateAssessment(editingId, {
+        title: title.trim(), description: description.trim(),
+        module_id: selectedModuleIds[0] || null,
+        assigned_colleges: assignedColleges,
+        time_limit_minutes: timeLimitMinutes ? Number(timeLimitMinutes) : null,
+        max_attempts: maxAttempts ? Number(maxAttempts) : null,
+        passing_score: Number(passingScore) || 60,
+        questions: validQs.map((q, i) => ({ ...q, sort_order: i })),
+      });
+    } else {
+      const creatorName = sessionStorage.getItem("trainerName") || sessionStorage.getItem("adminEmail") || "Admin";
+      const creatorRole = sessionStorage.getItem("trainerName") ? "trainer" : "admin";
+      await createAssessment({
+        title: title.trim(), description: description.trim(),
+        module_id: selectedModuleIds[0] || null,
+        created_by: creatorRole, created_by_name: creatorName,
+        assigned_colleges: assignedColleges,
+        time_limit_minutes: timeLimitMinutes ? Number(timeLimitMinutes) : null,
+        max_attempts: maxAttempts ? Number(maxAttempts) : null,
+        passing_score: Number(passingScore) || 60,
+        questions: validQs.map((q, i) => ({ ...q, sort_order: i })),
+      });
+    }
 
-    setTitle(""); setDescription(""); setSelectedModuleIds([]);
-    setTimeLimitMinutes(""); setMaxAttempts(""); setPassingScore("60");
-    setAssignedColleges([]); setQuestions([emptyQuestion()]);
-    setShowForm(false); setCreating(false); refetch();
+    resetForm(); setCreating(false); refetch();
   };
 
   const handleDeleteAssessment = async (id: string) => {
@@ -236,8 +281,8 @@ const AssessmentCreator = () => {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-display font-bold text-foreground">Create Assessment</h3>
-          <Button variant="ghost" onClick={() => setShowForm(false)}>← Back to List</Button>
+          <h3 className="text-lg font-display font-bold text-foreground">{editingId ? "Edit Assessment" : "Create Assessment"}</h3>
+          <Button variant="ghost" onClick={resetForm}>← Back to List</Button>
         </div>
 
         <Card>
@@ -448,7 +493,7 @@ const AssessmentCreator = () => {
           <p className="text-sm"><strong>{questions.filter(q => q.question.trim()).length}</strong> questions ready</p>
           <Button onClick={handleCreate} disabled={creating} className="gap-2 bg-gradient-primary border-0 text-primary-foreground">
             {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
-            {creating ? "Creating..." : "Create & Publish Assessment"}
+            {creating ? (editingId ? "Updating..." : "Creating...") : (editingId ? "Update Assessment" : "Create & Publish Assessment")}
           </Button>
         </div>
       </div>
@@ -503,6 +548,9 @@ const AssessmentCreator = () => {
                   {a.assigned_colleges.length > 0 && <p>🏫 {a.assigned_colleges.join(", ")}</p>}
                 </div>
                 <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1 text-xs gap-1" onClick={() => handleEdit(a)}>
+                    <Pencil className="h-3 w-3" /> Edit
+                  </Button>
                   <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => handleToggleStatus(a.id, a.status)}>
                     {a.status === "published" ? "Unpublish" : "Publish"}
                   </Button>

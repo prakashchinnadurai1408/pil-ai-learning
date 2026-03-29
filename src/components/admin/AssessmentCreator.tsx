@@ -8,14 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Sparkles, Plus, Trash2, Loader2, Upload, Database, ClipboardCheck,
-  Search, ArrowRight, X
+  Search, ArrowRight, X, Pencil
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminModules } from "@/hooks/useAdminModules";
 import {
   useAssessments,
+  useAssessmentQuestions,
   createAssessment,
+  updateAssessment,
 } from "@/hooks/useAssessments";
 
 interface QuestionDraft {
@@ -34,6 +36,7 @@ const AssessmentCreator = () => {
   const { adminModules } = useAdminModules();
   const { assessments, loading: loadingAssessments, refetch } = useAssessments();
   const [creating, setCreating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");

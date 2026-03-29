@@ -135,6 +135,13 @@ const AdminAssessmentQuiz = ({ assessment, onBack }: { assessment: any; onBack: 
     Array.isArray(assessment.content) ? assessment.content : [];
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [attemptCount, setAttemptCount] = useState(1);
+
+  const handleRetake = () => {
+    setAnswers({});
+    setSubmitted(false);
+    setAttemptCount(c => c + 1);
+  };
 
   const score = useMemo(
     () => questions.filter((q, i) => answers[i] === q.correct).length,

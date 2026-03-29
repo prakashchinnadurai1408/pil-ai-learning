@@ -130,6 +130,98 @@ const AssessmentQuiz = ({ moduleId, moduleName, onBack }: { moduleId: number; mo
   );
 };
 
+const AdminAssessmentQuiz = ({ assessment, onBack }: { assessment: any; onBack: () => void }) => {
+  const questions: { question: string; options: string[]; correct: number; explanation: string }[] =
+    Array.isArray(assessment.content) ? assessment.content : [];
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [submitted, setSubmitted] = useState(false);
+
+  const score = useMemo(
+    () => questions.filter((q, i) => answers[i] === q.correct).length,
+    [questions, answers, submitted]
+  );
+
+  if (questions.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="font-display font-semibold text-lg text-foreground">{assessment.title}</h3>
+          <Button variant="ghost" size="sm" onClick={onBack} className="text-muted-foreground">← All Assessments</Button>
+        </div>
+        <p className="text-muted-foreground text-center py-8">No questions available for this assessment.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-display font-semibold text-lg text-foreground">{assessment.title}</h3>
+          <p className="text-xs text-muted-foreground">{questions.length} questions · ~{Math.max(10, questions.length)} min</p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={onBack} className="text-muted-foreground">← All Assessments</Button>
+      </div>
+
+      <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+        {questions.map((q, qi) => (
+          <div key={qi} className="bg-card rounded-lg border border-border p-5 shadow-card">
+            <p className="font-medium mb-3 text-card-foreground text-sm">{qi + 1}. {q.question}</p>
+            <div className="space-y-2">
+              {q.options.map((opt, oi) => (
+                <button
+                  key={oi}
+                  onClick={() => !submitted && setAnswers({ ...answers, [qi]: oi })}
+                  className={`w-full text-left px-4 py-2.5 rounded-lg border text-sm transition-colors ${
+                    submitted
+                      ? oi === q.correct
+                        ? "border-success bg-success/10 text-success font-medium"
+                        : answers[qi] === oi
+                        ? "border-destructive bg-destructive/10 text-destructive"
+                        : "border-border text-muted-foreground"
+                      : answers[qi] === oi
+                      ? "border-primary bg-primary/5 text-foreground"
+                      : "border-border text-muted-foreground hover:border-primary/30"
+                  }`}
+                >
+                  {String.fromCharCode(65 + oi)}. {opt}
+                </button>
+              ))}
+            </div>
+            {submitted && q.explanation && (
+              <p className="text-xs text-muted-foreground mt-2 italic">💡 {q.explanation}</p>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-4 pt-4 border-t border-border">
+        {!submitted ? (
+          <>
+            <Button
+              onClick={() => setSubmitted(true)}
+              disabled={Object.keys(answers).length < questions.length}
+              className="bg-gradient-primary border-0 text-primary-foreground"
+            >
+              Submit Assessment
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {Object.keys(answers).length}/{questions.length} answered
+            </span>
+          </>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-warning" />
+            <p className="font-display font-bold text-foreground">
+              Score: {score}/{questions.length} ({Math.round((score / questions.length) * 100)}%)
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const AssessmentsView = () => {
   const { items: adminAssessments } = usePublishedSectionContent("assessments");
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
@@ -140,6 +232,19 @@ const AssessmentsView = () => {
   });
 
   if (selectedModule) {
+    // Handle admin-published assessments
+    if (selectedModule.startsWith("admin-")) {
+      const adminId = selectedModule.replace("admin-", "");
+      const adminItem = adminAssessments.find(a => a.id === adminId);
+      if (adminItem) {
+        return (
+          <AdminAssessmentQuiz
+            assessment={adminItem}
+            onBack={() => setSelectedModule(null)}
+          />
+        );
+      }
+    }
     return (
       <AssessmentQuiz
         moduleId={Number(selectedModule)}
@@ -208,17 +313,30 @@ const AssessmentsView = () => {
             <h4 className="font-display font-semibold text-card-foreground">Additional Assessments</h4>
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
-            {adminAssessments.map(item => (
-              <div key={item.id} className="bg-card rounded-lg border border-accent/20 p-4 shadow-card">
-                <div className="flex items-center gap-2 mb-2">
-                  <ClipboardCheck className="h-4 w-4 text-accent" />
-                  <h5 className="font-medium text-sm text-card-foreground">{item.title}</h5>
+            {adminAssessments.map(item => {
+              const qCount = Array.isArray(item.content) ? item.content.length : 0;
+              return (
+                <div key={item.id} className="bg-card rounded-lg border border-accent/20 p-5 shadow-card hover:shadow-elevated transition-all">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                      <ClipboardCheck className="h-5 w-5 text-accent" />
+                    </div>
+                    <span className="text-xs text-muted-foreground font-display font-bold">Additional</span>
+                  </div>
+                  <h5 className="font-display font-semibold text-card-foreground mb-1">{item.title}</h5>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    {qCount > 0 ? `${qCount} questions` : "8-10 questions"} · ~10 min
+                  </p>
+                  <Button
+                    onClick={() => setSelectedModule(`admin-${item.id}`)}
+                    className="w-full bg-gradient-primary border-0 text-primary-foreground gap-2"
+                    size="sm"
+                  >
+                    Start Assessment <ArrowRight className="h-3 w-3" />
+                  </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {Array.isArray(item.content) ? `${item.content.length} questions` : "Assessment"}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

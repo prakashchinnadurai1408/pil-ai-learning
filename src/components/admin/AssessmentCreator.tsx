@@ -281,8 +281,8 @@ const AssessmentCreator = () => {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-display font-bold text-foreground">Create Assessment</h3>
-          <Button variant="ghost" onClick={() => setShowForm(false)}>← Back to List</Button>
+          <h3 className="text-lg font-display font-bold text-foreground">{editingId ? "Edit Assessment" : "Create Assessment"}</h3>
+          <Button variant="ghost" onClick={resetForm}>← Back to List</Button>
         </div>
 
         <Card>
@@ -493,7 +493,7 @@ const AssessmentCreator = () => {
           <p className="text-sm"><strong>{questions.filter(q => q.question.trim()).length}</strong> questions ready</p>
           <Button onClick={handleCreate} disabled={creating} className="gap-2 bg-gradient-primary border-0 text-primary-foreground">
             {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
-            {creating ? "Creating..." : "Create & Publish Assessment"}
+            {creating ? (editingId ? "Updating..." : "Creating...") : (editingId ? "Update Assessment" : "Create & Publish Assessment")}
           </Button>
         </div>
       </div>
@@ -548,6 +548,9 @@ const AssessmentCreator = () => {
                   {a.assigned_colleges.length > 0 && <p>🏫 {a.assigned_colleges.join(", ")}</p>}
                 </div>
                 <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1 text-xs gap-1" onClick={() => handleEdit(a)}>
+                    <Pencil className="h-3 w-3" /> Edit
+                  </Button>
                   <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => handleToggleStatus(a.id, a.status)}>
                     {a.status === "published" ? "Unpublish" : "Publish"}
                   </Button>

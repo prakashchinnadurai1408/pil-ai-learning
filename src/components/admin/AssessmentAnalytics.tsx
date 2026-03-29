@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import {
   Trophy, TrendingUp, TrendingDown, BarChart3, Users, Target,
-  Loader2, Search, Download, Sparkles, AlertTriangle, CheckCircle, Star
+  Loader2, Search, Download, Sparkles, AlertTriangle, CheckCircle, Star, FileText
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,

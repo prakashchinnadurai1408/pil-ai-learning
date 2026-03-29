@@ -14,10 +14,10 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   useAssessments,
   useAssessmentAttempts,
-  useAssessmentQuestions,
   type AssessmentAttempt,
   type Assessment,
 } from "@/hooks/useAssessments";
+import QuestionLevelAnalytics from "./QuestionLevelAnalytics";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
 
@@ -267,6 +267,9 @@ Format the response in clean markdown with headers and bullet points.`
           </div>
         </div>
       )}
+
+      {/* Question-Level Analytics */}
+      <QuestionLevelAnalytics assessments={assessments} attempts={filteredAttempts} />
 
       {/* Rankings table */}
       <div className="bg-card border border-border rounded-lg shadow-card overflow-hidden">

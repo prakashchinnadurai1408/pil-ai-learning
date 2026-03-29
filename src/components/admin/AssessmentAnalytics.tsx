@@ -18,6 +18,7 @@ import {
   type Assessment,
 } from "@/hooks/useAssessments";
 import QuestionLevelAnalytics from "./QuestionLevelAnalytics";
+import { exportAnalyticsPDF } from "./exportAnalyticsPDF";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
 

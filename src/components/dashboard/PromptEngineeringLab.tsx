@@ -141,15 +141,16 @@ const PromptEngineeringLab = () => {
     writer: "You are an academic writing tutor. Help improve writing clarity, structure, and grammar.",
   };
 
-  const runPrompt = useCallback(async (prompt: string, setter: (v: string) => void, loadSetter: (v: boolean) => void, systemRole: string) => {
+  const runPrompt = useCallback(async (prompt: string, setter: React.Dispatch<React.SetStateAction<string>>, loadSetter: (v: boolean) => void, systemRole: string) => {
     if (!prompt.trim()) return;
     loadSetter(true);
     setter("");
+    let accumulated = "";
     try {
       await streamChat({
         messages: [{ role: "user", content: prompt }],
         tool: systemRole === "general" ? undefined : systemRole,
-        onDelta: (delta) => setter((prev) => prev + delta),
+        onDelta: (delta) => { accumulated += delta; setter(accumulated); },
         onDone: () => loadSetter(false),
       });
     } catch {

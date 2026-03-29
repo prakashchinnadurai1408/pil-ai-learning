@@ -7,7 +7,7 @@ import { modules } from "@/data/modules";
 import { useAdminModules } from "@/hooks/useAdminModules";
 import {
   BookOpen, MessageSquare, Video, FlaskConical, ClipboardCheck,
-  FolderKanban, LogOut, Play, CheckCircle, Sparkles, Code2
+  FolderKanban, LogOut, Play, CheckCircle, Sparkles, Code2, Pencil
 } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -22,6 +22,7 @@ const AIToolsSandbox = lazy(() => import("@/components/dashboard/AIToolsSandbox"
 const ProjectsView = lazy(() => import("@/components/dashboard/ProjectsView"));
 const ModuleDetailView = lazy(() => import("@/components/dashboard/ModuleDetailView"));
 const ProgrammingModule = lazy(() => import("@/components/dashboard/ProgrammingModule"));
+const PromptEngineeringLab = lazy(() => import("@/components/dashboard/PromptEngineeringLab"));
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState("modules");
@@ -70,12 +71,13 @@ const StudentDashboard = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-4 sm:grid-cols-7 mb-8 h-auto gap-1 bg-muted p-1" aria-label="Dashboard sections">
+          <TabsList className="grid grid-cols-4 sm:grid-cols-8 mb-8 h-auto gap-1 bg-muted p-1" aria-label="Dashboard sections">
             {[
               { value: "modules", icon: BookOpen, label: "Modules" },
               { value: "videos", icon: Video, label: "Videos" },
               { value: "playground", icon: MessageSquare, label: "AI Chat" },
               { value: "coding", icon: Code2, label: "Coding" },
+              { value: "prompts", icon: Pencil, label: "Prompts" },
               { value: "tools", icon: FlaskConical, label: "Tools" },
               { value: "assessments", icon: ClipboardCheck, label: "Assess" },
               { value: "projects", icon: FolderKanban, label: "Projects" },

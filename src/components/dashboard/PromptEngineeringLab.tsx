@@ -210,42 +210,12 @@ Score these criteria:
 Respond in EXACTLY this JSON format, nothing else:
 {"clarity":85,"specificity":70,"framework":60,"feedback":"2-3 sentences of constructive feedback with specific improvement suggestions."}`;
 
-      const { data, error } = await supabase.functions.invoke("chat", {
-        body: { messages: [{ role: "user", content: evalPrompt }], tool: "evaluator" },
-      });
-
-      if (error) throw error;
-
-      // Parse streamed response - collect all chunks
-      const reader = new Response(data).body?.getReader();
-      if (!reader) throw new Error("No reader");
-      const decoder = new TextDecoder();
       let fullText = "";
-      
-      // If data is already parsed (non-streaming response)
-      if (typeof data === "object" && data.choices) {
-        fullText = data.choices[0]?.message?.content || "";
-      } else if (typeof data === "string") {
-        fullText = data;
-      } else {
-        // Try reading as stream
-        let done = false;
-        while (!done) {
-          const chunk = await reader.read();
-          done = chunk.done;
-          if (chunk.value) {
-            const text = decoder.decode(chunk.value, { stream: true });
-            for (const line of text.split("\n")) {
-              if (!line.startsWith("data: ") || line.includes("[DONE]")) continue;
-              try {
-                const parsed = JSON.parse(line.slice(6));
-                const content = parsed.choices?.[0]?.delta?.content;
-                if (content) fullText += content;
-              } catch { /* skip */ }
-            }
-          }
-        }
-      }
+      await streamChat({
+        messages: [{ role: "user", content: evalPrompt }],
+        onDelta: (delta) => { fullText += delta; },
+        onDone: () => {},
+      });
 
       // Extract JSON from response
       const jsonMatch = fullText.match(/\{[\s\S]*?"clarity"[\s\S]*?\}/);

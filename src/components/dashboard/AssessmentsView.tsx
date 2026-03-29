@@ -217,12 +217,18 @@ const AdminAssessmentQuiz = ({ assessment, onBack }: { assessment: any; onBack: 
             </span>
           </>
         ) : (
-          <div className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-warning" />
-            <p className="font-display font-bold text-foreground">
-              Score: {score}/{questions.length} ({Math.round((score / questions.length) * 100)}%)
-            </p>
-          </div>
+          <>
+            <div className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-warning" />
+              <p className="font-display font-bold text-foreground">
+                Score: {score}/{questions.length} ({Math.round((score / questions.length) * 100)}%)
+              </p>
+            </div>
+            <Button variant="outline" size="sm" className="gap-1" onClick={handleRetake}>
+              <RotateCcw className="h-3 w-3" /> Retake
+            </Button>
+            <span className="text-xs text-muted-foreground">Attempt #{attemptCount}</span>
+          </>
         )}
       </div>
     </div>

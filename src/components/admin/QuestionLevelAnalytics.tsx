@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,9 +16,10 @@ interface QuestionData {
 interface Props {
   assessments: Assessment[];
   attempts: AssessmentAttempt[];
+  onStatsReady?: (stats: any[]) => void;
 }
 
-const QuestionLevelAnalytics = ({ assessments, attempts }: Props) => {
+const QuestionLevelAnalytics = ({ assessments, attempts, onStatsReady }: Props) => {
   const [selectedId, setSelectedId] = useState<string>("");
   const [questions, setQuestions] = useState<QuestionData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -94,6 +95,11 @@ const QuestionLevelAnalytics = ({ assessments, attempts }: Props) => {
       };
     });
   }, [questions, attempts, selectedId]);
+
+  // Report stats to parent for PDF export
+  useEffect(() => {
+    onStatsReady?.(questionStats);
+  }, [questionStats, onStatsReady]);
 
   // Sort: hardest questions first
   const sorted = useMemo(() => [...questionStats].sort((a, b) => a.correctRate - b.correctRate), [questionStats]);

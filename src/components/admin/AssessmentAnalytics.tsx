@@ -1,10 +1,10 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import {
   Trophy, TrendingUp, TrendingDown, BarChart3, Users, Target,
-  Loader2, Search, Download, Sparkles, AlertTriangle, CheckCircle, Star
+  Loader2, Search, Download, Sparkles, AlertTriangle, CheckCircle, Star, FileText
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -18,6 +18,7 @@ import {
   type Assessment,
 } from "@/hooks/useAssessments";
 import QuestionLevelAnalytics from "./QuestionLevelAnalytics";
+import { exportAnalyticsPDF } from "./exportAnalyticsPDF";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
 
@@ -28,6 +29,9 @@ const AssessmentAnalytics = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [aiDiagnostics, setAiDiagnostics] = useState<string | null>(null);
   const [generatingDiagnostics, setGeneratingDiagnostics] = useState(false);
+  const [questionStatsForExport, setQuestionStatsForExport] = useState<any[]>([]);
+  const [exportingPDF, setExportingPDF] = useState(false);
+
 
   const filteredAttempts = useMemo(() => {
     let result = attempts;
@@ -103,6 +107,25 @@ const AssessmentAnalytics = () => {
     });
     return Object.values(map).map(m => ({ ...m, avgScore: Math.round(m.total / m.attempts) }));
   }, [filteredAttempts, assessments]);
+
+  const handleExportPDF = useCallback(() => {
+    setExportingPDF(true);
+    try {
+      const selectedAssessment = assessments.find(a => a.id === selectedAssessmentId);
+      const reportTitle = selectedAssessmentId === "all" ? "All Assessments" : (selectedAssessment?.title || "Assessment Report");
+      exportAnalyticsPDF({
+        stats,
+        rankings,
+        scoreDistribution,
+        assessmentPerformance,
+        questionStats: questionStatsForExport,
+        aiDiagnostics,
+        reportTitle,
+      });
+    } finally {
+      setExportingPDF(false);
+    }
+  }, [stats, rankings, scoreDistribution, assessmentPerformance, questionStatsForExport, aiDiagnostics, selectedAssessmentId, assessments]);
 
   const generateAIDiagnostics = async () => {
     if (rankings.length === 0) return;
@@ -181,7 +204,10 @@ Format the response in clean markdown with headers and bullet points.`
           <Input placeholder="Search student..." className="pl-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
         </div>
         <Button variant="outline" size="sm" className="gap-1" onClick={exportCSV}>
-          <Download className="h-3 w-3" /> Export
+          <Download className="h-3 w-3" /> CSV
+        </Button>
+        <Button variant="outline" size="sm" className="gap-1" onClick={handleExportPDF} disabled={exportingPDF || rankings.length === 0}>
+          {exportingPDF ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />} PDF Report
         </Button>
         <Button
           size="sm"
@@ -269,7 +295,7 @@ Format the response in clean markdown with headers and bullet points.`
       )}
 
       {/* Question-Level Analytics */}
-      <QuestionLevelAnalytics assessments={assessments} attempts={filteredAttempts} />
+      <QuestionLevelAnalytics assessments={assessments} attempts={filteredAttempts} onStatsReady={setQuestionStatsForExport} />
 
       {/* Rankings table */}
       <div className="bg-card border border-border rounded-lg shadow-card overflow-hidden">

@@ -170,7 +170,55 @@ export async function createAssessment(assessment: {
   return (inserted as any).id;
 }
 
-export async function submitAssessmentAttempt(attempt: {
+export async function updateAssessment(assessmentId: string, assessment: {
+  title: string;
+  description: string;
+  module_id: number | null;
+  assigned_colleges: string[];
+  time_limit_minutes: number | null;
+  max_attempts: number | null;
+  passing_score: number;
+  questions: Omit<AssessmentQuestion, "id" | "assessment_id" | "created_at">[];
+}) {
+  const { questions, ...assessmentData } = assessment;
+
+  const { error } = await supabase
+    .from("assessments")
+    .update({
+      ...assessmentData,
+      question_count: questions.length,
+      updated_at: new Date().toISOString(),
+    } as any)
+    .eq("id", assessmentId);
+
+  if (error) {
+    toast.error("Failed to update assessment");
+    return false;
+  }
+
+  // Delete old questions and insert new ones
+  await supabase.from("assessment_questions").delete().eq("assessment_id", assessmentId);
+
+  const questionRows = questions.map((q, i) => ({
+    assessment_id: assessmentId,
+    question: q.question,
+    options: q.options,
+    correct: q.correct,
+    explanation: q.explanation,
+    sort_order: i,
+    source: q.source,
+  }));
+
+  const { error: qError } = await supabase.from("assessment_questions").insert(questionRows as any);
+  if (qError) {
+    toast.error("Assessment updated but questions failed to save");
+    return false;
+  }
+
+  toast.success(`Assessment "${assessment.title}" updated with ${questions.length} questions!`);
+  return true;
+}
+
   assessment_id: string;
   student_id: string;
   student_name: string;

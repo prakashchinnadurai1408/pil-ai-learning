@@ -208,17 +208,30 @@ const AssessmentsView = () => {
             <h4 className="font-display font-semibold text-card-foreground">Additional Assessments</h4>
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
-            {adminAssessments.map(item => (
-              <div key={item.id} className="bg-card rounded-lg border border-accent/20 p-4 shadow-card">
-                <div className="flex items-center gap-2 mb-2">
-                  <ClipboardCheck className="h-4 w-4 text-accent" />
-                  <h5 className="font-medium text-sm text-card-foreground">{item.title}</h5>
+            {adminAssessments.map(item => {
+              const qCount = Array.isArray(item.content) ? item.content.length : 0;
+              return (
+                <div key={item.id} className="bg-card rounded-lg border border-accent/20 p-5 shadow-card hover:shadow-elevated transition-all">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                      <ClipboardCheck className="h-5 w-5 text-accent" />
+                    </div>
+                    <span className="text-xs text-muted-foreground font-display font-bold">Additional</span>
+                  </div>
+                  <h5 className="font-display font-semibold text-card-foreground mb-1">{item.title}</h5>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    {qCount > 0 ? `${qCount} questions` : "8-10 questions"} · ~10 min
+                  </p>
+                  <Button
+                    onClick={() => setSelectedModule(`admin-${item.id}`)}
+                    className="w-full bg-gradient-primary border-0 text-primary-foreground gap-2"
+                    size="sm"
+                  >
+                    Start Assessment <ArrowRight className="h-3 w-3" />
+                  </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {Array.isArray(item.content) ? `${item.content.length} questions` : "Assessment"}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

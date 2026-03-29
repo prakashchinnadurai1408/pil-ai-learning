@@ -202,6 +202,16 @@ const StudentLogin = () => {
                 <Label htmlFor="location">Location</Label>
                 <Input id="location" placeholder="Enter your location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="degree">Degree</Label>
+                  <Input id="degree" placeholder="e.g., B.Tech, M.Sc" value={form.degree} onChange={(e) => setForm({ ...form, degree: e.target.value })} />
+                </div>
+                <div>
+                  <Label htmlFor="department">Department</Label>
+                  <Input id="department" placeholder="e.g., CSE, ECE" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
+                </div>
+              </div>
               <div>
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">

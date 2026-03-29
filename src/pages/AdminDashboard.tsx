@@ -2,7 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2, LayoutDashboard } from "lucide-react";
+import { Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2, LayoutDashboard, ClipboardCheck, BarChart3 } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
 const UserManagement = lazy(() => import("@/components/admin/UserManagement"));
@@ -12,6 +12,8 @@ const ContentManager = lazy(() => import("@/components/admin/ContentManager"));
 const QuestionBankViewer = lazy(() => import("@/components/admin/QuestionBankViewer"));
 const CodingChallengeManager = lazy(() => import("@/components/admin/CodingChallengeManager"));
 const DashboardOverview = lazy(() => import("@/components/admin/DashboardOverview"));
+const AssessmentCreator = lazy(() => import("@/components/admin/AssessmentCreator"));
+const AssessmentAnalytics = lazy(() => import("@/components/admin/AssessmentAnalytics"));
 
 const TabSkeleton = () => (
   <div className="space-y-4 animate-pulse">
@@ -71,6 +73,12 @@ const AdminDashboard = () => {
             <TabsTrigger value="coding" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <Code2 className="h-4 w-4" /> Coding
             </TabsTrigger>
+            <TabsTrigger value="assessments" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <ClipboardCheck className="h-4 w-4" /> Assessments
+            </TabsTrigger>
+            <TabsTrigger value="assessment-analytics" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <BarChart3 className="h-4 w-4" /> Analytics
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -112,6 +120,18 @@ const AdminDashboard = () => {
           <TabsContent value="coding">
             <Suspense fallback={<TabSkeleton />}>
               <CodingChallengeManager />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="assessments">
+            <Suspense fallback={<TabSkeleton />}>
+              <AssessmentCreator />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="assessment-analytics">
+            <Suspense fallback={<TabSkeleton />}>
+              <AssessmentAnalytics />
             </Suspense>
           </TabsContent>
         </Tabs>

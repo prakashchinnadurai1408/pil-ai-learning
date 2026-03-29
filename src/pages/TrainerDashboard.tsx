@@ -16,8 +16,11 @@ import { StudentDetailModal } from "@/components/trainer/StudentDetailModal";
 import ComposeMessageDialog from "@/components/trainer/ComposeMessageDialog";
 import TrainerProjectReview from "@/components/trainer/TrainerProjectReview";
 import { lazy, Suspense } from "react";
+import { Sparkles } from "lucide-react";
 
 const TrainerCodingAnalytics = lazy(() => import("@/components/trainer/TrainerCodingAnalytics"));
+const AssessmentCreator = lazy(() => import("@/components/admin/AssessmentCreator"));
+const AssessmentAnalytics = lazy(() => import("@/components/admin/AssessmentAnalytics"));
 import type { StudentData } from "@/hooks/useTrainerData";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -144,15 +147,21 @@ const TrainerDashboard = () => {
         </div>
 
         <Tabs defaultValue="students">
-          <TabsList className="mb-8 bg-muted p-1">
+          <TabsList className="mb-8 bg-muted p-1 flex-wrap">
             <TabsTrigger value="students" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <Users className="h-4 w-4" /> Students
             </TabsTrigger>
             <TabsTrigger value="assessments" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <ClipboardCheck className="h-4 w-4" /> Assessments
             </TabsTrigger>
+            <TabsTrigger value="create-assessment" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Sparkles className="h-4 w-4" /> Create Assessment
+            </TabsTrigger>
+            <TabsTrigger value="assessment-analytics" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <BarChart3 className="h-4 w-4" /> Assessment Analytics
+            </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <BarChart3 className="h-4 w-4" /> Analytics
+              <BarChart3 className="h-4 w-4" /> Module Analytics
             </TabsTrigger>
             <TabsTrigger value="projects" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <FolderKanban className="h-4 w-4" /> Projects
@@ -345,6 +354,20 @@ const TrainerDashboard = () => {
                 </table>
               </div>
             </div>
+          </TabsContent>
+
+          {/* Create Assessment Tab */}
+          <TabsContent value="create-assessment">
+            <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}>
+              <AssessmentCreator />
+            </Suspense>
+          </TabsContent>
+
+          {/* Assessment Analytics Tab */}
+          <TabsContent value="assessment-analytics">
+            <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}>
+              <AssessmentAnalytics />
+            </Suspense>
           </TabsContent>
 
           {/* Analytics Tab */}

@@ -2,7 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2 } from "lucide-react";
+import { Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2, LayoutDashboard } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
 const UserManagement = lazy(() => import("@/components/admin/UserManagement"));
@@ -11,6 +11,7 @@ const SubscriptionManagement = lazy(() => import("@/components/admin/Subscriptio
 const ContentManager = lazy(() => import("@/components/admin/ContentManager"));
 const QuestionBankViewer = lazy(() => import("@/components/admin/QuestionBankViewer"));
 const CodingChallengeManager = lazy(() => import("@/components/admin/CodingChallengeManager"));
+const DashboardOverview = lazy(() => import("@/components/admin/DashboardOverview"));
 
 const TabSkeleton = () => (
   <div className="space-y-4 animate-pulse">
@@ -47,10 +48,13 @@ const AdminDashboard = () => {
           <p className="text-sm text-muted-foreground">Manage users, modules, and subscriptions</p>
         </div>
 
-        <Tabs defaultValue="users">
-          <TabsList className="mb-8 bg-muted p-1">
+        <Tabs defaultValue="overview">
+          <TabsList className="mb-8 bg-muted p-1 flex-wrap">
+            <TabsTrigger value="overview" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <LayoutDashboard className="h-4 w-4" /> Overview
+            </TabsTrigger>
             <TabsTrigger value="users" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <Users className="h-4 w-4" /> User Management
+              <Users className="h-4 w-4" /> Users
             </TabsTrigger>
             <TabsTrigger value="modules" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <BookOpen className="h-4 w-4" /> Modules
@@ -65,9 +69,15 @@ const AdminDashboard = () => {
               <Database className="h-4 w-4" /> Question Bank
             </TabsTrigger>
             <TabsTrigger value="coding" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <Code2 className="h-4 w-4" /> Coding Challenges
+              <Code2 className="h-4 w-4" /> Coding
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="overview">
+            <Suspense fallback={<TabSkeleton />}>
+              <DashboardOverview />
+            </Suspense>
+          </TabsContent>
 
           <TabsContent value="users">
             <Suspense fallback={<TabSkeleton />}>

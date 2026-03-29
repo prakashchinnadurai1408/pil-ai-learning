@@ -212,6 +212,14 @@ const StudentDashboard = () => {
             </ErrorBoundary>
           </TabsContent>
 
+          <TabsContent value="prompts">
+            <ErrorBoundary>
+              <Suspense fallback={<ContentSkeleton />}>
+                <PromptEngineeringLab />
+              </Suspense>
+            </ErrorBoundary>
+          </TabsContent>
+
           <TabsContent value="tools">
             <ErrorBoundary>
               <Suspense fallback={<ContentSkeleton />}>

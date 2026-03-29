@@ -108,6 +108,25 @@ const AssessmentAnalytics = () => {
     return Object.values(map).map(m => ({ ...m, avgScore: Math.round(m.total / m.attempts) }));
   }, [filteredAttempts, assessments]);
 
+  const handleExportPDF = useCallback(() => {
+    setExportingPDF(true);
+    try {
+      const selectedAssessment = assessments.find(a => a.id === selectedAssessmentId);
+      const reportTitle = selectedAssessmentId === "all" ? "All Assessments" : (selectedAssessment?.title || "Assessment Report");
+      exportAnalyticsPDF({
+        stats,
+        rankings,
+        scoreDistribution,
+        assessmentPerformance,
+        questionStats: questionStatsForExport,
+        aiDiagnostics,
+        reportTitle,
+      });
+    } finally {
+      setExportingPDF(false);
+    }
+  }, [stats, rankings, scoreDistribution, assessmentPerformance, questionStatsForExport, aiDiagnostics, selectedAssessmentId, assessments]);
+
   const generateAIDiagnostics = async () => {
     if (rankings.length === 0) return;
     setGeneratingDiagnostics(true);

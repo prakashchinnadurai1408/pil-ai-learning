@@ -204,7 +204,10 @@ Format the response in clean markdown with headers and bullet points.`
           <Input placeholder="Search student..." className="pl-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
         </div>
         <Button variant="outline" size="sm" className="gap-1" onClick={exportCSV}>
-          <Download className="h-3 w-3" /> Export
+          <Download className="h-3 w-3" /> CSV
+        </Button>
+        <Button variant="outline" size="sm" className="gap-1" onClick={handleExportPDF} disabled={exportingPDF || rankings.length === 0}>
+          {exportingPDF ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />} PDF Report
         </Button>
         <Button
           size="sm"

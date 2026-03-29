@@ -14,7 +14,7 @@ type Step = "register" | "signin" | "otp" | "forgot" | "reset-otp" | "new-passwo
 const StudentLogin = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>("signin");
-  const [form, setForm] = useState({ name: "", email: "", mobile: "", college: "", location: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: "", mobile: "", college: "", location: "", password: "", degree: "", department: "" });
   const [signinForm, setSigninForm] = useState({ mobile: "", password: "" });
   const [otp, setOtp] = useState("");
   const [forgotMobile, setForgotMobile] = useState("");
@@ -55,10 +55,14 @@ const StudentLogin = () => {
     const { error } = await supabase.from("students").insert({
       name: form.name.trim(), email: form.email.trim(), mobile: form.mobile.trim(),
       college: form.college.trim(), location: form.location.trim(), password: form.password,
-    });
+      degree: form.degree.trim(), department: form.department.trim(),
+    } as any);
     if (error) { console.error("Student insert error:", error); toast.error("Registration failed"); return; }
     sessionStorage.setItem("studentName", form.name);
     sessionStorage.setItem("studentMobile", form.mobile);
+    sessionStorage.setItem("studentCollege", form.college);
+    sessionStorage.setItem("studentDegree", form.degree);
+    sessionStorage.setItem("studentDepartment", form.department);
     toast.success("Welcome, " + form.name + "!");
     navigate("/student-dashboard");
   };
@@ -69,6 +73,10 @@ const StudentLogin = () => {
     if (error || !data) { toast.error("Invalid mobile number or password"); return; }
     sessionStorage.setItem("studentName", data.name);
     sessionStorage.setItem("studentMobile", data.mobile);
+    sessionStorage.setItem("studentCollege", data.college);
+    sessionStorage.setItem("studentDegree", (data as any).degree || "");
+    sessionStorage.setItem("studentDepartment", (data as any).department || "");
+    sessionStorage.setItem("studentId", data.id);
     toast.success("Welcome back, " + data.name + "!");
     navigate("/student-dashboard");
   };

@@ -162,7 +162,8 @@ const ContentManager = () => {
     refetch();
   };
 
-  const handleGenerateAllTopicVideos = async () => {
+  const handleGenerateAllTopicContent = async (sectionType?: string) => {
+    const targetSection = sectionType || activeSection;
     const publishedModules = adminModules.filter(m => m.status === "published" || m.status === "draft");
     if (publishedModules.length === 0) {
       toast.error("No modules found. Create modules first.");
@@ -172,19 +173,19 @@ const ContentManager = () => {
     let totalGenerated = 0;
 
     for (const mod of publishedModules) {
-      for (const topic of mod.topics) {
+      for (const topicItem of mod.topics) {
         try {
           const { data, error } = await supabase.functions.invoke("generate-section-content", {
-            body: { sectionType: "videos", topic: topic.title, moduleName: mod.title },
+            body: { sectionType: targetSection, topic: topicItem.title, moduleName: mod.title },
           });
           if (error || !data?.content) continue;
 
           const rows = data.content.map((item: any, i: number) => ({
             module_id: mod.id,
-            section_type: "videos",
-            title: item.title || `${topic.title} - Video ${i + 1}`,
+            section_type: targetSection,
+            title: item.title || item.prompt || item.question || `${topicItem.title} - ${i + 1}`,
             content: item,
-            status: "draft",
+            status: "published",
             sort_order: i,
           }));
 
@@ -196,8 +197,36 @@ const ContentManager = () => {
       }
     }
 
+    // Auto-fetch YouTube IDs for video content
+    if (targetSection === "videos") {
+      try {
+        const { data: allVideos } = await supabase
+          .from("admin_section_content")
+          .select("*")
+          .eq("section_type", "videos");
+        
+        for (const item of (allVideos || [])) {
+          const c = item.content as any;
+          if (!c?.youtubeId && c?.youtubeQuery) {
+            try {
+              const { data } = await supabase.functions.invoke("youtube-search", {
+                body: { query: c.youtubeQuery },
+              });
+              if (data?.videoId) {
+                await supabase
+                  .from("admin_section_content")
+                  .update({ content: { ...c, youtubeId: data.videoId } } as any)
+                  .eq("id", item.id);
+              }
+            } catch { /* continue */ }
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
     setGeneratingAllTopics(false);
-    toast.success(`Generated ${totalGenerated} videos across all module topics! Review and publish them.`);
+    const label = SECTION_TYPES.find(s => s.id === targetSection)?.label || targetSection;
+    toast.success(`Generated & published ${totalGenerated} ${label} items across all topics!`);
     refetch();
   };
 

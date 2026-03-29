@@ -295,7 +295,7 @@ Format the response in clean markdown with headers and bullet points.`
       )}
 
       {/* Question-Level Analytics */}
-      <QuestionLevelAnalytics assessments={assessments} attempts={filteredAttempts} />
+      <QuestionLevelAnalytics assessments={assessments} attempts={filteredAttempts} onStatsReady={setQuestionStatsForExport} />
 
       {/* Rankings table */}
       <div className="bg-card border border-border rounded-lg shadow-card overflow-hidden">

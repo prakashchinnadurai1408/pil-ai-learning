@@ -126,6 +126,162 @@ export type Database = {
           },
         ]
       }
+      assessment_attempts: {
+        Row: {
+          answers: Json
+          assessment_id: string
+          completed_at: string | null
+          correct_answers: number
+          id: string
+          score: number
+          started_at: string
+          student_college: string
+          student_id: string
+          student_name: string
+          time_taken_seconds: number | null
+          total_questions: number
+        }
+        Insert: {
+          answers?: Json
+          assessment_id: string
+          completed_at?: string | null
+          correct_answers?: number
+          id?: string
+          score?: number
+          started_at?: string
+          student_college?: string
+          student_id: string
+          student_name?: string
+          time_taken_seconds?: number | null
+          total_questions?: number
+        }
+        Update: {
+          answers?: Json
+          assessment_id?: string
+          completed_at?: string | null
+          correct_answers?: number
+          id?: string
+          score?: number
+          started_at?: string
+          student_college?: string
+          student_id?: string
+          student_name?: string
+          time_taken_seconds?: number | null
+          total_questions?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_attempts_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assessment_questions: {
+        Row: {
+          assessment_id: string
+          correct: number
+          created_at: string
+          explanation: string
+          id: string
+          options: Json
+          question: string
+          sort_order: number
+          source: string
+        }
+        Insert: {
+          assessment_id: string
+          correct: number
+          created_at?: string
+          explanation?: string
+          id?: string
+          options?: Json
+          question: string
+          sort_order?: number
+          source?: string
+        }
+        Update: {
+          assessment_id?: string
+          correct?: number
+          created_at?: string
+          explanation?: string
+          id?: string
+          options?: Json
+          question?: string
+          sort_order?: number
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_questions_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assessments: {
+        Row: {
+          assigned_colleges: string[]
+          created_at: string
+          created_by: string
+          created_by_name: string
+          description: string
+          id: string
+          max_attempts: number | null
+          module_id: number | null
+          passing_score: number
+          question_count: number
+          status: string
+          time_limit_minutes: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_colleges?: string[]
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          description?: string
+          id?: string
+          max_attempts?: number | null
+          module_id?: number | null
+          passing_score?: number
+          question_count?: number
+          status?: string
+          time_limit_minutes?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_colleges?: string[]
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          description?: string
+          id?: string
+          max_attempts?: number | null
+          module_id?: number | null
+          passing_score?: number
+          question_count?: number
+          status?: string
+          time_limit_minutes?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessments_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "admin_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coding_challenges: {
         Row: {
           category: string

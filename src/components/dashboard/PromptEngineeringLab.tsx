@@ -158,6 +158,7 @@ const PromptScoreCard = ({ evaluation }: { evaluation: { clarity: number; specif
 );
 
 const PromptEngineeringLab = () => {
+  const [activeTab, setActiveTab] = useState("learn");
   const [selectedLesson, setSelectedLesson] = useState<number | null>(null);
   const [selectedChallenge, setSelectedChallenge] = useState<number | null>(null);
   const [userPrompt, setUserPrompt] = useState("");

@@ -122,7 +122,41 @@ const challenges = [
   },
 ];
 
-const PromptEngineeringLab = () => {
+const scoreColor = (score: number) =>
+  score >= 80 ? "text-success" : score >= 50 ? "text-warning" : "text-destructive";
+const scoreBg = (score: number) =>
+  score >= 80 ? "bg-success/10" : score >= 50 ? "bg-warning/10" : "bg-destructive/10";
+
+const PromptScoreCard = ({ evaluation }: { evaluation: { clarity: number; specificity: number; framework: number; overall: number; feedback: string } }) => (
+  <div className="bg-card border border-border rounded-lg p-5 shadow-card">
+    <div className="flex items-center gap-2 mb-4">
+      <Award className="h-5 w-5 text-primary" />
+      <span className="font-display font-bold text-card-foreground">Prompt Score</span>
+      <div className={`ml-auto text-2xl font-display font-bold ${scoreColor(evaluation.overall)}`}>
+        {evaluation.overall}/100
+      </div>
+    </div>
+    <div className="grid grid-cols-3 gap-3 mb-4">
+      {([
+        { label: "Clarity", value: evaluation.clarity, icon: CheckCircle2 },
+        { label: "Specificity", value: evaluation.specificity, icon: Target },
+        { label: "Framework", value: evaluation.framework, icon: Lightbulb },
+      ] as const).map(({ label, value, icon: Icon }) => (
+        <div key={label} className={`rounded-lg p-3 ${scoreBg(value)} text-center`}>
+          <Icon className={`h-4 w-4 mx-auto mb-1 ${scoreColor(value)}`} />
+          <div className={`text-lg font-bold ${scoreColor(value)}`}>{value}</div>
+          <div className="text-[10px] text-muted-foreground font-medium">{label}</div>
+          <Progress value={value} className="h-1 mt-1.5" />
+        </div>
+      ))}
+    </div>
+    <div className="bg-muted rounded-md p-3">
+      <p className="text-xs font-semibold text-muted-foreground mb-1">AI Feedback</p>
+      <p className="text-sm text-card-foreground">{evaluation.feedback}</p>
+    </div>
+  </div>
+);
+
   const [activeTab, setActiveTab] = useState("learn");
   const [selectedLesson, setSelectedLesson] = useState<number | null>(null);
   const [selectedChallenge, setSelectedChallenge] = useState<number | null>(null);

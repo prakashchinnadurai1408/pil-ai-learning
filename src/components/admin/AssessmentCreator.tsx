@@ -1,24 +1,21 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Sparkles, Plus, Trash2, Loader2, Upload, Database, ClipboardCheck,
-  Eye, Search, ArrowRight, Check
+  Search, ArrowRight, X
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminModules } from "@/hooks/useAdminModules";
 import {
   useAssessments,
-  useAssessmentQuestions,
   createAssessment,
-  type AssessmentQuestion,
 } from "@/hooks/useAssessments";
 
 interface QuestionDraft {
@@ -30,11 +27,7 @@ interface QuestionDraft {
 }
 
 const emptyQuestion = (): QuestionDraft => ({
-  question: "",
-  options: ["", "", "", ""],
-  correct: 0,
-  explanation: "",
-  source: "manual",
+  question: "", options: ["", "", "", ""], correct: 0, explanation: "", source: "manual",
 });
 
 const AssessmentCreator = () => {
@@ -42,10 +35,9 @@ const AssessmentCreator = () => {
   const { assessments, loading: loadingAssessments, refetch } = useAssessments();
   const [creating, setCreating] = useState(false);
 
-  // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [moduleId, setModuleId] = useState<string>("");
+  const [selectedModuleIds, setSelectedModuleIds] = useState<number[]>([]);
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<string>("");
   const [maxAttempts, setMaxAttempts] = useState<string>("");
   const [passingScore, setPassingScore] = useState("60");
@@ -58,78 +50,138 @@ const AssessmentCreator = () => {
   const [aiTopic, setAiTopic] = useState("");
   const [aiCount, setAiCount] = useState("10");
 
-  // Question bank import
+  // Question bank
   const [bankQuestions, setBankQuestions] = useState<QuestionDraft[]>([]);
   const [loadingBank, setLoadingBank] = useState(false);
-  const [bankModuleFilter, setBankModuleFilter] = useState<string>("all");
+  const [bankModuleFilters, setBankModuleFilters] = useState<number[]>([]);
   const [selectedBankIds, setSelectedBankIds] = useState<Set<number>>(new Set());
 
-  // Colleges list
+  // Colleges
   const [colleges, setColleges] = useState<string[]>([]);
+  const [collegeSearch, setCollegeSearch] = useState("");
   useState(() => {
     supabase.from("colleges").select("name").then(({ data }) => {
       if (data) setColleges(data.map((c: any) => c.name));
     });
   });
 
-  const addQuestion = () => setQuestions([...questions, emptyQuestion()]);
+  const filteredColleges = useMemo(() => {
+    if (!collegeSearch.trim()) return colleges;
+    const q = collegeSearch.toLowerCase();
+    return colleges.filter(c => c.toLowerCase().includes(q));
+  }, [colleges, collegeSearch]);
 
+  // Bulk upload
+  const handleBulkUpload = useCallback((text: string) => {
+    try {
+      // Try JSON first
+      const parsed = JSON.parse(text);
+      const arr = Array.isArray(parsed) ? parsed : [parsed];
+      const newQs: QuestionDraft[] = arr.map((q: any) => ({
+        question: q.question || "",
+        options: Array.isArray(q.options) ? q.options : ["", "", "", ""],
+        correct: typeof q.correct === "number" ? q.correct : 0,
+        explanation: q.explanation || "",
+        source: "bulk",
+      })).filter((q: QuestionDraft) => q.question.trim());
+      if (newQs.length > 0) {
+        setQuestions(prev => [...prev.filter(q => q.question.trim()), ...newQs]);
+        toast.success(`Imported ${newQs.length} questions from JSON`);
+        return;
+      }
+    } catch { /* not JSON, try CSV */ }
+
+    // CSV: question,optA,optB,optC,optD,correctIndex,explanation
+    const lines = text.trim().split("\n").filter(l => l.trim());
+    const startIdx = lines[0]?.toLowerCase().includes("question") ? 1 : 0;
+    const newQs: QuestionDraft[] = [];
+    for (let i = startIdx; i < lines.length; i++) {
+      const cols = lines[i].split(/[,\t]/).map(c => c.trim().replace(/^"|"$/g, ""));
+      if (cols.length >= 5) {
+        newQs.push({
+          question: cols[0],
+          options: [cols[1], cols[2], cols[3], cols[4]],
+          correct: parseInt(cols[5] || "0") || 0,
+          explanation: cols[6] || "",
+          source: "bulk",
+        });
+      }
+    }
+    if (newQs.length > 0) {
+      setQuestions(prev => [...prev.filter(q => q.question.trim()), ...newQs]);
+      toast.success(`Imported ${newQs.length} questions from CSV`);
+    } else {
+      toast.error("No valid questions found. Use CSV (question,optA,optB,optC,optD,correct,explanation) or JSON format.");
+    }
+  }, []);
+
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      handleBulkUpload(ev.target?.result as string);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }, [handleBulkUpload]);
+
+  const addQuestion = () => setQuestions([...questions, emptyQuestion()]);
   const removeQuestion = (idx: number) => {
     if (questions.length <= 1) return;
     setQuestions(questions.filter((_, i) => i !== idx));
   };
-
   const updateQuestion = (idx: number, field: keyof QuestionDraft, value: any) => {
     setQuestions(questions.map((q, i) => i === idx ? { ...q, [field]: value } : q));
   };
-
   const updateOption = (qIdx: number, oIdx: number, value: string) => {
     setQuestions(questions.map((q, i) => {
       if (i !== qIdx) return q;
-      const opts = [...q.options];
-      opts[oIdx] = value;
+      const opts = [...q.options]; opts[oIdx] = value;
       return { ...q, options: opts };
     }));
+  };
+
+  const toggleModule = (id: number) => {
+    setSelectedModuleIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+  const toggleCollege = (college: string) => {
+    setAssignedColleges(prev => prev.includes(college) ? prev.filter(c => c !== college) : [...prev, college]);
+  };
+  const toggleBankModule = (id: number) => {
+    setBankModuleFilters(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
   const handleAIGenerate = async () => {
     if (!aiTopic.trim()) { toast.error("Enter a topic for AI generation"); return; }
     setGenerating(true);
     try {
-      const modName = moduleId ? adminModules.find(m => m.id === Number(moduleId))?.title || "" : aiTopic;
+      const modNames = selectedModuleIds.map(id => adminModules.find(m => m.id === id)?.title).filter(Boolean).join(", ");
       const { data, error } = await supabase.functions.invoke("generate-video-quiz", {
-        body: { videoTitle: aiTopic, moduleName: modName, questionCount: Number(aiCount) || 10 },
+        body: { videoTitle: aiTopic, moduleName: modNames || aiTopic, questionCount: Number(aiCount) || 10 },
       });
       if (error || !data?.questions) throw new Error("Failed");
       const aiQs: QuestionDraft[] = data.questions.map((q: any) => ({
-        question: q.question,
-        options: q.options,
-        correct: q.correct,
-        explanation: q.explanation || "",
-        source: "ai",
+        question: q.question, options: q.options, correct: q.correct,
+        explanation: q.explanation || "", source: "ai",
       }));
       setQuestions(prev => [...prev.filter(q => q.question.trim()), ...aiQs]);
       toast.success(`Generated ${aiQs.length} AI questions!`);
-    } catch {
-      toast.error("AI generation failed");
-    } finally {
-      setGenerating(false);
-    }
+    } catch { toast.error("AI generation failed"); }
+    finally { setGenerating(false); }
   };
 
   const loadQuestionBank = async () => {
     setLoadingBank(true);
     let query = supabase.from("quiz_question_bank").select("*").order("created_at", { ascending: false });
-    if (bankModuleFilter !== "all") {
-      query = query.eq("module_id", Number(bankModuleFilter));
+    if (bankModuleFilters.length > 0) {
+      query = query.in("module_id", bankModuleFilters);
     }
     const { data } = await query;
     setBankQuestions((data || []).map((q: any) => ({
       question: q.question,
       options: Array.isArray(q.options) ? q.options : JSON.parse(q.options),
-      correct: q.correct,
-      explanation: q.explanation,
-      source: "bank",
+      correct: q.correct, explanation: q.explanation, source: "bank",
     })));
     setSelectedBankIds(new Set());
     setLoadingBank(false);
@@ -139,31 +191,21 @@ const AssessmentCreator = () => {
     const selected = Array.from(selectedBankIds).map(i => bankQuestions[i]);
     setQuestions(prev => [...prev.filter(q => q.question.trim()), ...selected]);
     toast.success(`Imported ${selected.length} questions from bank`);
-    setBankQuestions([]);
-    setSelectedBankIds(new Set());
-  };
-
-  const toggleCollege = (college: string) => {
-    setAssignedColleges(prev =>
-      prev.includes(college) ? prev.filter(c => c !== college) : [...prev, college]
-    );
+    setBankQuestions([]); setSelectedBankIds(new Set());
   };
 
   const handleCreate = async () => {
     if (!title.trim()) { toast.error("Enter assessment title"); return; }
     const validQs = questions.filter(q => q.question.trim() && q.options.every(o => o.trim()));
     if (validQs.length === 0) { toast.error("Add at least one complete question"); return; }
-
     setCreating(true);
     const creatorName = sessionStorage.getItem("trainerName") || sessionStorage.getItem("adminEmail") || "Admin";
     const creatorRole = sessionStorage.getItem("trainerName") ? "trainer" : "admin";
 
     await createAssessment({
-      title: title.trim(),
-      description: description.trim(),
-      module_id: moduleId ? Number(moduleId) : null,
-      created_by: creatorRole,
-      created_by_name: creatorName,
+      title: title.trim(), description: description.trim(),
+      module_id: selectedModuleIds[0] || null,
+      created_by: creatorRole, created_by_name: creatorName,
       assigned_colleges: assignedColleges,
       time_limit_minutes: timeLimitMinutes ? Number(timeLimitMinutes) : null,
       max_attempts: maxAttempts ? Number(maxAttempts) : null,
@@ -171,36 +213,23 @@ const AssessmentCreator = () => {
       questions: validQs.map((q, i) => ({ ...q, sort_order: i })),
     });
 
-    // Reset form
-    setTitle("");
-    setDescription("");
-    setModuleId("");
-    setTimeLimitMinutes("");
-    setMaxAttempts("");
-    setPassingScore("60");
-    setAssignedColleges([]);
-    setQuestions([emptyQuestion()]);
-    setShowForm(false);
-    setCreating(false);
-    refetch();
+    setTitle(""); setDescription(""); setSelectedModuleIds([]);
+    setTimeLimitMinutes(""); setMaxAttempts(""); setPassingScore("60");
+    setAssignedColleges([]); setQuestions([emptyQuestion()]);
+    setShowForm(false); setCreating(false); refetch();
   };
 
   const handleDeleteAssessment = async (id: string) => {
     const { error } = await supabase.from("assessments").delete().eq("id", id);
     if (error) { toast.error("Delete failed"); return; }
-    toast.success("Assessment deleted");
-    refetch();
+    toast.success("Assessment deleted"); refetch();
   };
 
   const handleToggleStatus = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === "published" ? "draft" : "published";
-    const { error } = await supabase
-      .from("assessments")
-      .update({ status: newStatus } as any)
-      .eq("id", id);
+    const { error } = await supabase.from("assessments").update({ status: newStatus } as any).eq("id", id);
     if (error) { toast.error("Update failed"); return; }
-    toast.success(`Assessment ${newStatus}`);
-    refetch();
+    toast.success(`Assessment ${newStatus}`); refetch();
   };
 
   if (showForm) {
@@ -211,7 +240,6 @@ const AssessmentCreator = () => {
           <Button variant="ghost" onClick={() => setShowForm(false)}>← Back to List</Button>
         </div>
 
-        {/* Basic info */}
         <Card>
           <CardHeader><CardTitle className="text-sm">Assessment Details</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -221,22 +249,32 @@ const AssessmentCreator = () => {
                 <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g., Module 1 Final Assessment" />
               </div>
               <div>
-                <Label>Module</Label>
-                <Select value={moduleId} onValueChange={setModuleId}>
-                  <SelectTrigger><SelectValue placeholder="Select module (optional)" /></SelectTrigger>
-                  <SelectContent>
-                    {adminModules.map(m => (
-                      <SelectItem key={m.id} value={String(m.id)}>{m.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Passing Score (%)</Label>
+                <Input type="number" value={passingScore} onChange={e => setPassingScore(e.target.value)} placeholder="60" />
               </div>
             </div>
             <div>
               <Label>Description</Label>
               <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Assessment description..." rows={2} />
             </div>
-            <div className="grid sm:grid-cols-3 gap-4">
+
+            {/* Multi-module selection */}
+            <div>
+              <Label>Modules (select multiple)</Label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {adminModules.map(m => (
+                  <label key={m.id} className="flex items-center gap-1.5 text-xs bg-muted px-2.5 py-1.5 rounded-lg cursor-pointer hover:bg-muted/80">
+                    <Checkbox checked={selectedModuleIds.includes(m.id)} onCheckedChange={() => toggleModule(m.id)} />
+                    {m.title}
+                  </label>
+                ))}
+              </div>
+              {selectedModuleIds.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">{selectedModuleIds.length} module(s) selected</p>
+              )}
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <Label>Time Limit (minutes)</Label>
                 <Input type="number" value={timeLimitMinutes} onChange={e => setTimeLimitMinutes(e.target.value)} placeholder="No limit" />
@@ -245,29 +283,37 @@ const AssessmentCreator = () => {
                 <Label>Max Attempts</Label>
                 <Input type="number" value={maxAttempts} onChange={e => setMaxAttempts(e.target.value)} placeholder="Unlimited" />
               </div>
-              <div>
-                <Label>Passing Score (%)</Label>
-                <Input type="number" value={passingScore} onChange={e => setPassingScore(e.target.value)} placeholder="60" />
-              </div>
             </div>
 
-            {/* College assignment */}
-            {colleges.length > 0 && (
-              <div>
-                <Label>Assign to Colleges</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {colleges.map(c => (
-                    <label key={c} className="flex items-center gap-1.5 text-xs bg-muted px-2.5 py-1.5 rounded-lg cursor-pointer hover:bg-muted/80">
-                      <Checkbox checked={assignedColleges.includes(c)} onCheckedChange={() => toggleCollege(c)} />
+            {/* College assignment with search */}
+            <div>
+              <Label>Assign to Colleges</Label>
+              <div className="relative mt-2">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input placeholder="Search colleges..." className="pl-9 mb-2" value={collegeSearch} onChange={e => setCollegeSearch(e.target.value)} />
+              </div>
+              {assignedColleges.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {assignedColleges.map(c => (
+                    <span key={c} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
                       {c}
-                    </label>
+                      <button onClick={() => toggleCollege(c)}><X className="h-3 w-3" /></button>
+                    </span>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {assignedColleges.length === 0 ? "No colleges selected = visible to all students" : `Assigned to ${assignedColleges.length} college(s)`}
-                </p>
+              )}
+              <div className="max-h-32 overflow-y-auto space-y-1">
+                {filteredColleges.map(c => (
+                  <label key={c} className="flex items-center gap-1.5 text-xs bg-muted px-2.5 py-1.5 rounded-lg cursor-pointer hover:bg-muted/80">
+                    <Checkbox checked={assignedColleges.includes(c)} onCheckedChange={() => toggleCollege(c)} />
+                    {c}
+                  </label>
+                ))}
               </div>
-            )}
+              <p className="text-xs text-muted-foreground mt-1">
+                {assignedColleges.length === 0 ? "No colleges selected = visible to all students" : `Assigned to ${assignedColleges.length} college(s)`}
+              </p>
+            </div>
           </CardContent>
         </Card>
 
@@ -278,6 +324,7 @@ const AssessmentCreator = () => {
             <Tabs defaultValue="manual">
               <TabsList className="mb-4">
                 <TabsTrigger value="manual" className="gap-1 text-xs"><Plus className="h-3 w-3" /> Manual</TabsTrigger>
+                <TabsTrigger value="bulk" className="gap-1 text-xs"><Upload className="h-3 w-3" /> Bulk Upload</TabsTrigger>
                 <TabsTrigger value="ai" className="gap-1 text-xs"><Sparkles className="h-3 w-3" /> AI Generate</TabsTrigger>
                 <TabsTrigger value="bank" className="gap-1 text-xs"><Database className="h-3 w-3" /> Question Bank</TabsTrigger>
               </TabsList>
@@ -293,40 +340,43 @@ const AssessmentCreator = () => {
                         </Button>
                       )}
                     </div>
-                    <Input
-                      placeholder="Question text..."
-                      value={q.question}
-                      onChange={e => updateQuestion(qi, "question", e.target.value)}
-                    />
+                    <Input placeholder="Question text..." value={q.question} onChange={e => updateQuestion(qi, "question", e.target.value)} />
                     <div className="grid grid-cols-2 gap-2">
                       {q.options.map((opt, oi) => (
                         <div key={oi} className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            name={`correct-${qi}`}
-                            checked={q.correct === oi}
-                            onChange={() => updateQuestion(qi, "correct", oi)}
-                            className="accent-primary"
-                          />
-                          <Input
-                            placeholder={`Option ${String.fromCharCode(65 + oi)}`}
-                            value={opt}
-                            onChange={e => updateOption(qi, oi, e.target.value)}
-                            className="flex-1"
-                          />
+                          <input type="radio" name={`correct-${qi}`} checked={q.correct === oi} onChange={() => updateQuestion(qi, "correct", oi)} className="accent-primary" />
+                          <Input placeholder={`Option ${String.fromCharCode(65 + oi)}`} value={opt} onChange={e => updateOption(qi, oi, e.target.value)} className="flex-1" />
                         </div>
                       ))}
                     </div>
-                    <Input
-                      placeholder="Explanation (shown after answering)"
-                      value={q.explanation}
-                      onChange={e => updateQuestion(qi, "explanation", e.target.value)}
-                    />
+                    <Input placeholder="Explanation (shown after answering)" value={q.explanation} onChange={e => updateQuestion(qi, "explanation", e.target.value)} />
                   </div>
                 ))}
                 <Button variant="outline" size="sm" onClick={addQuestion} className="gap-1">
                   <Plus className="h-3 w-3" /> Add Question
                 </Button>
+              </TabsContent>
+
+              <TabsContent value="bulk" className="space-y-4">
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <p className="text-sm font-medium text-foreground">Bulk Upload Questions</p>
+                  <p className="text-xs text-muted-foreground">
+                    Upload a CSV or JSON file, or paste content below.<br />
+                    <strong>CSV format:</strong> question, optionA, optionB, optionC, optionD, correctIndex (0-3), explanation<br />
+                    <strong>JSON format:</strong> [{`{ "question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..." }`}]
+                  </p>
+                  <div className="flex gap-2">
+                    <label className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg cursor-pointer hover:bg-muted text-sm">
+                      <Upload className="h-4 w-4" /> Upload File
+                      <input type="file" accept=".csv,.json,.txt" className="hidden" onChange={handleFileUpload} />
+                    </label>
+                  </div>
+                  <Textarea
+                    rows={6}
+                    placeholder="Or paste CSV/JSON content here..."
+                    onBlur={(e) => { if (e.target.value.trim()) { handleBulkUpload(e.target.value); e.target.value = ""; } }}
+                  />
+                </div>
               </TabsContent>
 
               <TabsContent value="ai" className="space-y-4">
@@ -340,6 +390,11 @@ const AssessmentCreator = () => {
                     <Input type="number" value={aiCount} onChange={e => setAiCount(e.target.value)} />
                   </div>
                 </div>
+                {selectedModuleIds.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Generating for modules: {selectedModuleIds.map(id => adminModules.find(m => m.id === id)?.title).filter(Boolean).join(", ")}
+                  </p>
+                )}
                 <Button onClick={handleAIGenerate} disabled={generating} className="gap-2 bg-gradient-accent border-0">
                   {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                   {generating ? "Generating..." : "Generate with AI"}
@@ -347,45 +402,38 @@ const AssessmentCreator = () => {
               </TabsContent>
 
               <TabsContent value="bank" className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Select value={bankModuleFilter} onValueChange={setBankModuleFilter}>
-                    <SelectTrigger className="w-48"><SelectValue placeholder="Filter by module" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Modules</SelectItem>
-                      {adminModules.map(m => (
-                        <SelectItem key={m.id} value={String(m.id)}>{m.title}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button onClick={loadQuestionBank} disabled={loadingBank} variant="outline" className="gap-1">
-                    {loadingBank ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
-                    Load Questions
-                  </Button>
-                  {selectedBankIds.size > 0 && (
-                    <Button onClick={importSelectedFromBank} className="gap-1 bg-gradient-primary border-0 text-primary-foreground">
-                      <ArrowRight className="h-3 w-3" /> Import {selectedBankIds.size} Selected
+                <div>
+                  <Label className="mb-2 block">Filter by Modules (select multiple)</Label>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {adminModules.map(m => (
+                      <label key={m.id} className="flex items-center gap-1.5 text-xs bg-muted px-2.5 py-1.5 rounded-lg cursor-pointer hover:bg-muted/80">
+                        <Checkbox checked={bankModuleFilters.includes(m.id)} onCheckedChange={() => toggleBankModule(m.id)} />
+                        {m.title}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={loadQuestionBank} disabled={loadingBank} variant="outline" className="gap-1">
+                      {loadingBank ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
+                      Load Questions {bankModuleFilters.length > 0 ? `(${bankModuleFilters.length} modules)` : "(All)"}
                     </Button>
-                  )}
+                    {selectedBankIds.size > 0 && (
+                      <Button onClick={importSelectedFromBank} className="gap-1 bg-gradient-primary border-0 text-primary-foreground">
+                        <ArrowRight className="h-3 w-3" /> Import {selectedBankIds.size} Selected
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 {bankQuestions.length > 0 && (
                   <div className="max-h-60 overflow-y-auto space-y-2">
                     {bankQuestions.map((q, i) => (
                       <label key={i} className="flex items-start gap-2 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/30">
-                        <Checkbox
-                          checked={selectedBankIds.has(i)}
-                          onCheckedChange={() => {
-                            setSelectedBankIds(prev => {
-                              const next = new Set(prev);
-                              next.has(i) ? next.delete(i) : next.add(i);
-                              return next;
-                            });
-                          }}
-                        />
+                        <Checkbox checked={selectedBankIds.has(i)} onCheckedChange={() => {
+                          setSelectedBankIds(prev => { const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next; });
+                        }} />
                         <div className="flex-1">
                           <p className="text-sm font-medium">{q.question}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {q.options.map((o, oi) => `${String.fromCharCode(65 + oi)}) ${o}`).join(" · ")}
-                          </p>
+                          <p className="text-xs text-muted-foreground">{q.options.map((o, oi) => `${String.fromCharCode(65 + oi)}) ${o}`).join(" · ")}</p>
                         </div>
                       </label>
                     ))}
@@ -396,11 +444,8 @@ const AssessmentCreator = () => {
           </CardContent>
         </Card>
 
-        {/* Summary and create */}
         <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-          <p className="text-sm">
-            <strong>{questions.filter(q => q.question.trim()).length}</strong> questions ready
-          </p>
+          <p className="text-sm"><strong>{questions.filter(q => q.question.trim()).length}</strong> questions ready</p>
           <Button onClick={handleCreate} disabled={creating} className="gap-2 bg-gradient-primary border-0 text-primary-foreground">
             {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
             {creating ? "Creating..." : "Create & Publish Assessment"}
@@ -410,7 +455,6 @@ const AssessmentCreator = () => {
     );
   }
 
-  // List view
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -456,17 +500,10 @@ const AssessmentCreator = () => {
                   <p>{a.question_count} questions · Pass: {a.passing_score}%</p>
                   {a.time_limit_minutes && <p>⏱️ {a.time_limit_minutes} min</p>}
                   {a.max_attempts && <p>🔄 Max {a.max_attempts} attempts</p>}
-                  {a.assigned_colleges.length > 0 && (
-                    <p>🏫 {a.assigned_colleges.join(", ")}</p>
-                  )}
+                  {a.assigned_colleges.length > 0 && <p>🏫 {a.assigned_colleges.join(", ")}</p>}
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-xs"
-                    onClick={() => handleToggleStatus(a.id, a.status)}
-                  >
+                  <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => handleToggleStatus(a.id, a.status)}>
                     {a.status === "published" ? "Unpublish" : "Publish"}
                   </Button>
                 </div>

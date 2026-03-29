@@ -2,13 +2,13 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Trophy, TrendingUp, TrendingDown, BarChart3, Users, Target,
-  Loader2, Search, Download, Sparkles, AlertTriangle, CheckCircle, Star, FileText
+  Loader2, Search, Download, Sparkles, CheckCircle, Star, FileText, Building2, GraduationCap, User
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, LineChart, Line
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -22,6 +22,13 @@ import { exportAnalyticsPDF } from "./exportAnalyticsPDF";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
 
+interface StudentInfo {
+  name: string;
+  college: string;
+  degree: string;
+  department: string;
+}
+
 const AssessmentAnalytics = () => {
   const { assessments } = useAssessments();
   const { attempts, loading } = useAssessmentAttempts();
@@ -31,13 +38,23 @@ const AssessmentAnalytics = () => {
   const [generatingDiagnostics, setGeneratingDiagnostics] = useState(false);
   const [questionStatsForExport, setQuestionStatsForExport] = useState<any[]>([]);
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [studentsMap, setStudentsMap] = useState<Record<string, StudentInfo>>({});
+  const [analyticsView, setAnalyticsView] = useState<string>("overall");
 
+  // Fetch students for degree/dept data
+  useEffect(() => {
+    supabase.from("students").select("name, college, degree, department").then(({ data }) => {
+      if (data) {
+        const map: Record<string, StudentInfo> = {};
+        data.forEach((s: any) => { map[s.name] = { name: s.name, college: s.college, degree: s.degree || "", department: s.department || "" }; });
+        setStudentsMap(map);
+      }
+    });
+  }, []);
 
   const filteredAttempts = useMemo(() => {
     let result = attempts;
-    if (selectedAssessmentId !== "all") {
-      result = result.filter(a => a.assessment_id === selectedAssessmentId);
-    }
+    if (selectedAssessmentId !== "all") result = result.filter(a => a.assessment_id === selectedAssessmentId);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(a => a.student_name.toLowerCase().includes(q) || a.student_college.toLowerCase().includes(q));
@@ -45,7 +62,6 @@ const AssessmentAnalytics = () => {
     return result;
   }, [attempts, selectedAssessmentId, searchQuery]);
 
-  // Aggregate stats
   const stats = useMemo(() => {
     if (filteredAttempts.length === 0) return null;
     const scores = filteredAttempts.map(a => a.score);
@@ -61,24 +77,26 @@ const AssessmentAnalytics = () => {
     return { avgScore, maxScore, minScore, uniqueStudents, totalAttempts: filteredAttempts.length, passRate };
   }, [filteredAttempts, assessments]);
 
-  // Rankings - best score per student
   const rankings = useMemo(() => {
-    const studentBest: Record<string, { name: string; college: string; bestScore: number; attempts: number; avgScore: number; totalScore: number }> = {};
+    const studentBest: Record<string, { name: string; college: string; degree: string; department: string; bestScore: number; attempts: number; avgScore: number; totalScore: number }> = {};
     filteredAttempts.forEach(a => {
+      const info = studentsMap[a.student_name];
       if (!studentBest[a.student_name]) {
-        studentBest[a.student_name] = { name: a.student_name, college: a.student_college, bestScore: 0, attempts: 0, avgScore: 0, totalScore: 0 };
+        studentBest[a.student_name] = {
+          name: a.student_name, college: a.student_college,
+          degree: info?.degree || "", department: info?.department || "",
+          bestScore: 0, attempts: 0, avgScore: 0, totalScore: 0,
+        };
       }
       const s = studentBest[a.student_name];
       s.bestScore = Math.max(s.bestScore, a.score);
-      s.attempts += 1;
-      s.totalScore += a.score;
+      s.attempts += 1; s.totalScore += a.score;
     });
     return Object.values(studentBest)
       .map(s => ({ ...s, avgScore: Math.round(s.totalScore / s.attempts) }))
       .sort((a, b) => b.bestScore - a.bestScore);
-  }, [filteredAttempts]);
+  }, [filteredAttempts, studentsMap]);
 
-  // Score distribution
   const scoreDistribution = useMemo(() => {
     const ranges = [
       { range: "0-20%", min: 0, max: 20, count: 0 },
@@ -94,7 +112,6 @@ const AssessmentAnalytics = () => {
     return ranges;
   }, [filteredAttempts]);
 
-  // Assessment-wise performance
   const assessmentPerformance = useMemo(() => {
     const map: Record<string, { name: string; avgScore: number; attempts: number; total: number }> = {};
     filteredAttempts.forEach(a => {
@@ -102,29 +119,63 @@ const AssessmentAnalytics = () => {
         const assessment = assessments.find(as => as.id === a.assessment_id);
         map[a.assessment_id] = { name: assessment?.title || "Unknown", avgScore: 0, attempts: 0, total: 0 };
       }
-      map[a.assessment_id].attempts++;
-      map[a.assessment_id].total += a.score;
+      map[a.assessment_id].attempts++; map[a.assessment_id].total += a.score;
     });
     return Object.values(map).map(m => ({ ...m, avgScore: Math.round(m.total / m.attempts) }));
   }, [filteredAttempts, assessments]);
+
+  // College-wise breakdown
+  const collegeStats = useMemo(() => {
+    const map: Record<string, { college: string; avgScore: number; students: Set<string>; total: number; count: number; passCount: number }> = {};
+    filteredAttempts.forEach(a => {
+      if (!map[a.student_college]) map[a.student_college] = { college: a.student_college, avgScore: 0, students: new Set(), total: 0, count: 0, passCount: 0 };
+      const c = map[a.student_college];
+      c.students.add(a.student_name); c.total += a.score; c.count++;
+      const assessment = assessments.find(as => as.id === a.assessment_id);
+      if (a.score >= (assessment?.passing_score || 60)) c.passCount++;
+    });
+    return Object.values(map).map(c => ({
+      college: c.college, avgScore: Math.round(c.total / c.count),
+      studentCount: c.students.size, attempts: c.count,
+      passRate: Math.round((c.passCount / c.count) * 100),
+    })).sort((a, b) => b.avgScore - a.avgScore);
+  }, [filteredAttempts, assessments]);
+
+  // Degree-wise breakdown
+  const degreeStats = useMemo(() => {
+    const map: Record<string, { degree: string; avgScore: number; students: Set<string>; total: number; count: number }> = {};
+    filteredAttempts.forEach(a => {
+      const degree = studentsMap[a.student_name]?.degree || "Unknown";
+      if (!map[degree]) map[degree] = { degree, avgScore: 0, students: new Set(), total: 0, count: 0 };
+      map[degree].students.add(a.student_name); map[degree].total += a.score; map[degree].count++;
+    });
+    return Object.values(map).map(d => ({
+      degree: d.degree || "Not specified", avgScore: Math.round(d.total / d.count),
+      studentCount: d.students.size, attempts: d.count,
+    })).sort((a, b) => b.avgScore - a.avgScore);
+  }, [filteredAttempts, studentsMap]);
+
+  // Department-wise breakdown
+  const deptStats = useMemo(() => {
+    const map: Record<string, { department: string; avgScore: number; students: Set<string>; total: number; count: number }> = {};
+    filteredAttempts.forEach(a => {
+      const dept = studentsMap[a.student_name]?.department || "Unknown";
+      if (!map[dept]) map[dept] = { department: dept, avgScore: 0, students: new Set(), total: 0, count: 0 };
+      map[dept].students.add(a.student_name); map[dept].total += a.score; map[dept].count++;
+    });
+    return Object.values(map).map(d => ({
+      department: d.department || "Not specified", avgScore: Math.round(d.total / d.count),
+      studentCount: d.students.size, attempts: d.count,
+    })).sort((a, b) => b.avgScore - a.avgScore);
+  }, [filteredAttempts, studentsMap]);
 
   const handleExportPDF = useCallback(() => {
     setExportingPDF(true);
     try {
       const selectedAssessment = assessments.find(a => a.id === selectedAssessmentId);
       const reportTitle = selectedAssessmentId === "all" ? "All Assessments" : (selectedAssessment?.title || "Assessment Report");
-      exportAnalyticsPDF({
-        stats,
-        rankings,
-        scoreDistribution,
-        assessmentPerformance,
-        questionStats: questionStatsForExport,
-        aiDiagnostics,
-        reportTitle,
-      });
-    } finally {
-      setExportingPDF(false);
-    }
+      exportAnalyticsPDF({ stats, rankings, scoreDistribution, assessmentPerformance, questionStats: questionStatsForExport, aiDiagnostics, reportTitle });
+    } finally { setExportingPDF(false); }
   }, [stats, rankings, scoreDistribution, assessmentPerformance, questionStatsForExport, aiDiagnostics, selectedAssessmentId, assessments]);
 
   const generateAIDiagnostics = async () => {
@@ -132,15 +183,13 @@ const AssessmentAnalytics = () => {
     setGeneratingDiagnostics(true);
     try {
       const summaryData = {
-        totalStudents: rankings.length,
-        avgScore: stats?.avgScore,
-        passRate: stats?.passRate,
+        totalStudents: rankings.length, avgScore: stats?.avgScore, passRate: stats?.passRate,
         topPerformers: rankings.slice(0, 5).map(r => ({ name: r.name, score: r.bestScore })),
         bottomPerformers: rankings.slice(-5).map(r => ({ name: r.name, score: r.bestScore })),
         scoreDistribution: scoreDistribution.map(s => ({ range: s.range, count: s.count })),
-        assessmentPerformance: assessmentPerformance.map(a => ({ name: a.name, avgScore: a.avgScore, attempts: a.attempts })),
+        collegeWise: collegeStats.slice(0, 10),
+        degreeWise: degreeStats, departmentWise: deptStats,
       };
-
       const { data, error } = await supabase.functions.invoke("chat", {
         body: {
           messages: [{
@@ -149,9 +198,11 @@ const AssessmentAnalytics = () => {
 1. **Overall Performance Summary** - key insights
 2. **Strengths** - what students are doing well
 3. **Areas of Improvement** - gaps and weaknesses
-4. **Top Performers** - recognition
-5. **Students Needing Support** - who needs help
-6. **Recommendations** - actionable steps for trainers
+4. **College-wise Analysis** - performance by institution
+5. **Degree & Department Insights** - trends across programs
+6. **Top Performers** - recognition
+7. **Students Needing Support** - who needs help
+8. **Recommendations** - actionable steps for trainers
 
 Data: ${JSON.stringify(summaryData)}
 
@@ -162,29 +213,79 @@ Format the response in clean markdown with headers and bullet points.`
       });
       if (error) throw error;
       setAiDiagnostics(data?.reply || data?.response || "No diagnostics generated");
-    } catch {
-      setAiDiagnostics("Failed to generate AI diagnostics. Please try again.");
-    } finally {
-      setGeneratingDiagnostics(false);
-    }
+    } catch { setAiDiagnostics("Failed to generate AI diagnostics. Please try again."); }
+    finally { setGeneratingDiagnostics(false); }
   };
 
   const exportCSV = () => {
-    const headers = ["Rank", "Student", "College", "Best Score", "Avg Score", "Attempts"];
-    const rows = rankings.map((r, i) => [i + 1, r.name, r.college, r.bestScore, r.avgScore, r.attempts]);
+    const headers = ["Rank", "Student", "College", "Degree", "Department", "Best Score", "Avg Score", "Attempts"];
+    const rows = rankings.map((r, i) => [i + 1, r.name, r.college, r.degree, r.department, r.bestScore, r.avgScore, r.attempts]);
     const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
+    const a = document.createElement("a"); a.href = url;
     a.download = `assessment-rankings-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    a.click(); URL.revokeObjectURL(url);
   };
 
   if (loading) {
     return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   }
+
+  const GroupTable = ({ data, groupKey, groupLabel, icon: Icon }: { data: any[]; groupKey: string; groupLabel: string; icon: any }) => (
+    <div className="bg-card border border-border rounded-lg shadow-card overflow-hidden">
+      <div className="p-4 border-b border-border">
+        <h4 className="font-display font-semibold text-card-foreground flex items-center gap-2">
+          <Icon className="h-4 w-4 text-primary" /> {groupLabel} Performance
+        </h4>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-muted/50">
+            <tr className="text-left text-xs text-muted-foreground">
+              <th className="p-3 font-medium">{groupLabel}</th>
+              <th className="p-3 font-medium">Students</th>
+              <th className="p-3 font-medium">Attempts</th>
+              <th className="p-3 font-medium">Avg Score</th>
+              {groupKey === "college" && <th className="p-3 font-medium">Pass Rate</th>}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {data.length === 0 ? (
+              <tr><td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">No data</td></tr>
+            ) : data.map((row, i) => (
+              <tr key={i} className="hover:bg-muted/30">
+                <td className="p-3 text-sm font-medium text-card-foreground">{row[groupKey] || "Not specified"}</td>
+                <td className="p-3 text-sm text-muted-foreground">{row.studentCount}</td>
+                <td className="p-3 text-sm text-muted-foreground">{row.attempts}</td>
+                <td className="p-3">
+                  <span className={`text-sm font-bold ${row.avgScore >= 80 ? "text-success" : row.avgScore >= 60 ? "text-warning" : "text-destructive"}`}>
+                    {row.avgScore}%
+                  </span>
+                </td>
+                {groupKey === "college" && (
+                  <td className="p-3 text-sm text-muted-foreground">{row.passRate}%</td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {data.length > 0 && (
+        <div className="p-4 border-t border-border">
+          <ResponsiveContainer width="100%" height={Math.min(data.length * 40 + 40, 300)}>
+            <BarChart data={data} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis type="number" domain={[0, 100]} fontSize={11} />
+              <YAxis dataKey={groupKey} type="category" width={120} fontSize={10} />
+              <Tooltip />
+              <Bar dataKey="avgScore" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -194,29 +295,19 @@ Format the response in clean markdown with headers and bullet points.`
           <SelectTrigger className="w-64"><SelectValue placeholder="All Assessments" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Assessments</SelectItem>
-            {assessments.map(a => (
-              <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>
-            ))}
+            {assessments.map(a => <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>)}
           </SelectContent>
         </Select>
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search student..." className="pl-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+          <Input placeholder="Search student or college..." className="pl-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
         </div>
-        <Button variant="outline" size="sm" className="gap-1" onClick={exportCSV}>
-          <Download className="h-3 w-3" /> CSV
-        </Button>
+        <Button variant="outline" size="sm" className="gap-1" onClick={exportCSV}><Download className="h-3 w-3" /> CSV</Button>
         <Button variant="outline" size="sm" className="gap-1" onClick={handleExportPDF} disabled={exportingPDF || rankings.length === 0}>
-          {exportingPDF ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />} PDF Report
+          {exportingPDF ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />} PDF
         </Button>
-        <Button
-          size="sm"
-          className="gap-1 bg-gradient-accent border-0 text-accent-foreground"
-          onClick={generateAIDiagnostics}
-          disabled={generatingDiagnostics || rankings.length === 0}
-        >
-          {generatingDiagnostics ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-          AI Diagnostics
+        <Button size="sm" className="gap-1 bg-gradient-accent border-0 text-accent-foreground" onClick={generateAIDiagnostics} disabled={generatingDiagnostics || rankings.length === 0}>
+          {generatingDiagnostics ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />} AI Diagnostics
         </Button>
       </div>
 
@@ -243,36 +334,119 @@ Format the response in clean markdown with headers and bullet points.`
         </div>
       )}
 
-      {/* Charts row */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-card border border-border rounded-lg p-5 shadow-card">
-          <h4 className="font-display font-semibold text-sm mb-4">Score Distribution</h4>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={scoreDistribution}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="range" fontSize={11} />
-              <YAxis fontSize={11} />
-              <Tooltip />
-              <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      {/* Analytics Tabs */}
+      <Tabs value={analyticsView} onValueChange={setAnalyticsView}>
+        <TabsList>
+          <TabsTrigger value="overall" className="gap-1 text-xs"><BarChart3 className="h-3 w-3" /> Overall</TabsTrigger>
+          <TabsTrigger value="college" className="gap-1 text-xs"><Building2 className="h-3 w-3" /> College-wise</TabsTrigger>
+          <TabsTrigger value="degree" className="gap-1 text-xs"><GraduationCap className="h-3 w-3" /> Degree-wise</TabsTrigger>
+          <TabsTrigger value="department" className="gap-1 text-xs"><Users className="h-3 w-3" /> Dept-wise</TabsTrigger>
+          <TabsTrigger value="student" className="gap-1 text-xs"><User className="h-3 w-3" /> Student-wise</TabsTrigger>
+        </TabsList>
 
-        {assessmentPerformance.length > 1 && (
-          <div className="bg-card border border-border rounded-lg p-5 shadow-card">
-            <h4 className="font-display font-semibold text-sm mb-4">Assessment-wise Avg Score</h4>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={assessmentPerformance} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" domain={[0, 100]} fontSize={11} />
-                <YAxis dataKey="name" type="category" width={120} fontSize={10} />
-                <Tooltip />
-                <Bar dataKey="avgScore" fill="hsl(var(--accent))" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+        <TabsContent value="overall" className="space-y-6 mt-4">
+          <div className="grid lg:grid-cols-2 gap-6">
+            <div className="bg-card border border-border rounded-lg p-5 shadow-card">
+              <h4 className="font-display font-semibold text-sm mb-4">Score Distribution</h4>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={scoreDistribution}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="range" fontSize={11} />
+                  <YAxis fontSize={11} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            {assessmentPerformance.length > 1 && (
+              <div className="bg-card border border-border rounded-lg p-5 shadow-card">
+                <h4 className="font-display font-semibold text-sm mb-4">Assessment-wise Avg Score</h4>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={assessmentPerformance} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis type="number" domain={[0, 100]} fontSize={11} />
+                    <YAxis dataKey="name" type="category" width={120} fontSize={10} />
+                    <Tooltip />
+                    <Bar dataKey="avgScore" fill="hsl(var(--accent))" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </TabsContent>
+
+        <TabsContent value="college" className="mt-4">
+          <GroupTable data={collegeStats} groupKey="college" groupLabel="College" icon={Building2} />
+        </TabsContent>
+
+        <TabsContent value="degree" className="mt-4">
+          <GroupTable data={degreeStats} groupKey="degree" groupLabel="Degree" icon={GraduationCap} />
+        </TabsContent>
+
+        <TabsContent value="department" className="mt-4">
+          <GroupTable data={deptStats} groupKey="department" groupLabel="Department" icon={Users} />
+        </TabsContent>
+
+        <TabsContent value="student" className="mt-4">
+          {/* Full student rankings with degree/dept */}
+          <div className="bg-card border border-border rounded-lg shadow-card overflow-hidden">
+            <div className="p-4 border-b border-border">
+              <h4 className="font-display font-semibold text-card-foreground flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-warning" /> Student Rankings
+              </h4>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50">
+                  <tr className="text-left text-xs text-muted-foreground">
+                    <th className="p-3 font-medium w-16">Rank</th>
+                    <th className="p-3 font-medium">Student</th>
+                    <th className="p-3 font-medium">College</th>
+                    <th className="p-3 font-medium">Degree</th>
+                    <th className="p-3 font-medium">Department</th>
+                    <th className="p-3 font-medium">Best Score</th>
+                    <th className="p-3 font-medium">Avg Score</th>
+                    <th className="p-3 font-medium">Attempts</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {rankings.length === 0 ? (
+                    <tr><td colSpan={8} className="p-8 text-center text-sm text-muted-foreground">No assessment data yet</td></tr>
+                  ) : rankings.map((r, i) => (
+                    <tr key={r.name} className="hover:bg-muted/30">
+                      <td className="p-3">
+                        {i < 3 ? (
+                          <Star className={`h-4 w-4 ${i === 0 ? "text-warning fill-warning" : i === 1 ? "text-muted-foreground fill-muted-foreground" : "text-orange-400 fill-orange-400"}`} />
+                        ) : (
+                          <span className="text-sm text-muted-foreground font-mono">{i + 1}</span>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
+                            {r.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                          </div>
+                          <span className="text-sm font-medium text-card-foreground">{r.name}</span>
+                        </div>
+                      </td>
+                      <td className="p-3 text-sm text-muted-foreground">{r.college}</td>
+                      <td className="p-3 text-sm text-muted-foreground">{r.degree || "—"}</td>
+                      <td className="p-3 text-sm text-muted-foreground">{r.department || "—"}</td>
+                      <td className="p-3">
+                        <span className={`text-sm font-bold ${r.bestScore >= 80 ? "text-success" : r.bestScore >= 60 ? "text-warning" : "text-destructive"}`}>
+                          {r.bestScore}%
+                        </span>
+                      </td>
+                      <td className="p-3 text-sm text-muted-foreground">{r.avgScore}%</td>
+                      <td className="p-3 text-sm text-muted-foreground">{r.attempts}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* AI Diagnostics */}
       {aiDiagnostics && (
@@ -296,64 +470,6 @@ Format the response in clean markdown with headers and bullet points.`
 
       {/* Question-Level Analytics */}
       <QuestionLevelAnalytics assessments={assessments} attempts={filteredAttempts} onStatsReady={setQuestionStatsForExport} />
-
-      {/* Rankings table */}
-      <div className="bg-card border border-border rounded-lg shadow-card overflow-hidden">
-        <div className="p-4 border-b border-border">
-          <h4 className="font-display font-semibold text-card-foreground flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-warning" /> Student Rankings
-          </h4>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr className="text-left text-xs text-muted-foreground">
-                <th className="p-3 font-medium w-16">Rank</th>
-                <th className="p-3 font-medium">Student</th>
-                <th className="p-3 font-medium">College</th>
-                <th className="p-3 font-medium">Best Score</th>
-                <th className="p-3 font-medium">Avg Score</th>
-                <th className="p-3 font-medium">Attempts</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rankings.length === 0 ? (
-                <tr><td colSpan={6} className="p-8 text-center text-sm text-muted-foreground">No assessment data yet</td></tr>
-              ) : (
-                rankings.map((r, i) => (
-                  <tr key={r.name} className="hover:bg-muted/30">
-                    <td className="p-3">
-                      <div className="flex items-center gap-1">
-                        {i < 3 ? (
-                          <Star className={`h-4 w-4 ${i === 0 ? "text-warning fill-warning" : i === 1 ? "text-muted-foreground fill-muted-foreground" : "text-orange-400 fill-orange-400"}`} />
-                        ) : (
-                          <span className="text-sm text-muted-foreground font-mono">{i + 1}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
-                          {r.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
-                        </div>
-                        <span className="text-sm font-medium text-card-foreground">{r.name}</span>
-                      </div>
-                    </td>
-                    <td className="p-3 text-sm text-muted-foreground">{r.college}</td>
-                    <td className="p-3">
-                      <span className={`text-sm font-bold ${r.bestScore >= 80 ? "text-success" : r.bestScore >= 60 ? "text-warning" : "text-destructive"}`}>
-                        {r.bestScore}%
-                      </span>
-                    </td>
-                    <td className="p-3 text-sm text-muted-foreground">{r.avgScore}%</td>
-                    <td className="p-3 text-sm text-muted-foreground">{r.attempts}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   );
 };

@@ -140,6 +140,19 @@ const AssessmentsView = () => {
   });
 
   if (selectedModule) {
+    // Handle admin-published assessments
+    if (selectedModule.startsWith("admin-")) {
+      const adminId = selectedModule.replace("admin-", "");
+      const adminItem = adminAssessments.find(a => a.id === adminId);
+      if (adminItem) {
+        return (
+          <AdminAssessmentQuiz
+            assessment={adminItem}
+            onBack={() => setSelectedModule(null)}
+          />
+        );
+      }
+    }
     return (
       <AssessmentQuiz
         moduleId={Number(selectedModule)}

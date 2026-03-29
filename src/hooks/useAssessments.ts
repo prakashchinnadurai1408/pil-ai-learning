@@ -219,6 +219,7 @@ export async function updateAssessment(assessmentId: string, assessment: {
   return true;
 }
 
+export async function submitAssessmentAttempt(attempt: {
   assessment_id: string;
   student_id: string;
   student_name: string;

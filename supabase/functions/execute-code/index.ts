@@ -8,15 +8,53 @@ const corsHeaders = {
 // JDoodle API - free tier: 200 credits/day
 const JDOODLE_API = "https://api.jdoodle.com/v1/execute";
 
+// Comprehensive JDoodle language mapping (40+ languages)
 const jdoodleLangs: Record<string, { language: string; versionIndex: string }> = {
-  python3:    { language: "python3", versionIndex: "4" },
-  javascript: { language: "nodejs", versionIndex: "4" },
-  typescript: { language: "typescript", versionIndex: "0" },
-  java:       { language: "java", versionIndex: "4" },
-  c:          { language: "c", versionIndex: "5" },
-  cpp:        { language: "cpp17", versionIndex: "1" },
-  go:         { language: "go", versionIndex: "4" },
-  rust:       { language: "rust", versionIndex: "4" },
+  // Tier 1: Popular
+  python3:       { language: "python3", versionIndex: "4" },
+  javascript:    { language: "nodejs", versionIndex: "4" },
+  typescript:    { language: "typescript", versionIndex: "0" },
+  java:          { language: "java", versionIndex: "4" },
+  c:             { language: "c", versionIndex: "5" },
+  cpp:           { language: "cpp17", versionIndex: "1" },
+  csharp:        { language: "csharp", versionIndex: "4" },
+  go:            { language: "go", versionIndex: "4" },
+  rust:          { language: "rust", versionIndex: "4" },
+  kotlin:        { language: "kotlin", versionIndex: "4" },
+  swift:         { language: "swift", versionIndex: "4" },
+  ruby:          { language: "ruby", versionIndex: "4" },
+  php:           { language: "php", versionIndex: "4" },
+  scala:         { language: "scala", versionIndex: "4" },
+  // Tier 2: Systems & Functional
+  perl:          { language: "perl", versionIndex: "4" },
+  haskell:       { language: "haskell", versionIndex: "4" },
+  lua:           { language: "lua", versionIndex: "3" },
+  r:             { language: "r", versionIndex: "4" },
+  dart:          { language: "dart", versionIndex: "4" },
+  elixir:        { language: "elixir", versionIndex: "4" },
+  clojure:       { language: "clojure", versionIndex: "4" },
+  fsharp:        { language: "fsharp", versionIndex: "1" },
+  erlang:        { language: "erlang", versionIndex: "0" },
+  ocaml:         { language: "ocaml", versionIndex: "1" },
+  groovy:        { language: "groovy", versionIndex: "4" },
+  // Tier 3: Scripting & Niche
+  bash:          { language: "bash", versionIndex: "4" },
+  powershell:    { language: "powershell", versionIndex: "0" },
+  "objective-c": { language: "objc", versionIndex: "4" },
+  pascal:        { language: "pascal", versionIndex: "3" },
+  fortran:       { language: "fortran", versionIndex: "4" },
+  cobol:         { language: "cobol", versionIndex: "4" },
+  lisp:          { language: "commonlisp", versionIndex: "3" },
+  prolog:        { language: "prolog", versionIndex: "1" },
+  d:             { language: "d", versionIndex: "1" },
+  racket:        { language: "racket", versionIndex: "1" },
+  julia:         { language: "julia", versionIndex: "0" },
+  nim:           { language: "nim", versionIndex: "0" },
+  smalltalk:     { language: "gst", versionIndex: "0" },
+  vb:            { language: "vbn", versionIndex: "4" },
+  coffeescript:  { language: "coffeescript", versionIndex: "4" },
+  tcl:           { language: "tcl", versionIndex: "4" },
+  sql:           { language: "sql", versionIndex: "4" },
 };
 
 serve(async (req) => {

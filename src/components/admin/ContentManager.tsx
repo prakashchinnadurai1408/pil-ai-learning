@@ -408,17 +408,15 @@ const ContentManager = () => {
                   {generating ? "Generating..." : `Generate ${section.label} with AI`}
                 </Button>
 
-                {section.id === "videos" && (
-                  <Button
-                    variant="outline"
-                    className="gap-2 text-sm"
-                    onClick={handleGenerateAllTopicVideos}
-                    disabled={generatingAllTopics || generating}
-                  >
-                    {generatingAllTopics ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
-                    {generatingAllTopics ? "Generating for all topics..." : "Generate Videos for All Topics"}
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  className="gap-2 text-sm"
+                  onClick={() => handleGenerateAllTopicContent()}
+                  disabled={generatingAllTopics || generating}
+                >
+                  {generatingAllTopics ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  {generatingAllTopics ? "Generating for all topics..." : `Generate ${section.label} for All Topics & Auto-Publish`}
+                </Button>
 
                 {section.id === "videos" && (
                   <Button

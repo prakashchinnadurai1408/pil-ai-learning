@@ -307,7 +307,7 @@ Respond in EXACTLY this JSON format, nothing else:
         <TabsContent value="practice" className="mt-4">
           {currentChallenge ? (
             <div className="space-y-4">
-              <Button variant="ghost" size="sm" onClick={() => { setSelectedChallenge(null); setAiResponse(""); setUserPrompt(""); setShowHint(false); }}>
+              <Button variant="ghost" size="sm" onClick={() => { setSelectedChallenge(null); setAiResponse(""); setUserPrompt(""); setShowHint(false); setEvaluation(null); }}>
                 ← Back to Challenges
               </Button>
               <div className="bg-card border border-border rounded-lg p-5 shadow-card">
@@ -334,16 +334,22 @@ Respond in EXACTLY this JSON format, nothing else:
                   placeholder="Write your prompt here... Try to be as specific and well-structured as possible."
                   className="min-h-[150px]"
                 />
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button onClick={() => runPrompt(userPrompt, setAiResponse, setIsLoading, "general")} disabled={isLoading || !userPrompt.trim()} className="gap-2">
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     Test Prompt
                   </Button>
-                  <Button variant="outline" onClick={() => { setUserPrompt(""); setAiResponse(""); }}>
+                  <Button variant="secondary" onClick={() => evaluatePrompt(userPrompt)} disabled={isEvaluating || !userPrompt.trim()} className="gap-2">
+                    {isEvaluating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Award className="h-4 w-4" />}
+                    Score My Prompt
+                  </Button>
+                  <Button variant="outline" onClick={() => { setUserPrompt(""); setAiResponse(""); setEvaluation(null); }}>
                     <RotateCcw className="h-4 w-4 mr-1" /> Reset
                   </Button>
                 </div>
               </div>
+
+              {evaluation && <PromptScoreCard evaluation={evaluation} />}
 
               {aiResponse && (
                 <div className="bg-card border border-border rounded-lg p-4 shadow-card">

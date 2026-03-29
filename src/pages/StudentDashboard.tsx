@@ -17,6 +17,7 @@ import { ContentSkeleton } from "@/components/LoadingFallback";
 const AIPlayground = lazy(() => import("@/components/dashboard/AIPlayground"));
 const VideoLearning = lazy(() => import("@/components/dashboard/VideoLearning"));
 const AssessmentsView = lazy(() => import("@/components/dashboard/AssessmentsView"));
+const StudentAssessmentTaker = lazy(() => import("@/components/dashboard/StudentAssessmentTaker"));
 const AIToolsSandbox = lazy(() => import("@/components/dashboard/AIToolsSandbox"));
 const ProjectsView = lazy(() => import("@/components/dashboard/ProjectsView"));
 const ModuleDetailView = lazy(() => import("@/components/dashboard/ModuleDetailView"));
@@ -220,9 +221,17 @@ const StudentDashboard = () => {
           <TabsContent value="assessments">
             <ErrorBoundary>
               <Suspense fallback={<ContentSkeleton />}>
-                <AssessmentsView />
+                <StudentAssessmentTaker />
               </Suspense>
             </ErrorBoundary>
+            <div className="mt-8 border-t border-border pt-6">
+              <h3 className="text-sm font-display font-semibold text-muted-foreground mb-4">Practice Quizzes (Module-based)</h3>
+              <ErrorBoundary>
+                <Suspense fallback={<ContentSkeleton />}>
+                  <AssessmentsView />
+                </Suspense>
+              </ErrorBoundary>
+            </div>
           </TabsContent>
 
           <TabsContent value="projects">

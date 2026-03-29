@@ -356,6 +356,20 @@ const TrainerDashboard = () => {
             </div>
           </TabsContent>
 
+          {/* Create Assessment Tab */}
+          <TabsContent value="create-assessment">
+            <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}>
+              <AssessmentCreator />
+            </Suspense>
+          </TabsContent>
+
+          {/* Assessment Analytics Tab */}
+          <TabsContent value="assessment-analytics">
+            <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}>
+              <AssessmentAnalytics />
+            </Suspense>
+          </TabsContent>
+
           {/* Analytics Tab */}
           <TabsContent value="analytics">
             <div className="grid lg:grid-cols-2 gap-6">

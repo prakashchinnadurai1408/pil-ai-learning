@@ -32,25 +32,6 @@ const AssessmentAnalytics = () => {
   const [questionStatsForExport, setQuestionStatsForExport] = useState<any[]>([]);
   const [exportingPDF, setExportingPDF] = useState(false);
 
-  const handleExportPDF = useCallback(() => {
-    setExportingPDF(true);
-    try {
-      const selectedAssessment = assessments.find(a => a.id === selectedAssessmentId);
-      const reportTitle = selectedAssessmentId === "all" ? "All Assessments" : (selectedAssessment?.title || "Assessment Report");
-      exportAnalyticsPDF({
-        stats,
-        rankings,
-        scoreDistribution,
-        assessmentPerformance,
-        questionStats: questionStatsForExport,
-        aiDiagnostics,
-        reportTitle,
-      });
-    } finally {
-      setExportingPDF(false);
-    }
-  }, [stats, rankings, scoreDistribution, assessmentPerformance, questionStatsForExport, aiDiagnostics, selectedAssessmentId, assessments]);
-
 
   const filteredAttempts = useMemo(() => {
     let result = attempts;

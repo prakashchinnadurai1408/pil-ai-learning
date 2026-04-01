@@ -28,6 +28,7 @@ const ProjectsView = lazy(() => import("@/components/dashboard/ProjectsView"));
 const ModuleDetailView = lazy(() => import("@/components/dashboard/ModuleDetailView"));
 const ProgrammingModule = lazy(() => import("@/components/dashboard/ProgrammingModule"));
 const PromptEngineeringLab = lazy(() => import("@/components/dashboard/PromptEngineeringLab"));
+const StudentProfilePage = lazy(() => import("@/components/dashboard/StudentProfilePage"));
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState("modules");

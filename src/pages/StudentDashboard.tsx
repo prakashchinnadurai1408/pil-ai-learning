@@ -9,7 +9,9 @@ import {
   BookOpen, MessageSquare, Video, FlaskConical, ClipboardCheck,
   FolderKanban, LogOut, Play, CheckCircle, Sparkles, Code2, Pencil
 } from "lucide-react";
+import { Lock } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
+import { getMenuAccess, type MenuAccessConfig } from "@/hooks/useMenuAccessControls";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import NotificationsPanel from "@/components/dashboard/NotificationsPanel";
 import { ContentSkeleton } from "@/components/LoadingFallback";

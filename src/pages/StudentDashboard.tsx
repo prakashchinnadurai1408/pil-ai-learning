@@ -85,9 +85,11 @@ const StudentDashboard = () => {
             <img src={pluginliveLogo} alt="PluginLive Logo" className="h-7" />
             <span className="font-display font-bold text-gradient-primary">AI LearnHub</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <NotificationsPanel studentId={null} />
-            <span className="text-sm text-muted-foreground hidden sm:block">Welcome, {studentName}</span>
+            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => setShowProfile(true)}>
+              <User className="h-4 w-4" /> <span className="hidden sm:inline">{studentName}</span>
+            </Button>
             <Link to="/student-login" onClick={() => sessionStorage.clear()}>
               <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" aria-label="Logout">
                 <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Logout</span>

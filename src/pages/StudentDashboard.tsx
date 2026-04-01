@@ -49,7 +49,13 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     getMenuAccess().then(setMenuAccess);
-  }, []);
+    if (studentId) {
+      supabase.from("students").select("subscription_tier").eq("id", studentId).single()
+        .then(({ data }) => {
+          if (data?.subscription_tier === "premium") setUserTier("premium");
+        });
+    }
+  }, [studentId]);
 
   const allTabs = [
     { value: "modules" as keyof MenuAccessConfig, icon: BookOpen, label: "Modules" },

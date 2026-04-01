@@ -67,6 +67,7 @@ const defaultPlans: SubscriptionPlan[] = [
 ];
 
 const features: PlanFeature[] = [
+  // Modules
   { name: "Introduction to AI Module", free: true, premium: true },
   { name: "AI Tools for Students Module", free: true, premium: true },
   { name: "Prompt Engineering Module", free: true, premium: true },
@@ -77,12 +78,32 @@ const features: PlanFeature[] = [
   { name: "RAG Module", free: false, premium: true },
   { name: "Fine-Tuning Module", free: false, premium: true },
   { name: "AI SaaS Development", free: false, premium: true },
-  { name: "AI Chat (Tutor)", free: true, premium: true },
-  { name: "AI Chat - Unlimited", free: false, premium: true },
+  // Videos
+  { name: "Video Lessons (first 2 per module)", free: true, premium: true },
+  { name: "All Video Lessons (unlimited)", free: false, premium: true },
+  // AI Chat & Tools
+  { name: "AI Chat Tutor (5 queries/day)", free: true, premium: true },
+  { name: "AI Chat Tutor (unlimited)", free: false, premium: true },
   { name: "AI Tools Sandbox", free: false, premium: true },
   { name: "AI Playground", free: false, premium: true },
-  { name: "Quizzes & Assessments", free: false, premium: true },
+  // Coding
+  { name: "Coding Challenges (5 languages)", free: true, premium: true },
+  { name: "Coding Challenges (40+ languages)", free: false, premium: true },
+  { name: "Coding Leaderboard", free: true, premium: true },
+  // Prompt Engineering
+  { name: "Prompt Lessons", free: true, premium: true },
+  { name: "Prompt Challenges & Scoring", free: false, premium: true },
+  { name: "Prompt Sandbox (all roles)", free: false, premium: true },
+  // Assessments
+  { name: "Practice Quizzes (module-based)", free: true, premium: true },
+  { name: "Additional Assessments", free: false, premium: true },
+  { name: "Assessment Retake", free: false, premium: true },
+  // Projects
+  { name: "Project Guide Access", free: false, premium: true },
+  { name: "Project Document Uploads", free: false, premium: true },
+  // General
   { name: "Completion Certificate", free: false, premium: true },
+  { name: "Priority Support", free: false, premium: true },
 ];
 
 const SubscriptionManagement = () => {

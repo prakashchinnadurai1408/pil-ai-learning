@@ -298,6 +298,42 @@ const StudentDashboard = () => {
             </ErrorBoundary>
           </TabsContent>
         </Tabs>
+
+        {/* Premium Upgrade Dialog */}
+        <Dialog open={upgradeDialogOpen} onOpenChange={setUpgradeDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-lg">
+                <Crown className="h-5 w-5 text-warning" /> Upgrade to Premium
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-muted-foreground">
+                This feature is available exclusively for Premium subscribers. Upgrade your plan to unlock:
+              </p>
+              <ul className="space-y-2 text-sm">
+                {["All modules & video lessons", "Unlimited AI Chat & Tools", "Full coding challenges (40+ languages)", "Advanced assessments & retakes", "Project guide & document uploads", "Certificate of completion"].map((f, i) => (
+                  <li key={i} className="flex items-center gap-2 text-card-foreground">
+                    <CheckCircle className="h-4 w-4 text-success shrink-0" /> {f}
+                  </li>
+                ))}
+              </ul>
+              <div className="bg-warning/10 rounded-lg p-4 text-center">
+                <p className="text-2xl font-display font-bold text-card-foreground">₹499<span className="text-sm font-normal text-muted-foreground">/month</span></p>
+                <p className="text-xs text-muted-foreground mt-1">or ₹4,999/year (save 17%)</p>
+              </div>
+            </div>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setUpgradeDialogOpen(false)} className="flex-1">Maybe Later</Button>
+              <Button className="flex-1 bg-warning text-warning-foreground hover:bg-warning/90 gap-2" onClick={() => {
+                setUpgradeDialogOpen(false);
+                toast.info("Contact your administrator to upgrade your subscription.");
+              }}>
+                <Crown className="h-4 w-4" /> Upgrade Now
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

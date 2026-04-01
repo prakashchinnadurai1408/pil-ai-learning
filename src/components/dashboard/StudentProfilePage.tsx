@@ -86,6 +86,21 @@ const StudentProfilePage = ({ onBack }: { onBack: () => void }) => {
         challengesSolved: challengesRes.data?.length || 0,
         overallProgress: Math.round((completed / 10) * 100),
       });
+
+      // Fetch activities for PDF report
+      const studentName = sessionStorage.getItem("studentName") || "";
+      const [progAct, scoreAct, chalAct] = await Promise.all([
+        supabase.from("student_module_progress").select("*").eq("student_id", studentId).order("last_accessed", { ascending: false }).limit(10),
+        supabase.from("student_assessment_scores").select("*").eq("student_id", studentId).order("attempted_at", { ascending: false }).limit(10),
+        supabase.from("student_solved_challenges").select("*, coding_challenges(title)").eq("student_name", studentName).order("solved_at", { ascending: false }).limit(10),
+      ]);
+      const acts: { type: string; title: string; detail: string; date: string }[] = [];
+      (progAct.data || []).forEach((p: any) => acts.push({ type: "module", title: `Module ${p.module_id}`, detail: p.completed ? "Completed" : `${p.progress_percent}%`, date: p.last_accessed || p.created_at }));
+      (scoreAct.data || []).forEach((s: any) => acts.push({ type: "assessment", title: `Module ${s.module_id} Quiz`, detail: `Score: ${s.score}%`, date: s.attempted_at }));
+      (chalAct.data || []).forEach((c: any) => acts.push({ type: "challenge", title: (c.coding_challenges as any)?.title || `Challenge`, detail: `Solved in ${c.language}`, date: c.solved_at }));
+      acts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setActivities(acts.slice(0, 20));
+
       setLoading(false);
     };
     load();

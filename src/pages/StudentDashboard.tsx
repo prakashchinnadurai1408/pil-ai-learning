@@ -100,6 +100,14 @@ const StudentDashboard = () => {
       </header>
 
       <main className="container mx-auto px-6 py-8" role="main">
+        {showProfile ? (
+          <ErrorBoundary>
+            <Suspense fallback={<ContentSkeleton />}>
+              <StudentProfilePage onBack={() => setShowProfile(false)} />
+            </Suspense>
+          </ErrorBoundary>
+        ) : (
+        <>
         {/* Progress Overview */}
         <div className="bg-card rounded-lg border border-border p-6 shadow-card mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">

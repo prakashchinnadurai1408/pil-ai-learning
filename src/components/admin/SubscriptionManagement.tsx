@@ -305,6 +305,57 @@ const SubscriptionManagement = () => {
         </CardContent>
       </Card>
 
+      {/* Menu Access Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-display flex items-center gap-2">
+            <Settings className="h-4 w-4" /> Menu Access Controls
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">Control which dashboard menus are accessible per subscription tier</p>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                  <th className="p-3 font-medium">Menu</th>
+                  <th className="p-3 font-medium text-center">Free Access</th>
+                  <th className="p-3 font-medium text-center">Premium Access</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(Object.keys(menuLabels) as (keyof MenuAccessConfig)[]).map((key) => (
+                  <tr key={key} className="border-b border-border/50">
+                    <td className="p-3 text-sm text-card-foreground flex items-center gap-2">
+                      {menuAccess[key].free ? <Unlock className="h-3.5 w-3.5 text-success" /> : <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
+                      {menuLabels[key]}
+                    </td>
+                    <td className="p-3 text-center">
+                      <Switch
+                        checked={menuAccess[key].free}
+                        onCheckedChange={(v) => {
+                          updateAccess(key, "free", v);
+                          toast.success(`${menuLabels[key]} ${v ? "enabled" : "disabled"} for Free users`);
+                        }}
+                      />
+                    </td>
+                    <td className="p-3 text-center">
+                      <Switch
+                        checked={menuAccess[key].premium}
+                        onCheckedChange={(v) => {
+                          updateAccess(key, "premium", v);
+                          toast.success(`${menuLabels[key]} ${v ? "enabled" : "disabled"} for Premium users`);
+                        }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Edit Plan Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>

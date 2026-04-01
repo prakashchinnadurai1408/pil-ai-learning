@@ -33,6 +33,7 @@ const StudentProfilePage = lazy(() => import("@/components/dashboard/StudentProf
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState("modules");
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [selectedModuleId, setSelectedModuleId] = useState<number | null>(null);
   const { adminModules } = useAdminModules();
   const publishedAdminModules = adminModules.filter(m => m.status === "published");

@@ -45,6 +45,7 @@ const StudentProfilePage = ({ onBack }: { onBack: () => void }) => {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", email: "", mobile: "" });
   const [loading, setLoading] = useState(true);
+  const [activities, setActivities] = useState<{ type: string; title: string; detail: string; date: string }[]>([]);
 
   const studentId = sessionStorage.getItem("studentId");
 

@@ -33,6 +33,22 @@ const StudentDashboard = () => {
   const publishedAdminModules = adminModules.filter(m => m.status === "published");
   const studentName = sessionStorage.getItem("studentName") || "Student";
   const overallProgress = 28;
+  const userTier: "free" | "premium" = "free"; // TODO: derive from user subscription
+  const menuAccess = useMemo(() => getMenuAccess(), []);
+
+  const allTabs = [
+    { value: "modules" as keyof MenuAccessConfig, icon: BookOpen, label: "Modules" },
+    { value: "videos" as keyof MenuAccessConfig, icon: Video, label: "Videos" },
+    { value: "playground" as keyof MenuAccessConfig, icon: MessageSquare, label: "AI Chat" },
+    { value: "coding" as keyof MenuAccessConfig, icon: Code2, label: "Coding" },
+    { value: "prompts" as keyof MenuAccessConfig, icon: Pencil, label: "Prompts" },
+    { value: "tools" as keyof MenuAccessConfig, icon: FlaskConical, label: "Tools" },
+    { value: "assessments" as keyof MenuAccessConfig, icon: ClipboardCheck, label: "Assess" },
+    { value: "projects" as keyof MenuAccessConfig, icon: FolderKanban, label: "Projects" },
+  ];
+
+  const accessibleTabs = allTabs.filter(tab => menuAccess[tab.value]?.[userTier] !== false);
+  const lockedTabs = allTabs.filter(tab => menuAccess[tab.value]?.[userTier] === false);
 
   return (
     <div className="min-h-screen bg-background">

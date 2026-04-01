@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -9,7 +9,9 @@ import {
   BookOpen, MessageSquare, Video, FlaskConical, ClipboardCheck,
   FolderKanban, LogOut, Play, CheckCircle, Sparkles, Code2, Pencil
 } from "lucide-react";
+import { Lock } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
+import { getMenuAccess, type MenuAccessConfig } from "@/hooks/useMenuAccessControls";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import NotificationsPanel from "@/components/dashboard/NotificationsPanel";
 import { ContentSkeleton } from "@/components/LoadingFallback";
@@ -31,6 +33,22 @@ const StudentDashboard = () => {
   const publishedAdminModules = adminModules.filter(m => m.status === "published");
   const studentName = sessionStorage.getItem("studentName") || "Student";
   const overallProgress = 28;
+  const userTier: "free" | "premium" = "free"; // TODO: derive from user subscription
+  const menuAccess = useMemo(() => getMenuAccess(), []);
+
+  const allTabs = [
+    { value: "modules" as keyof MenuAccessConfig, icon: BookOpen, label: "Modules" },
+    { value: "videos" as keyof MenuAccessConfig, icon: Video, label: "Videos" },
+    { value: "playground" as keyof MenuAccessConfig, icon: MessageSquare, label: "AI Chat" },
+    { value: "coding" as keyof MenuAccessConfig, icon: Code2, label: "Coding" },
+    { value: "prompts" as keyof MenuAccessConfig, icon: Pencil, label: "Prompts" },
+    { value: "tools" as keyof MenuAccessConfig, icon: FlaskConical, label: "Tools" },
+    { value: "assessments" as keyof MenuAccessConfig, icon: ClipboardCheck, label: "Assess" },
+    { value: "projects" as keyof MenuAccessConfig, icon: FolderKanban, label: "Projects" },
+  ];
+
+  const accessibleTabs = allTabs.filter(tab => menuAccess[tab.value]?.[userTier] !== false);
+  const lockedTabs = allTabs.filter(tab => menuAccess[tab.value]?.[userTier] === false);
 
   return (
     <div className="min-h-screen bg-background">
@@ -70,22 +88,26 @@ const StudentDashboard = () => {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={(v) => {
+          const isLocked = lockedTabs.some(t => t.value === v);
+          if (isLocked) {
+            return;
+          }
+          setActiveTab(v);
+        }}>
           <TabsList className="grid grid-cols-4 sm:grid-cols-8 mb-8 h-auto gap-1 bg-muted p-1" aria-label="Dashboard sections">
-            {[
-              { value: "modules", icon: BookOpen, label: "Modules" },
-              { value: "videos", icon: Video, label: "Videos" },
-              { value: "playground", icon: MessageSquare, label: "AI Chat" },
-              { value: "coding", icon: Code2, label: "Coding" },
-              { value: "prompts", icon: Pencil, label: "Prompts" },
-              { value: "tools", icon: FlaskConical, label: "Tools" },
-              { value: "assessments", icon: ClipboardCheck, label: "Assess" },
-              { value: "projects", icon: FolderKanban, label: "Projects" },
-            ].map((tab) => {
+            {allTabs.map((tab) => {
               const Icon = tab.icon;
+              const isLocked = menuAccess[tab.value]?.[userTier] === false;
               return (
-                <TabsTrigger key={tab.value} value={tab.value} className="gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm" aria-label={tab.label}>
-                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  disabled={isLocked}
+                  className={`gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm ${isLocked ? "opacity-50 cursor-not-allowed" : ""}`}
+                  aria-label={`${tab.label}${isLocked ? " (Premium)" : ""}`}
+                >
+                  {isLocked ? <Lock className="h-3 w-3" aria-hidden="true" /> : <Icon className="h-3.5 w-3.5" aria-hidden="true" />}
                   <span className="hidden sm:inline">{tab.label}</span>
                 </TabsTrigger>
               );

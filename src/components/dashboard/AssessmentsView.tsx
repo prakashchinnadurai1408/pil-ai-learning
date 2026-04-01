@@ -130,14 +130,25 @@ const AssessmentQuiz = ({ moduleId, moduleName, onBack }: { moduleId: number; mo
   );
 };
 
+const shuffleArray = <T,>(arr: T[]): T[] => {
+  const s = [...arr];
+  for (let i = s.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [s[i], s[j]] = [s[j], s[i]];
+  }
+  return s;
+};
+
 const AdminAssessmentQuiz = ({ assessment, onBack }: { assessment: any; onBack: () => void }) => {
-  const questions: { question: string; options: string[]; correct: number; explanation: string }[] =
+  const rawQuestions: { question: string; options: string[]; correct: number; explanation: string }[] =
     Array.isArray(assessment.content) ? assessment.content : [];
+  const [questions, setQuestions] = useState(() => shuffleArray(rawQuestions));
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
   const [attemptCount, setAttemptCount] = useState(1);
 
   const handleRetake = () => {
+    setQuestions(shuffleArray(rawQuestions));
     setAnswers({});
     setSubmitted(false);
     setAttemptCount(c => c + 1);

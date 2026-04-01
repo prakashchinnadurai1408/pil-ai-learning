@@ -8,13 +8,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Badge } from "@/components/ui/badge";
 import {
   Crown, Star, Zap, Users, CreditCard, TrendingUp, Settings,
-  Check, X, Plus, Edit, IndianRupee, BarChart3
+  Check, X, Plus, Edit, IndianRupee, BarChart3, Lock, Unlock
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from "recharts";
+import { useMenuAccessControls, menuLabels, type MenuAccessConfig } from "@/hooks/useMenuAccessControls";
 
 interface PlanFeature {
   name: string;
@@ -67,6 +68,7 @@ const defaultPlans: SubscriptionPlan[] = [
 ];
 
 const features: PlanFeature[] = [
+  // Modules
   { name: "Introduction to AI Module", free: true, premium: true },
   { name: "AI Tools for Students Module", free: true, premium: true },
   { name: "Prompt Engineering Module", free: true, premium: true },
@@ -77,12 +79,32 @@ const features: PlanFeature[] = [
   { name: "RAG Module", free: false, premium: true },
   { name: "Fine-Tuning Module", free: false, premium: true },
   { name: "AI SaaS Development", free: false, premium: true },
-  { name: "AI Chat (Tutor)", free: true, premium: true },
-  { name: "AI Chat - Unlimited", free: false, premium: true },
+  // Videos
+  { name: "Video Lessons (first 2 per module)", free: true, premium: true },
+  { name: "All Video Lessons (unlimited)", free: false, premium: true },
+  // AI Chat & Tools
+  { name: "AI Chat Tutor (5 queries/day)", free: true, premium: true },
+  { name: "AI Chat Tutor (unlimited)", free: false, premium: true },
   { name: "AI Tools Sandbox", free: false, premium: true },
   { name: "AI Playground", free: false, premium: true },
-  { name: "Quizzes & Assessments", free: false, premium: true },
+  // Coding
+  { name: "Coding Challenges (5 languages)", free: true, premium: true },
+  { name: "Coding Challenges (40+ languages)", free: false, premium: true },
+  { name: "Coding Leaderboard", free: true, premium: true },
+  // Prompt Engineering
+  { name: "Prompt Lessons", free: true, premium: true },
+  { name: "Prompt Challenges & Scoring", free: false, premium: true },
+  { name: "Prompt Sandbox (all roles)", free: false, premium: true },
+  // Assessments
+  { name: "Practice Quizzes (module-based)", free: true, premium: true },
+  { name: "Additional Assessments", free: false, premium: true },
+  { name: "Assessment Retake", free: false, premium: true },
+  // Projects
+  { name: "Project Guide Access", free: false, premium: true },
+  { name: "Project Document Uploads", free: false, premium: true },
+  // General
   { name: "Completion Certificate", free: false, premium: true },
+  { name: "Priority Support", free: false, premium: true },
 ];
 
 const SubscriptionManagement = () => {
@@ -90,6 +112,7 @@ const SubscriptionManagement = () => {
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
+  const { config: menuAccess, updateAccess } = useMenuAccessControls();
 
   // Mock subscriber data
   const subscriberData = {
@@ -273,6 +296,57 @@ const SubscriptionManagement = () => {
                     </td>
                     <td className="p-3 text-center">
                       {f.premium ? <Check className="h-4 w-4 text-success mx-auto" /> : <X className="h-4 w-4 text-muted-foreground/30 mx-auto" />}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Menu Access Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-display flex items-center gap-2">
+            <Settings className="h-4 w-4" /> Menu Access Controls
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">Control which dashboard menus are accessible per subscription tier</p>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                  <th className="p-3 font-medium">Menu</th>
+                  <th className="p-3 font-medium text-center">Free Access</th>
+                  <th className="p-3 font-medium text-center">Premium Access</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(Object.keys(menuLabels) as (keyof MenuAccessConfig)[]).map((key) => (
+                  <tr key={key} className="border-b border-border/50">
+                    <td className="p-3 text-sm text-card-foreground flex items-center gap-2">
+                      {menuAccess[key].free ? <Unlock className="h-3.5 w-3.5 text-success" /> : <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
+                      {menuLabels[key]}
+                    </td>
+                    <td className="p-3 text-center">
+                      <Switch
+                        checked={menuAccess[key].free}
+                        onCheckedChange={(v) => {
+                          updateAccess(key, "free", v);
+                          toast.success(`${menuLabels[key]} ${v ? "enabled" : "disabled"} for Free users`);
+                        }}
+                      />
+                    </td>
+                    <td className="p-3 text-center">
+                      <Switch
+                        checked={menuAccess[key].premium}
+                        onCheckedChange={(v) => {
+                          updateAccess(key, "premium", v);
+                          toast.success(`${menuLabels[key]} ${v ? "enabled" : "disabled"} for Premium users`);
+                        }}
+                      />
                     </td>
                   </tr>
                 ))}

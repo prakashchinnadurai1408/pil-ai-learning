@@ -11,6 +11,8 @@ import {
   Zap, BookOpen, Code2, ClipboardCheck, Trophy, Edit, Save, X
 } from "lucide-react";
 import { toast } from "sonner";
+import PasswordChangeForm from "./PasswordChangeForm";
+import ActivityTimeline from "./ActivityTimeline";
 
 interface StudentProfile {
   id: string;
@@ -247,6 +249,12 @@ const StudentProfilePage = ({ onBack }: { onBack: () => void }) => {
           )}
         </CardContent>
       </Card>
+
+      {/* Password Change */}
+      <PasswordChangeForm studentId={profile.id} />
+
+      {/* Activity Timeline */}
+      <ActivityTimeline studentId={profile.id} studentName={profile.name} />
     </div>
   );
 };

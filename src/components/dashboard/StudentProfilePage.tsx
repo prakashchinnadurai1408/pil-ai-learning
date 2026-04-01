@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import PasswordChangeForm from "./PasswordChangeForm";
 import ActivityTimeline from "./ActivityTimeline";
+import { generateProgressReport } from "./generateProgressReport";
 
 interface StudentProfile {
   id: string;

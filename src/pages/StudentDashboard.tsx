@@ -1,4 +1,4 @@
-import { useState, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -34,7 +34,20 @@ const StudentDashboard = () => {
   const studentName = sessionStorage.getItem("studentName") || "Student";
   const overallProgress = 28;
   const userTier: "free" | "premium" = "free"; // TODO: derive from user subscription
-  const menuAccess = useMemo(() => getMenuAccess(), []);
+  const [menuAccess, setMenuAccess] = useState<MenuAccessConfig>({
+    modules: { free: true, premium: true },
+    videos: { free: true, premium: true },
+    playground: { free: true, premium: true },
+    coding: { free: true, premium: true },
+    prompts: { free: true, premium: true },
+    tools: { free: false, premium: true },
+    assessments: { free: true, premium: true },
+    projects: { free: false, premium: true },
+  });
+
+  useEffect(() => {
+    getMenuAccess().then(setMenuAccess);
+  }, []);
 
   const allTabs = [
     { value: "modules" as keyof MenuAccessConfig, icon: BookOpen, label: "Modules" },

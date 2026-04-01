@@ -354,6 +354,30 @@ export type Database = {
         }
         Relationships: []
       }
+      menu_access_controls: {
+        Row: {
+          free_access: boolean
+          id: string
+          menu_key: string
+          premium_access: boolean
+          updated_at: string
+        }
+        Insert: {
+          free_access?: boolean
+          id?: string
+          menu_key: string
+          premium_access?: boolean
+          updated_at?: string
+        }
+        Update: {
+          free_access?: boolean
+          id?: string
+          menu_key?: string
+          premium_access?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       quiz_question_bank: {
         Row: {
           correct: number

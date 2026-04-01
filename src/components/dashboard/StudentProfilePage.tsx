@@ -121,9 +121,19 @@ const StudentProfilePage = ({ onBack }: { onBack: () => void }) => {
   return (
     <div className="space-y-6">
       {/* Back button */}
-      <Button variant="ghost" size="sm" onClick={onBack} className="gap-2 text-muted-foreground">
-        ← Back to Dashboard
-      </Button>
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="sm" onClick={onBack} className="gap-2 text-muted-foreground">
+          ← Back to Dashboard
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-2"
+          onClick={() => generateProgressReport(profile, stats, [])}
+        >
+          <Download className="h-4 w-4" /> Download Report
+        </Button>
+      </div>
 
       {/* Profile Header */}
       <Card className="overflow-hidden">

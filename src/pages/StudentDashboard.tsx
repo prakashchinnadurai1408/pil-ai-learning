@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -32,8 +33,9 @@ const StudentDashboard = () => {
   const { adminModules } = useAdminModules();
   const publishedAdminModules = adminModules.filter(m => m.status === "published");
   const studentName = sessionStorage.getItem("studentName") || "Student";
+  const studentId = sessionStorage.getItem("studentId");
   const overallProgress = 28;
-  const userTier: "free" | "premium" = "free"; // TODO: derive from user subscription
+  const [userTier, setUserTier] = useState<"free" | "premium">("free");
   const [menuAccess, setMenuAccess] = useState<MenuAccessConfig>({
     modules: { free: true, premium: true },
     videos: { free: true, premium: true },
@@ -47,7 +49,13 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     getMenuAccess().then(setMenuAccess);
-  }, []);
+    if (studentId) {
+      supabase.from("students").select("subscription_tier").eq("id", studentId).single()
+        .then(({ data }) => {
+          if (data?.subscription_tier === "premium") setUserTier("premium");
+        });
+    }
+  }, [studentId]);
 
   const allTabs = [
     { value: "modules" as keyof MenuAccessConfig, icon: BookOpen, label: "Modules" },

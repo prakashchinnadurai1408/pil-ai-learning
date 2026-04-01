@@ -15,6 +15,7 @@ import {
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { getMenuAccess, type MenuAccessConfig } from "@/hooks/useMenuAccessControls";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { toast } from "sonner";
 import NotificationsPanel from "@/components/dashboard/NotificationsPanel";
 import { ContentSkeleton } from "@/components/LoadingFallback";
 

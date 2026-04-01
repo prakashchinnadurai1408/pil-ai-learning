@@ -32,8 +32,9 @@ const StudentDashboard = () => {
   const { adminModules } = useAdminModules();
   const publishedAdminModules = adminModules.filter(m => m.status === "published");
   const studentName = sessionStorage.getItem("studentName") || "Student";
+  const studentId = sessionStorage.getItem("studentId");
   const overallProgress = 28;
-  const userTier: "free" | "premium" = "free"; // TODO: derive from user subscription
+  const [userTier, setUserTier] = useState<"free" | "premium">("free");
   const [menuAccess, setMenuAccess] = useState<MenuAccessConfig>({
     modules: { free: true, premium: true },
     videos: { free: true, premium: true },

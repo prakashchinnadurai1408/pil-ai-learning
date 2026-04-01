@@ -1,4 +1,5 @@
 import { useState } from "react";
+import StudentTierManager from "./StudentTierManager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -355,6 +356,9 @@ const SubscriptionManagement = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Student Tier Management */}
+      <StudentTierManager />
 
       {/* Edit Plan Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

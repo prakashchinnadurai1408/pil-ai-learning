@@ -10,7 +10,7 @@ import { useAdminModules } from "@/hooks/useAdminModules";
 import {
   BookOpen, MessageSquare, Video, FlaskConical, ClipboardCheck,
   FolderKanban, LogOut, Play, CheckCircle, Sparkles, Code2, Pencil,
-  Lock, Crown
+  Lock, Crown, User
 } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { getMenuAccess, type MenuAccessConfig } from "@/hooks/useMenuAccessControls";
@@ -28,10 +28,12 @@ const ProjectsView = lazy(() => import("@/components/dashboard/ProjectsView"));
 const ModuleDetailView = lazy(() => import("@/components/dashboard/ModuleDetailView"));
 const ProgrammingModule = lazy(() => import("@/components/dashboard/ProgrammingModule"));
 const PromptEngineeringLab = lazy(() => import("@/components/dashboard/PromptEngineeringLab"));
+const StudentProfilePage = lazy(() => import("@/components/dashboard/StudentProfilePage"));
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState("modules");
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [selectedModuleId, setSelectedModuleId] = useState<number | null>(null);
   const { adminModules } = useAdminModules();
   const publishedAdminModules = adminModules.filter(m => m.status === "published");
@@ -83,9 +85,11 @@ const StudentDashboard = () => {
             <img src={pluginliveLogo} alt="PluginLive Logo" className="h-7" />
             <span className="font-display font-bold text-gradient-primary">AI LearnHub</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <NotificationsPanel studentId={null} />
-            <span className="text-sm text-muted-foreground hidden sm:block">Welcome, {studentName}</span>
+            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => setShowProfile(true)}>
+              <User className="h-4 w-4" /> <span className="hidden sm:inline">{studentName}</span>
+            </Button>
             <Link to="/student-login" onClick={() => sessionStorage.clear()}>
               <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" aria-label="Logout">
                 <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Logout</span>
@@ -96,6 +100,14 @@ const StudentDashboard = () => {
       </header>
 
       <main className="container mx-auto px-6 py-8" role="main">
+        {showProfile ? (
+          <ErrorBoundary>
+            <Suspense fallback={<ContentSkeleton />}>
+              <StudentProfilePage onBack={() => setShowProfile(false)} />
+            </Suspense>
+          </ErrorBoundary>
+        ) : (
+        <>
         {/* Progress Overview */}
         <div className="bg-card rounded-lg border border-border p-6 shadow-card mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
@@ -341,6 +353,8 @@ const StudentDashboard = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </>
+        )}
       </main>
     </div>
   );

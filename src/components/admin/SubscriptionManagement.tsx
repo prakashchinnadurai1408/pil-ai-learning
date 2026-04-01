@@ -8,13 +8,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Badge } from "@/components/ui/badge";
 import {
   Crown, Star, Zap, Users, CreditCard, TrendingUp, Settings,
-  Check, X, Plus, Edit, IndianRupee, BarChart3
+  Check, X, Plus, Edit, IndianRupee, BarChart3, Lock, Unlock
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from "recharts";
+import { useMenuAccessControls, menuLabels, type MenuAccessConfig } from "@/hooks/useMenuAccessControls";
 
 interface PlanFeature {
   name: string;

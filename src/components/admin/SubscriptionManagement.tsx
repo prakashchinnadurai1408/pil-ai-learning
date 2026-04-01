@@ -357,6 +357,9 @@ const SubscriptionManagement = () => {
         </CardContent>
       </Card>
 
+      {/* Student Tier Management */}
+      <StudentTierManager />
+
       {/* Edit Plan Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>

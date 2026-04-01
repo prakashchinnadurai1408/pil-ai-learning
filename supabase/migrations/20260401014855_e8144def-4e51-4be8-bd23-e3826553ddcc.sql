@@ -1,0 +1,1 @@
+ALTER TABLE public.students ADD COLUMN subscription_tier text NOT NULL DEFAULT 'free';

@@ -628,6 +628,7 @@ export type Database = {
           mobile: string
           name: string
           password: string
+          subscription_tier: string
         }
         Insert: {
           college: string
@@ -640,6 +641,7 @@ export type Database = {
           mobile: string
           name: string
           password?: string
+          subscription_tier?: string
         }
         Update: {
           college?: string
@@ -652,6 +654,7 @@ export type Database = {
           mobile?: string
           name?: string
           password?: string
+          subscription_tier?: string
         }
         Relationships: []
       }

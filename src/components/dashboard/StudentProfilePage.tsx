@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   User, Mail, Phone, GraduationCap, Building2, MapPin, Crown,
-  Zap, BookOpen, Code2, ClipboardCheck, Trophy, Edit, Save, X
+  Zap, BookOpen, Code2, ClipboardCheck, Trophy, Edit, Save, X, Download
 } from "lucide-react";
 import { toast } from "sonner";
 import PasswordChangeForm from "./PasswordChangeForm";
 import ActivityTimeline from "./ActivityTimeline";
+import { generateProgressReport } from "./generateProgressReport";
 
 interface StudentProfile {
   id: string;
@@ -44,6 +45,7 @@ const StudentProfilePage = ({ onBack }: { onBack: () => void }) => {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", email: "", mobile: "" });
   const [loading, setLoading] = useState(true);
+  const [activities, setActivities] = useState<{ type: string; title: string; detail: string; date: string }[]>([]);
 
   const studentId = sessionStorage.getItem("studentId");
 
@@ -84,6 +86,21 @@ const StudentProfilePage = ({ onBack }: { onBack: () => void }) => {
         challengesSolved: challengesRes.data?.length || 0,
         overallProgress: Math.round((completed / 10) * 100),
       });
+
+      // Fetch activities for PDF report
+      const studentName = sessionStorage.getItem("studentName") || "";
+      const [progAct, scoreAct, chalAct] = await Promise.all([
+        supabase.from("student_module_progress").select("*").eq("student_id", studentId).order("last_accessed", { ascending: false }).limit(10),
+        supabase.from("student_assessment_scores").select("*").eq("student_id", studentId).order("attempted_at", { ascending: false }).limit(10),
+        supabase.from("student_solved_challenges").select("*, coding_challenges(title)").eq("student_name", studentName).order("solved_at", { ascending: false }).limit(10),
+      ]);
+      const acts: { type: string; title: string; detail: string; date: string }[] = [];
+      (progAct.data || []).forEach((p: any) => acts.push({ type: "module", title: `Module ${p.module_id}`, detail: p.completed ? "Completed" : `${p.progress_percent}%`, date: p.last_accessed || p.created_at }));
+      (scoreAct.data || []).forEach((s: any) => acts.push({ type: "assessment", title: `Module ${s.module_id} Quiz`, detail: `Score: ${s.score}%`, date: s.attempted_at }));
+      (chalAct.data || []).forEach((c: any) => acts.push({ type: "challenge", title: (c.coding_challenges as any)?.title || `Challenge`, detail: `Solved in ${c.language}`, date: c.solved_at }));
+      acts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setActivities(acts.slice(0, 20));
+
       setLoading(false);
     };
     load();
@@ -120,9 +137,19 @@ const StudentProfilePage = ({ onBack }: { onBack: () => void }) => {
   return (
     <div className="space-y-6">
       {/* Back button */}
-      <Button variant="ghost" size="sm" onClick={onBack} className="gap-2 text-muted-foreground">
-        ← Back to Dashboard
-      </Button>
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="sm" onClick={onBack} className="gap-2 text-muted-foreground">
+          ← Back to Dashboard
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-2"
+          onClick={() => generateProgressReport(profile, stats, activities)}
+        >
+          <Download className="h-4 w-4" /> Download Report
+        </Button>
+      </div>
 
       {/* Profile Header */}
       <Card className="overflow-hidden">

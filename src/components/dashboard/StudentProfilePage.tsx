@@ -145,7 +145,7 @@ const StudentProfilePage = ({ onBack }: { onBack: () => void }) => {
           size="sm"
           variant="outline"
           className="gap-2"
-          onClick={() => generateProgressReport(profile, stats, [])}
+          onClick={() => generateProgressReport(profile, stats, activities)}
         >
           <Download className="h-4 w-4" /> Download Report
         </Button>

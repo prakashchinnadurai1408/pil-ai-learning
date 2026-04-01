@@ -249,6 +249,12 @@ const StudentProfilePage = ({ onBack }: { onBack: () => void }) => {
           )}
         </CardContent>
       </Card>
+
+      {/* Password Change */}
+      <PasswordChangeForm studentId={profile.id} />
+
+      {/* Activity Timeline */}
+      <ActivityTimeline studentId={profile.id} studentName={profile.name} />
     </div>
   );
 };

@@ -9,9 +9,9 @@ import { modules } from "@/data/modules";
 import { useAdminModules } from "@/hooks/useAdminModules";
 import {
   BookOpen, MessageSquare, Video, FlaskConical, ClipboardCheck,
-  FolderKanban, LogOut, Play, CheckCircle, Sparkles, Code2, Pencil
+  FolderKanban, LogOut, Play, CheckCircle, Sparkles, Code2, Pencil,
+  Lock, Crown
 } from "lucide-react";
-import { Lock } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { getMenuAccess, type MenuAccessConfig } from "@/hooks/useMenuAccessControls";
 import ErrorBoundary from "@/components/ErrorBoundary";

@@ -112,6 +112,7 @@ const SubscriptionManagement = () => {
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
+  const { config: menuAccess, updateAccess } = useMenuAccessControls();
 
   // Mock subscriber data
   const subscriberData = {

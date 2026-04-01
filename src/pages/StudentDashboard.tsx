@@ -114,6 +114,7 @@ const StudentDashboard = () => {
         <Tabs value={activeTab} onValueChange={(v) => {
           const isLocked = lockedTabs.some(t => t.value === v);
           if (isLocked) {
+            setUpgradeDialogOpen(true);
             return;
           }
           setActiveTab(v);

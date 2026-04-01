@@ -128,8 +128,14 @@ const StudentDashboard = () => {
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  disabled={isLocked}
-                  className={`gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm ${isLocked ? "opacity-50 cursor-not-allowed" : ""}`}
+                  disabled={false}
+                  onClick={(e) => {
+                    if (isLocked) {
+                      e.preventDefault();
+                      setUpgradeDialogOpen(true);
+                    }
+                  }}
+                  className={`gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm ${isLocked ? "opacity-50" : ""}`}
                   aria-label={`${tab.label}${isLocked ? " (Premium)" : ""}`}
                 >
                   {isLocked ? <Lock className="h-3 w-3" aria-hidden="true" /> : <Icon className="h-3.5 w-3.5" aria-hidden="true" />}

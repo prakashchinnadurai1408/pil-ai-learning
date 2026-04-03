@@ -217,6 +217,7 @@ const AssessmentCreator = () => {
     setMaxAttempts(assessment.max_attempts ? String(assessment.max_attempts) : "");
     setPassingScore(String(assessment.passing_score));
     setAssignedColleges(assessment.assigned_colleges || []);
+    setProctoringEnabled(assessment.proctoring_enabled || false);
     
     // Load existing questions
     const { data } = await supabase.from("assessment_questions").select("*").eq("assessment_id", assessment.id).order("sort_order");

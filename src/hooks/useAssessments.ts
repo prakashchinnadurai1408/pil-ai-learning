@@ -16,6 +16,7 @@ export interface Assessment {
   status: string;
   question_count: number;
   created_at: string;
+  proctoring_enabled: boolean;
 }
 
 export interface AssessmentQuestion {

@@ -143,6 +143,7 @@ export async function createAssessment(assessment: {
       ...assessmentData,
       question_count: questions.length,
       status: "published",
+      proctoring_enabled: assessmentData.proctoring_enabled || false,
     } as any)
     .select()
     .single();

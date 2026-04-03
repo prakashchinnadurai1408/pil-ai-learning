@@ -80,6 +80,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="assessment-analytics" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <BarChart3 className="h-4 w-4" /> Analytics
             </TabsTrigger>
+            <TabsTrigger value="proctoring" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Eye className="h-4 w-4" /> Proctoring
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">

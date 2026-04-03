@@ -14,6 +14,7 @@ const CodingChallengeManager = lazy(() => import("@/components/admin/CodingChall
 const DashboardOverview = lazy(() => import("@/components/admin/DashboardOverview"));
 const AssessmentCreator = lazy(() => import("@/components/admin/AssessmentCreator"));
 const AssessmentAnalytics = lazy(() => import("@/components/admin/AssessmentAnalytics"));
+const ProctoringAnalytics = lazy(() => import("@/components/admin/ProctoringAnalytics"));
 
 const TabSkeleton = () => (
   <div className="space-y-4 animate-pulse">

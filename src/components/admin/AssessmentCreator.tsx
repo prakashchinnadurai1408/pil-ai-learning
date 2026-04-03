@@ -4,12 +4,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Sparkles, Plus, Trash2, Loader2, Upload, Database, ClipboardCheck,
-  Search, ArrowRight, X, Pencil
+  Search, ArrowRight, X, Pencil, Shield
 } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAdminModules } from "@/hooks/useAdminModules";
+import {
+  useAssessments,
+  useAssessmentQuestions,
+  createAssessment,
+  updateAssessment,
+} from "@/hooks/useAssessments";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminModules } from "@/hooks/useAdminModules";

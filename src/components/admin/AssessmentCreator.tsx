@@ -270,6 +270,7 @@ const AssessmentCreator = () => {
         time_limit_minutes: timeLimitMinutes ? Number(timeLimitMinutes) : null,
         max_attempts: maxAttempts ? Number(maxAttempts) : null,
         passing_score: Number(passingScore) || 60,
+        proctoring_enabled: proctoringEnabled,
         questions: validQs.map((q, i) => ({ ...q, sort_order: i })),
       });
     }

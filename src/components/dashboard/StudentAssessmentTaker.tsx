@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  ClipboardCheck, Clock, Trophy, ArrowRight, Loader2, Timer, AlertTriangle, CheckCircle, XCircle
+  ClipboardCheck, Clock, Trophy, ArrowRight, Loader2, Timer, AlertTriangle, CheckCircle, XCircle, Shield
 } from "lucide-react";
 import {
   useAssessments,
@@ -10,6 +10,7 @@ import {
   submitAssessmentAttempt,
   type Assessment,
 } from "@/hooks/useAssessments";
+import ProctoringMonitor from "./ProctoringMonitor";
 
 const formatTime = (s: number) => {
   const m = Math.floor(s / 60);

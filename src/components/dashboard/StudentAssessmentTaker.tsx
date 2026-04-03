@@ -39,6 +39,8 @@ const TakeAssessment = ({
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [startTime, setStartTime] = useState<number>(0);
+  const [attemptId] = useState(() => crypto.randomUUID());
+  const isProctoringEnabled = assessment.proctoring_enabled;
 
   const myAttempts = useMemo(() =>
     attempts.filter(a => a.student_name === studentName),

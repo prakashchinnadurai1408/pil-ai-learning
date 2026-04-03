@@ -57,6 +57,7 @@ const AssessmentCreator = () => {
   const [assignedColleges, setAssignedColleges] = useState<string[]>([]);
   const [questions, setQuestions] = useState<QuestionDraft[]>([emptyQuestion()]);
   const [showForm, setShowForm] = useState(false);
+  const [proctoringEnabled, setProctoringEnabled] = useState(false);
 
   // AI generation
   const [generating, setGenerating] = useState(false);

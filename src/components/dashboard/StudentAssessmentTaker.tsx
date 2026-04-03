@@ -159,6 +159,16 @@ const TakeAssessment = ({
             </div>
           )}
 
+          {isProctoringEnabled && (
+            <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg text-sm text-primary">
+              <Shield className="h-4 w-4" />
+              <div>
+                <p className="font-medium">Proctoring Enabled</p>
+                <p className="text-xs text-muted-foreground">Camera, fullscreen, tab monitoring & face detection will be active</p>
+              </div>
+            </div>
+          )}
+
           <Button
             onClick={handleStart}
             disabled={!canAttempt}

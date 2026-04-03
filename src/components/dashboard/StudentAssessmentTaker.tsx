@@ -340,6 +340,11 @@ const StudentAssessmentTaker = () => {
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                   <ClipboardCheck className="h-5 w-5 text-primary" />
                 </div>
+                {a.proctoring_enabled && (
+                  <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                    <Shield className="h-3 w-3" /> Proctored
+                  </span>
+                )}
               </div>
               <h4 className="font-display font-semibold text-card-foreground mb-1">{a.title}</h4>
               {a.description && <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{a.description}</p>}

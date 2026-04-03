@@ -90,10 +90,15 @@ const TakeAssessment = ({
       answers: Object.fromEntries(Object.entries(answers).map(([k, v]) => [k, v])),
     });
 
+    // Save proctoring summary if enabled
+    if (isProctoringEnabled && (window as any).__proctoringEndSession) {
+      await (window as any).__proctoringEndSession();
+    }
+
     setSubmitted(true);
     setSubmitting(false);
     refetchAttempts();
-  }, [answers, questions, assessment.id, studentId, studentName, studentCollege, startTime, submitting]);
+  }, [answers, questions, assessment.id, studentId, studentName, studentCollege, startTime, submitting, isProctoringEnabled]);
 
   const score = useMemo(
     () => questions.filter((q, i) => answers[i] === q.correct).length,

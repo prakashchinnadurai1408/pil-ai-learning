@@ -188,6 +188,16 @@ const TakeAssessment = ({
 
   return (
     <div className="space-y-4">
+      {/* Proctoring Monitor */}
+      {isProctoringEnabled && started && !submitted && (
+        <ProctoringMonitor
+          attemptId={attemptId}
+          assessmentId={assessment.id}
+          studentId={studentId}
+          studentName={studentName}
+          isActive={started && !submitted}
+        />
+      )}
       {/* Header with timer */}
       <div className="flex items-center justify-between sticky top-16 z-40 bg-background py-3">
         <div>

@@ -181,6 +181,7 @@ export async function updateAssessment(assessmentId: string, assessment: {
   time_limit_minutes: number | null;
   max_attempts: number | null;
   passing_score: number;
+  proctoring_enabled?: boolean;
   questions: Omit<AssessmentQuestion, "id" | "assessment_id" | "created_at">[];
 }) {
   const { questions, ...assessmentData } = assessment;

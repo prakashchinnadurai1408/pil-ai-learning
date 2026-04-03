@@ -20,15 +20,6 @@ import {
   createAssessment,
   updateAssessment,
 } from "@/hooks/useAssessments";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useAdminModules } from "@/hooks/useAdminModules";
-import {
-  useAssessments,
-  useAssessmentQuestions,
-  createAssessment,
-  updateAssessment,
-} from "@/hooks/useAssessments";
 
 interface QuestionDraft {
   question: string;

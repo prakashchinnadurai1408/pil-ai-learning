@@ -234,6 +234,7 @@ export type Database = {
           max_attempts: number | null
           module_id: number | null
           passing_score: number
+          proctoring_enabled: boolean
           question_count: number
           status: string
           time_limit_minutes: number | null
@@ -250,6 +251,7 @@ export type Database = {
           max_attempts?: number | null
           module_id?: number | null
           passing_score?: number
+          proctoring_enabled?: boolean
           question_count?: number
           status?: string
           time_limit_minutes?: number | null
@@ -266,6 +268,7 @@ export type Database = {
           max_attempts?: number | null
           module_id?: number | null
           passing_score?: number
+          proctoring_enabled?: boolean
           question_count?: number
           status?: string
           time_limit_minutes?: number | null
@@ -375,6 +378,93 @@ export type Database = {
           menu_key?: string
           premium_access?: boolean
           updated_at?: string
+        }
+        Relationships: []
+      }
+      proctoring_logs: {
+        Row: {
+          assessment_id: string
+          attempt_id: string
+          created_at: string
+          event_data: Json
+          event_type: string
+          id: string
+          photo_url: string | null
+          student_id: string
+          student_name: string
+        }
+        Insert: {
+          assessment_id: string
+          attempt_id: string
+          created_at?: string
+          event_data?: Json
+          event_type: string
+          id?: string
+          photo_url?: string | null
+          student_id: string
+          student_name?: string
+        }
+        Update: {
+          assessment_id?: string
+          attempt_id?: string
+          created_at?: string
+          event_data?: Json
+          event_type?: string
+          id?: string
+          photo_url?: string | null
+          student_id?: string
+          student_name?: string
+        }
+        Relationships: []
+      }
+      proctoring_summary: {
+        Row: {
+          assessment_id: string
+          attempt_id: string
+          created_at: string
+          eye_movement_violations: number
+          face_not_detected_count: number
+          fullscreen_exit_count: number
+          id: string
+          multiple_faces_count: number
+          photos_captured: number
+          proctoring_score: number
+          status: string
+          student_id: string
+          student_name: string
+          tab_switch_count: number
+        }
+        Insert: {
+          assessment_id: string
+          attempt_id: string
+          created_at?: string
+          eye_movement_violations?: number
+          face_not_detected_count?: number
+          fullscreen_exit_count?: number
+          id?: string
+          multiple_faces_count?: number
+          photos_captured?: number
+          proctoring_score?: number
+          status?: string
+          student_id: string
+          student_name?: string
+          tab_switch_count?: number
+        }
+        Update: {
+          assessment_id?: string
+          attempt_id?: string
+          created_at?: string
+          eye_movement_violations?: number
+          face_not_detected_count?: number
+          fullscreen_exit_count?: number
+          id?: string
+          multiple_faces_count?: number
+          photos_captured?: number
+          proctoring_score?: number
+          status?: string
+          student_id?: string
+          student_name?: string
+          tab_switch_count?: number
         }
         Relationships: []
       }

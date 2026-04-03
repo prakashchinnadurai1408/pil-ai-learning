@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  ClipboardCheck, Clock, Trophy, ArrowRight, Loader2, Timer, AlertTriangle, CheckCircle, XCircle
+  ClipboardCheck, Clock, Trophy, ArrowRight, Loader2, Timer, AlertTriangle, CheckCircle, XCircle, Shield
 } from "lucide-react";
 import {
   useAssessments,
@@ -10,6 +10,7 @@ import {
   submitAssessmentAttempt,
   type Assessment,
 } from "@/hooks/useAssessments";
+import ProctoringMonitor from "./ProctoringMonitor";
 
 const formatTime = (s: number) => {
   const m = Math.floor(s / 60);
@@ -38,6 +39,8 @@ const TakeAssessment = ({
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [startTime, setStartTime] = useState<number>(0);
+  const [attemptId] = useState(() => crypto.randomUUID());
+  const isProctoringEnabled = assessment.proctoring_enabled;
 
   const myAttempts = useMemo(() =>
     attempts.filter(a => a.student_name === studentName),
@@ -87,10 +90,15 @@ const TakeAssessment = ({
       answers: Object.fromEntries(Object.entries(answers).map(([k, v]) => [k, v])),
     });
 
+    // Save proctoring summary if enabled
+    if (isProctoringEnabled && (window as any).__proctoringEndSession) {
+      await (window as any).__proctoringEndSession();
+    }
+
     setSubmitted(true);
     setSubmitting(false);
     refetchAttempts();
-  }, [answers, questions, assessment.id, studentId, studentName, studentCollege, startTime, submitting]);
+  }, [answers, questions, assessment.id, studentId, studentName, studentCollege, startTime, submitting, isProctoringEnabled]);
 
   const score = useMemo(
     () => questions.filter((q, i) => answers[i] === q.correct).length,
@@ -151,6 +159,16 @@ const TakeAssessment = ({
             </div>
           )}
 
+          {isProctoringEnabled && (
+            <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg text-sm text-primary">
+              <Shield className="h-4 w-4" />
+              <div>
+                <p className="font-medium">Proctoring Enabled</p>
+                <p className="text-xs text-muted-foreground">Camera, fullscreen, tab monitoring & face detection will be active</p>
+              </div>
+            </div>
+          )}
+
           <Button
             onClick={handleStart}
             disabled={!canAttempt}
@@ -170,6 +188,16 @@ const TakeAssessment = ({
 
   return (
     <div className="space-y-4">
+      {/* Proctoring Monitor */}
+      {isProctoringEnabled && started && !submitted && (
+        <ProctoringMonitor
+          attemptId={attemptId}
+          assessmentId={assessment.id}
+          studentId={studentId}
+          studentName={studentName}
+          isActive={started && !submitted}
+        />
+      )}
       {/* Header with timer */}
       <div className="flex items-center justify-between sticky top-16 z-40 bg-background py-3">
         <div>
@@ -312,6 +340,11 @@ const StudentAssessmentTaker = () => {
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                   <ClipboardCheck className="h-5 w-5 text-primary" />
                 </div>
+                {a.proctoring_enabled && (
+                  <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                    <Shield className="h-3 w-3" /> Proctored
+                  </span>
+                )}
               </div>
               <h4 className="font-display font-semibold text-card-foreground mb-1">{a.title}</h4>
               {a.description && <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{a.description}</p>}

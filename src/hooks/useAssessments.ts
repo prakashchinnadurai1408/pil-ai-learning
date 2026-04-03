@@ -16,6 +16,7 @@ export interface Assessment {
   status: string;
   question_count: number;
   created_at: string;
+  proctoring_enabled: boolean;
 }
 
 export interface AssessmentQuestion {
@@ -131,6 +132,7 @@ export async function createAssessment(assessment: {
   time_limit_minutes: number | null;
   max_attempts: number | null;
   passing_score: number;
+  proctoring_enabled?: boolean;
   questions: Omit<AssessmentQuestion, "id" | "assessment_id" | "created_at">[];
 }) {
   const { questions, ...assessmentData } = assessment;
@@ -141,6 +143,7 @@ export async function createAssessment(assessment: {
       ...assessmentData,
       question_count: questions.length,
       status: "published",
+      proctoring_enabled: assessmentData.proctoring_enabled || false,
     } as any)
     .select()
     .single();
@@ -178,6 +181,7 @@ export async function updateAssessment(assessmentId: string, assessment: {
   time_limit_minutes: number | null;
   max_attempts: number | null;
   passing_score: number;
+  proctoring_enabled?: boolean;
   questions: Omit<AssessmentQuestion, "id" | "assessment_id" | "created_at">[];
 }) {
   const { questions, ...assessmentData } = assessment;

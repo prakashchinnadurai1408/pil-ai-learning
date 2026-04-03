@@ -4,11 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Sparkles, Plus, Trash2, Loader2, Upload, Database, ClipboardCheck,
-  Search, ArrowRight, X, Pencil
+  Search, ArrowRight, X, Pencil, Shield
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,6 +48,7 @@ const AssessmentCreator = () => {
   const [assignedColleges, setAssignedColleges] = useState<string[]>([]);
   const [questions, setQuestions] = useState<QuestionDraft[]>([emptyQuestion()]);
   const [showForm, setShowForm] = useState(false);
+  const [proctoringEnabled, setProctoringEnabled] = useState(false);
 
   // AI generation
   const [generating, setGenerating] = useState(false);
@@ -206,6 +208,7 @@ const AssessmentCreator = () => {
     setMaxAttempts(assessment.max_attempts ? String(assessment.max_attempts) : "");
     setPassingScore(String(assessment.passing_score));
     setAssignedColleges(assessment.assigned_colleges || []);
+    setProctoringEnabled(assessment.proctoring_enabled || false);
     
     // Load existing questions
     const { data } = await supabase.from("assessment_questions").select("*").eq("assessment_id", assessment.id).order("sort_order");
@@ -227,7 +230,7 @@ const AssessmentCreator = () => {
     setTitle(""); setDescription(""); setSelectedModuleIds([]);
     setTimeLimitMinutes(""); setMaxAttempts(""); setPassingScore("60");
     setAssignedColleges([]); setQuestions([emptyQuestion()]);
-    setEditingId(null); setShowForm(false);
+    setEditingId(null); setShowForm(false); setProctoringEnabled(false);
   };
 
   const handleCreate = async () => {
@@ -244,6 +247,7 @@ const AssessmentCreator = () => {
         time_limit_minutes: timeLimitMinutes ? Number(timeLimitMinutes) : null,
         max_attempts: maxAttempts ? Number(maxAttempts) : null,
         passing_score: Number(passingScore) || 60,
+        proctoring_enabled: proctoringEnabled,
         questions: validQs.map((q, i) => ({ ...q, sort_order: i })),
       });
     } else {
@@ -257,6 +261,7 @@ const AssessmentCreator = () => {
         time_limit_minutes: timeLimitMinutes ? Number(timeLimitMinutes) : null,
         max_attempts: maxAttempts ? Number(maxAttempts) : null,
         passing_score: Number(passingScore) || 60,
+        proctoring_enabled: proctoringEnabled,
         questions: validQs.map((q, i) => ({ ...q, sort_order: i })),
       });
     }
@@ -328,6 +333,18 @@ const AssessmentCreator = () => {
                 <Label>Max Attempts</Label>
                 <Input type="number" value={maxAttempts} onChange={e => setMaxAttempts(e.target.value)} placeholder="Unlimited" />
               </div>
+            </div>
+
+            {/* Proctoring toggle */}
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-primary" />
+                <div>
+                  <Label className="text-sm font-medium">Enable Proctoring</Label>
+                  <p className="text-xs text-muted-foreground">Camera, fullscreen lock, tab switch detection, face detection</p>
+                </div>
+              </div>
+              <Switch checked={proctoringEnabled} onCheckedChange={setProctoringEnabled} />
             </div>
 
             {/* College assignment with search */}
@@ -546,6 +563,7 @@ const AssessmentCreator = () => {
                   {a.time_limit_minutes && <p>⏱️ {a.time_limit_minutes} min</p>}
                   {a.max_attempts && <p>🔄 Max {a.max_attempts} attempts</p>}
                   {a.assigned_colleges.length > 0 && <p>🏫 {a.assigned_colleges.join(", ")}</p>}
+                  {a.proctoring_enabled && <p className="text-primary font-medium">🛡️ Proctored</p>}
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="flex-1 text-xs gap-1" onClick={() => handleEdit(a)}>

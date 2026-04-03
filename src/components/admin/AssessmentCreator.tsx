@@ -563,6 +563,7 @@ const AssessmentCreator = () => {
                   {a.time_limit_minutes && <p>⏱️ {a.time_limit_minutes} min</p>}
                   {a.max_attempts && <p>🔄 Max {a.max_attempts} attempts</p>}
                   {a.assigned_colleges.length > 0 && <p>🏫 {a.assigned_colleges.join(", ")}</p>}
+                  {a.proctoring_enabled && <p className="text-primary font-medium">🛡️ Proctored</p>}
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="flex-1 text-xs gap-1" onClick={() => handleEdit(a)}>

@@ -239,7 +239,7 @@ const AssessmentCreator = () => {
     setTitle(""); setDescription(""); setSelectedModuleIds([]);
     setTimeLimitMinutes(""); setMaxAttempts(""); setPassingScore("60");
     setAssignedColleges([]); setQuestions([emptyQuestion()]);
-    setEditingId(null); setShowForm(false);
+    setEditingId(null); setShowForm(false); setProctoringEnabled(false);
   };
 
   const handleCreate = async () => {

@@ -335,6 +335,18 @@ const AssessmentCreator = () => {
               </div>
             </div>
 
+            {/* Proctoring toggle */}
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-primary" />
+                <div>
+                  <Label className="text-sm font-medium">Enable Proctoring</Label>
+                  <p className="text-xs text-muted-foreground">Camera, fullscreen lock, tab switch detection, face detection</p>
+                </div>
+              </div>
+              <Switch checked={proctoringEnabled} onCheckedChange={setProctoringEnabled} />
+            </div>
+
             {/* College assignment with search */}
             <div>
               <Label>Assign to Colleges</Label>

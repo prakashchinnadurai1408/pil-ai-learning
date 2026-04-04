@@ -381,6 +381,36 @@ export type Database = {
         }
         Relationships: []
       }
+      proctoring_active_sessions: {
+        Row: {
+          assessment_id: string
+          browser_info: string
+          created_at: string
+          id: string
+          last_heartbeat: string
+          session_id: string
+          student_id: string
+        }
+        Insert: {
+          assessment_id: string
+          browser_info?: string
+          created_at?: string
+          id?: string
+          last_heartbeat?: string
+          session_id: string
+          student_id: string
+        }
+        Update: {
+          assessment_id?: string
+          browser_info?: string
+          created_at?: string
+          id?: string
+          last_heartbeat?: string
+          session_id?: string
+          student_id?: string
+        }
+        Relationships: []
+      }
       proctoring_logs: {
         Row: {
           assessment_id: string

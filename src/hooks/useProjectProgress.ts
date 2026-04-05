@@ -80,10 +80,16 @@ export const useProjectProgress = (studentName: string, streamId: string | null)
     });
   }, [save, completedSteps]);
 
+  const updateGithubUrl = useCallback((url: string) => {
+    setGithubUrl(url);
+    save(completedSteps, completedDocs, url);
+  }, [save, completedSteps, completedDocs]);
+
   const reset = useCallback(() => {
     setCompletedSteps({});
     setCompletedDocs({});
+    setGithubUrl("");
   }, []);
 
-  return { completedSteps, completedDocs, toggleStep, toggleDoc, reset, loaded };
+  return { completedSteps, completedDocs, githubUrl, toggleStep, toggleDoc, updateGithubUrl, reset, loaded };
 };

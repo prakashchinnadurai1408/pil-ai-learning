@@ -2,7 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2, LayoutDashboard, ClipboardCheck, BarChart3, Eye } from "lucide-react";
+import { Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2, LayoutDashboard, ClipboardCheck, BarChart3, Eye, FolderKanban } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
 const UserManagement = lazy(() => import("@/components/admin/UserManagement"));
@@ -15,6 +15,7 @@ const DashboardOverview = lazy(() => import("@/components/admin/DashboardOvervie
 const AssessmentCreator = lazy(() => import("@/components/admin/AssessmentCreator"));
 const AssessmentAnalytics = lazy(() => import("@/components/admin/AssessmentAnalytics"));
 const ProctoringAnalytics = lazy(() => import("@/components/admin/ProctoringAnalytics"));
+const TrainerProjectReview = lazy(() => import("@/components/trainer/TrainerProjectReview"));
 
 const TabSkeleton = () => (
   <div className="space-y-4 animate-pulse">
@@ -83,6 +84,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="proctoring" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <Eye className="h-4 w-4" /> Proctoring
             </TabsTrigger>
+            <TabsTrigger value="projects" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <FolderKanban className="h-4 w-4" /> Projects
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -142,6 +146,12 @@ const AdminDashboard = () => {
           <TabsContent value="proctoring">
             <Suspense fallback={<TabSkeleton />}>
               <ProctoringAnalytics />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="projects">
+            <Suspense fallback={<TabSkeleton />}>
+              <TrainerProjectReview />
             </Suspense>
           </TabsContent>
         </Tabs>

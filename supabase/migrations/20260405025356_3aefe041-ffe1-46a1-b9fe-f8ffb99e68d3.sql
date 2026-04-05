@@ -1,0 +1,1 @@
+ALTER TABLE public.student_project_progress ADD COLUMN github_url text DEFAULT '' NOT NULL;

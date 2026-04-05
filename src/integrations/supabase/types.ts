@@ -689,6 +689,7 @@ export type Database = {
         Row: {
           completed_docs: Json
           completed_steps: Json
+          github_url: string
           id: string
           stream_id: string
           student_name: string
@@ -697,6 +698,7 @@ export type Database = {
         Insert: {
           completed_docs?: Json
           completed_steps?: Json
+          github_url?: string
           id?: string
           stream_id: string
           student_name: string
@@ -705,6 +707,7 @@ export type Database = {
         Update: {
           completed_docs?: Json
           completed_steps?: Json
+          github_url?: string
           id?: string
           stream_id?: string
           student_name?: string

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
   Monitor, BookOpen, ArrowLeft, CheckCircle, ChevronDown, ChevronRight,
-  FileText, Clock, Target, AlertCircle, Lightbulb, Layers
+  FileText, Clock, Target, AlertCircle, Lightbulb, Layers, Github
 } from "lucide-react";
 import { techStream, nonTechStream, type ProjectStream, type ProjectStep } from "@/data/projectGuideData";
 import { useProjectDocuments } from "@/hooks/useProjectDocuments";
@@ -15,7 +16,7 @@ const ProjectsView = () => {
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const studentName = sessionStorage.getItem("studentName") || "Student";
 
-  const { completedSteps, completedDocs, toggleStep, toggleDoc, reset, loaded } = useProjectProgress(
+  const { completedSteps, completedDocs, githubUrl, toggleStep, toggleDoc, updateGithubUrl, reset, loaded } = useProjectProgress(
     studentName,
     selectedStream?.id || null
   );
@@ -125,7 +126,32 @@ const ProjectsView = () => {
         <Progress value={overallProgress} className="h-2" />
       </div>
 
-      {/* Steps */}
+      {/* GitHub Link — Tech stream only */}
+      {isTech && (
+        <div className="bg-card rounded-lg border border-border p-4 shadow-card">
+          <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+            <Github className="h-3.5 w-3.5" /> GitHub Repository Link
+          </h5>
+          <div className="flex gap-2">
+            <Input
+              placeholder="https://github.com/username/project-repo"
+              value={githubUrl}
+              onChange={(e) => updateGithubUrl(e.target.value)}
+              className="h-9 text-sm"
+            />
+            {githubUrl && (
+              <a href={githubUrl} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm" className="h-9 gap-1.5">
+                  <Github className="h-3.5 w-3.5" /> Open
+                </Button>
+              </a>
+            )}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Paste your GitHub repository URL — visible to your trainer and admin for review.
+          </p>
+        </div>
+      )}
       <div className="space-y-3">
         {selectedStream.steps.map((step) => (
           <StepCard

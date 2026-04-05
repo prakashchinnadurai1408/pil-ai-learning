@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface ProgressState {
   completedSteps: Record<number, boolean>;
   completedDocs: Record<string, boolean>;
+  githubUrl: string;
 }
 
 export const useProjectProgress = (studentName: string, streamId: string | null) => {

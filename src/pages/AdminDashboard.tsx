@@ -148,6 +148,12 @@ const AdminDashboard = () => {
               <ProctoringAnalytics />
             </Suspense>
           </TabsContent>
+
+          <TabsContent value="projects">
+            <Suspense fallback={<TabSkeleton />}>
+              <TrainerProjectReview />
+            </Suspense>
+          </TabsContent>
         </Tabs>
       </div>
     </div>

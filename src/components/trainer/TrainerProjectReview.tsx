@@ -295,6 +295,23 @@ const TrainerProjectReview = () => {
 
                           {isStreamExpanded && (
                             <div className="px-3 pb-3 space-y-3 border-t border-border pt-3">
+                              {/* GitHub Link */}
+                              {stream.githubUrl && (
+                                <div className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/20">
+                                  <Github className="h-4 w-4 text-foreground flex-shrink-0" />
+                                  <span className="text-xs font-medium text-muted-foreground">GitHub:</span>
+                                  <a
+                                    href={stream.githubUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-primary hover:underline truncate flex-1"
+                                  >
+                                    {stream.githubUrl}
+                                  </a>
+                                  <ExternalLink className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                                </div>
+                              )}
+
                               {/* Step completion overview */}
                               <div>
                                 <h6 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Step Completion</h6>

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
   Search, ChevronDown, ChevronRight, FileText, ExternalLink,
-  CheckCircle, Monitor, BookOpen, FolderOpen
+  CheckCircle, Monitor, BookOpen, FolderOpen, Github
 } from "lucide-react";
 import { techStream, nonTechStream } from "@/data/projectGuideData";
 

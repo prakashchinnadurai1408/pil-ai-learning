@@ -15,6 +15,7 @@ interface ProjectProgress {
   stream_id: string;
   completed_steps: Record<string, boolean>;
   completed_docs: Record<string, boolean>;
+  github_url: string;
   updated_at: string;
 }
 

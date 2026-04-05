@@ -40,6 +40,7 @@ interface StudentProjectSummary {
     completedStepCount: number;
     completedDocCount: number;
     totalDocCount: number;
+    githubUrl: string;
     progress: ProjectProgress | null;
     documents: ProjectDocument[];
   }[];

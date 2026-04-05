@@ -21,7 +21,7 @@ export const useProjectProgress = (studentName: string, streamId: string | null)
     const load = async () => {
       const { data } = await supabase
         .from("student_project_progress")
-        .select("completed_steps, completed_docs")
+        .select("completed_steps, completed_docs, github_url")
         .eq("student_name", studentName)
         .eq("stream_id", streamId)
         .maybeSingle();
@@ -31,9 +31,11 @@ export const useProjectProgress = (studentName: string, streamId: string | null)
           ? Object.fromEntries(Object.entries(data.completed_steps as Record<string, boolean>).map(([k, v]) => [Number(k), v]))
           : {});
         setCompletedDocs((data.completed_docs as Record<string, boolean>) || {});
+        setGithubUrl((data as any).github_url || "");
       } else {
         setCompletedSteps({});
         setCompletedDocs({});
+        setGithubUrl("");
       }
       setLoaded(true);
     };

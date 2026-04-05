@@ -84,6 +84,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="proctoring" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <Eye className="h-4 w-4" /> Proctoring
             </TabsTrigger>
+            <TabsTrigger value="projects" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <FolderKanban className="h-4 w-4" /> Projects
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">

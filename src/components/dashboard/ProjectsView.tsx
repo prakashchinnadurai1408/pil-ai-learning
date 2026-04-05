@@ -126,7 +126,32 @@ const ProjectsView = () => {
         <Progress value={overallProgress} className="h-2" />
       </div>
 
-      {/* Steps */}
+      {/* GitHub Link — Tech stream only */}
+      {isTech && (
+        <div className="bg-card rounded-lg border border-border p-4 shadow-card">
+          <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+            <Github className="h-3.5 w-3.5" /> GitHub Repository Link
+          </h5>
+          <div className="flex gap-2">
+            <Input
+              placeholder="https://github.com/username/project-repo"
+              value={githubUrl}
+              onChange={(e) => updateGithubUrl(e.target.value)}
+              className="h-9 text-sm"
+            />
+            {githubUrl && (
+              <a href={githubUrl} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm" className="h-9 gap-1.5">
+                  <Github className="h-3.5 w-3.5" /> Open
+                </Button>
+              </a>
+            )}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Paste your GitHub repository URL — visible to your trainer and admin for review.
+          </p>
+        </div>
+      )}
       <div className="space-y-3">
         {selectedStream.steps.map((step) => (
           <StepCard

@@ -110,6 +110,7 @@ const TrainerProjectReview = () => {
             completedStepCount,
             completedDocCount,
             totalDocCount,
+            githubUrl: prog?.github_url || "",
             progress: prog,
             documents: docs,
           };

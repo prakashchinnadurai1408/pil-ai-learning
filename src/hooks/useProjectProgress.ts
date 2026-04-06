@@ -5,6 +5,8 @@ interface ProgressState {
   completedSteps: Record<number, boolean>;
   completedDocs: Record<string, boolean>;
   githubUrl: string;
+  projectTitle: string;
+  projectDescription: string;
 }
 
 export const useProjectProgress = (studentName: string, streamId: string | null) => {

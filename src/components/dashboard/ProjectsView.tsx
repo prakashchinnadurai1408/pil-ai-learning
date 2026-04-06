@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import {
   Monitor, BookOpen, ArrowLeft, CheckCircle, ChevronDown, ChevronRight,
-  FileText, Clock, Target, AlertCircle, Lightbulb, Layers, Github
+  FileText, Clock, Target, AlertCircle, Lightbulb, Layers, Github, PenLine
 } from "lucide-react";
 import { techStream, nonTechStream, type ProjectStream, type ProjectStep } from "@/data/projectGuideData";
 import { useProjectDocuments } from "@/hooks/useProjectDocuments";

@@ -198,6 +198,31 @@ const ProjectsView = () => {
           </p>
         </div>
       )}
+
+      {/* Trainer Feedback */}
+      {feedbackComments.length > 0 && (
+        <div className="bg-card rounded-lg border border-border p-4 shadow-card">
+          <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+            <MessageSquare className="h-3.5 w-3.5" /> Trainer Feedback ({feedbackComments.length})
+          </h5>
+          <div className="space-y-2">
+            {feedbackComments.map((fb) => (
+              <div key={fb.id} className="p-3 rounded-lg border border-border bg-muted/10">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-foreground">
+                    {fb.reviewer_name} <span className="text-muted-foreground">({fb.reviewer_role})</span>
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(fb.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{fb.feedback}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-3">
         {selectedStream.steps.map((step) => (
           <StepCard

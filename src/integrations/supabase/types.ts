@@ -498,6 +498,39 @@ export type Database = {
         }
         Relationships: []
       }
+      project_feedback: {
+        Row: {
+          created_at: string
+          feedback: string
+          id: string
+          reviewer_name: string
+          reviewer_role: string
+          step_number: number | null
+          stream_id: string
+          student_name: string
+        }
+        Insert: {
+          created_at?: string
+          feedback: string
+          id?: string
+          reviewer_name?: string
+          reviewer_role?: string
+          step_number?: number | null
+          stream_id: string
+          student_name: string
+        }
+        Update: {
+          created_at?: string
+          feedback?: string
+          id?: string
+          reviewer_name?: string
+          reviewer_role?: string
+          step_number?: number | null
+          stream_id?: string
+          student_name?: string
+        }
+        Relationships: []
+      }
       quiz_question_bank: {
         Row: {
           correct: number
@@ -691,6 +724,8 @@ export type Database = {
           completed_steps: Json
           github_url: string
           id: string
+          project_description: string
+          project_title: string
           stream_id: string
           student_name: string
           updated_at: string
@@ -700,6 +735,8 @@ export type Database = {
           completed_steps?: Json
           github_url?: string
           id?: string
+          project_description?: string
+          project_title?: string
           stream_id: string
           student_name: string
           updated_at?: string
@@ -709,6 +746,8 @@ export type Database = {
           completed_steps?: Json
           github_url?: string
           id?: string
+          project_description?: string
+          project_title?: string
           stream_id?: string
           student_name?: string
           updated_at?: string

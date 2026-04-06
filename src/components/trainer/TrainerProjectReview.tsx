@@ -1,13 +1,15 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
   Search, ChevronDown, ChevronRight, FileText, ExternalLink,
-  CheckCircle, Monitor, BookOpen, FolderOpen, Github
+  CheckCircle, Monitor, BookOpen, FolderOpen, Github, MessageSquare, Send, Trash2, PenLine
 } from "lucide-react";
 import { techStream, nonTechStream } from "@/data/projectGuideData";
+import { toast } from "sonner";
 
 interface ProjectProgress {
   id: string;

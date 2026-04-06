@@ -75,23 +75,30 @@ const formatSize = (bytes: number) => {
 const TrainerProjectReview = () => {
   const [progressData, setProgressData] = useState<ProjectProgress[]>([]);
   const [documentsData, setDocumentsData] = useState<ProjectDocument[]>([]);
+  const [feedbackData, setFeedbackData] = useState<FeedbackComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
   const [expandedStream, setExpandedStream] = useState<string | null>(null);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
-  useEffect(() => {
-    const fetchAll = async () => {
-      const [progRes, docRes] = await Promise.all([
-        supabase.from("student_project_progress").select("*"),
-        supabase.from("student_project_documents").select("*").order("uploaded_at", { ascending: false }),
-      ]);
-      if (progRes.data) setProgressData(progRes.data as ProjectProgress[]);
-      if (docRes.data) setDocumentsData(docRes.data as ProjectDocument[]);
-      setLoading(false);
-    };
-    fetchAll();
+  const reviewerName = sessionStorage.getItem("trainerName") || sessionStorage.getItem("adminEmail") || "Reviewer";
+  const reviewerRole = sessionStorage.getItem("trainerName") ? "trainer" : "admin";
+
+  const fetchAll = useCallback(async () => {
+    const [progRes, docRes, fbRes] = await Promise.all([
+      supabase.from("student_project_progress").select("*"),
+      supabase.from("student_project_documents").select("*").order("uploaded_at", { ascending: false }),
+      supabase.from("project_feedback").select("*").order("created_at", { ascending: false }),
+    ]);
+    if (progRes.data) setProgressData(progRes.data as ProjectProgress[]);
+    if (docRes.data) setDocumentsData(docRes.data as ProjectDocument[]);
+    if (fbRes.data) setFeedbackData(fbRes.data as FeedbackComment[]);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const studentSummaries = useMemo<StudentProjectSummary[]>(() => {
     const studentNames = new Set<string>();

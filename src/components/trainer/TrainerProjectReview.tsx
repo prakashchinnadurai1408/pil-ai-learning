@@ -18,7 +18,20 @@ interface ProjectProgress {
   completed_steps: Record<string, boolean>;
   completed_docs: Record<string, boolean>;
   github_url: string;
+  project_title: string;
+  project_description: string;
   updated_at: string;
+}
+
+interface FeedbackComment {
+  id: string;
+  student_name: string;
+  stream_id: string;
+  step_number: number | null;
+  feedback: string;
+  reviewer_name: string;
+  reviewer_role: string;
+  created_at: string;
 }
 
 interface ProjectDocument {

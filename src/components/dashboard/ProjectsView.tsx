@@ -38,6 +38,22 @@ const ProjectsView = () => {
 
   const markStepDone = (stepNum: number) => toggleStep(stepNum);
 
+  // Fetch trainer feedback
+  const [feedbackComments, setFeedbackComments] = useState<FeedbackComment[]>([]);
+  useEffect(() => {
+    if (!selectedStream) return;
+    const load = async () => {
+      const { data } = await supabase
+        .from("project_feedback")
+        .select("id, feedback, reviewer_name, reviewer_role, created_at")
+        .eq("student_name", studentName)
+        .eq("stream_id", selectedStream.id)
+        .order("created_at", { ascending: false });
+      setFeedbackComments((data as FeedbackComment[]) || []);
+    };
+    load();
+  }, [studentName, selectedStream]);
+
   const completedStepCount = selectedStream
     ? selectedStream.steps.filter(s => completedSteps[s.stepNumber]).length
     : 0;

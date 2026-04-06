@@ -470,17 +470,27 @@ const TrainerProjectReview = () => {
                                     disabled={!feedbackText.trim() || submittingFeedback}
                                     onClick={async () => {
                                       setSubmittingFeedback(true);
+                                      const feedbackContent = feedbackText.trim();
                                       await supabase.from("project_feedback").insert({
                                         student_name: student.studentName,
                                         stream_id: stream.streamId,
-                                        feedback: feedbackText.trim(),
+                                        feedback: feedbackContent,
                                         reviewer_name: reviewerName,
                                         reviewer_role: reviewerRole,
                                       } as any);
+                                      supabase.functions.invoke("send-feedback-notification", {
+                                        body: {
+                                          student_name: student.studentName,
+                                          stream_id: stream.streamId,
+                                          feedback: feedbackContent,
+                                          reviewer_name: reviewerName,
+                                          reviewer_role: reviewerRole,
+                                        },
+                                      }).catch(console.error);
                                       setFeedbackText("");
                                       setSubmittingFeedback(false);
                                       fetchAll();
-                                      toast.success("Feedback submitted");
+                                      toast.success("Feedback submitted & notification sent");
                                     }}
                                   >
                                     <Send className="h-3.5 w-3.5" />

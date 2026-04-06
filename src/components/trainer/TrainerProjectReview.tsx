@@ -325,6 +325,22 @@ const TrainerProjectReview = () => {
 
                           {isStreamExpanded && (
                             <div className="px-3 pb-3 space-y-3 border-t border-border pt-3">
+                              {/* Project Title & Description */}
+                              {(stream.projectTitle || stream.projectDescription) && (
+                                <div className="p-2.5 rounded-lg border border-border bg-muted/20 space-y-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <PenLine className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Project Details</span>
+                                  </div>
+                                  {stream.projectTitle && (
+                                    <p className="text-sm font-medium text-foreground">{stream.projectTitle}</p>
+                                  )}
+                                  {stream.projectDescription && (
+                                    <p className="text-xs text-muted-foreground whitespace-pre-wrap">{stream.projectDescription}</p>
+                                  )}
+                                </div>
+                              )}
+
                               {/* GitHub Link */}
                               {stream.githubUrl && (
                                 <div className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/20">
@@ -402,6 +418,75 @@ const TrainerProjectReview = () => {
                               {stream.documents.length === 0 && (
                                 <p className="text-xs text-muted-foreground italic">No files uploaded yet.</p>
                               )}
+
+                              {/* Feedback Comments */}
+                              <div>
+                                <h6 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                                  <MessageSquare className="h-3.5 w-3.5" /> Feedback ({stream.feedback.length})
+                                </h6>
+
+                                {stream.feedback.length > 0 && (
+                                  <div className="space-y-2 mb-3">
+                                    {stream.feedback.map((fb) => (
+                                      <div key={fb.id} className="p-2.5 rounded-lg border border-border bg-muted/10">
+                                        <div className="flex items-center justify-between mb-1">
+                                          <span className="text-xs font-medium text-foreground">
+                                            {fb.reviewer_name} <span className="text-muted-foreground">({fb.reviewer_role})</span>
+                                          </span>
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-muted-foreground">
+                                              {new Date(fb.created_at).toLocaleDateString()}
+                                            </span>
+                                            <button
+                                              onClick={async () => {
+                                                await supabase.from("project_feedback").delete().eq("id", fb.id);
+                                                fetchAll();
+                                                toast.success("Feedback deleted");
+                                              }}
+                                              className="text-destructive/60 hover:text-destructive"
+                                            >
+                                              <Trash2 className="h-3 w-3" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                        <p className="text-sm text-foreground whitespace-pre-wrap">{fb.feedback}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Add feedback form */}
+                                <div className="flex gap-2">
+                                  <Textarea
+                                    placeholder="Write feedback for this student's project..."
+                                    value={feedbackText}
+                                    onChange={(e) => setFeedbackText(e.target.value)}
+                                    className="text-sm min-h-[40px]"
+                                    rows={2}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    className="h-auto px-3 self-end"
+                                    disabled={!feedbackText.trim() || submittingFeedback}
+                                    onClick={async () => {
+                                      setSubmittingFeedback(true);
+                                      await supabase.from("project_feedback").insert({
+                                        student_name: student.studentName,
+                                        stream_id: stream.streamId,
+                                        feedback: feedbackText.trim(),
+                                        reviewer_name: reviewerName,
+                                        reviewer_role: reviewerRole,
+                                      } as any);
+                                      setFeedbackText("");
+                                      setSubmittingFeedback(false);
+                                      fetchAll();
+                                      toast.success("Feedback submitted");
+                                    }}
+                                  >
+                                    <Send className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
                             </div>
                           )}
                         </div>

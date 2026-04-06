@@ -128,6 +128,8 @@ const TrainerProjectReview = () => {
             : 0;
           const totalDocCount = stream.steps.reduce((sum, s) => sum + s.documents.length, 0);
 
+          const studentFeedback = feedbackData.filter((f) => f.student_name === name && f.stream_id === sid);
+
           return {
             streamId: sid,
             streamTitle: stream.title,
@@ -136,8 +138,11 @@ const TrainerProjectReview = () => {
             completedDocCount,
             totalDocCount,
             githubUrl: prog?.github_url || "",
+            projectTitle: prog?.project_title || "",
+            projectDescription: prog?.project_description || "",
             progress: prog,
             documents: docs,
+            feedback: studentFeedback,
           };
         });
 

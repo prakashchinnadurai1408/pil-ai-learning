@@ -56,8 +56,11 @@ interface StudentProjectSummary {
     completedDocCount: number;
     totalDocCount: number;
     githubUrl: string;
+    projectTitle: string;
+    projectDescription: string;
     progress: ProjectProgress | null;
     documents: ProjectDocument[];
+    feedback: FeedbackComment[];
   }[];
 }
 

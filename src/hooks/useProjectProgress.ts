@@ -13,6 +13,8 @@ export const useProjectProgress = (studentName: string, streamId: string | null)
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
   const [completedDocs, setCompletedDocs] = useState<Record<string, boolean>>({});
   const [githubUrl, setGithubUrl] = useState("");
+  const [projectTitle, setProjectTitle] = useState("");
+  const [projectDescription, setProjectDescription] = useState("");
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 

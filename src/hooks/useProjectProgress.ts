@@ -51,7 +51,7 @@ export const useProjectProgress = (studentName: string, streamId: string | null)
   }, [studentName, streamId]);
 
   // Debounced save
-  const save = useCallback((steps: Record<number, boolean>, docs: Record<string, boolean>, ghUrl?: string) => {
+  const save = useCallback((steps: Record<number, boolean>, docs: Record<string, boolean>, extras?: { ghUrl?: string; title?: string; desc?: string }) => {
     if (!streamId || !studentName) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
 
@@ -64,13 +64,15 @@ export const useProjectProgress = (studentName: string, streamId: string | null)
             stream_id: streamId,
             completed_steps: steps as any,
             completed_docs: docs as any,
-            github_url: ghUrl ?? githubUrl,
+            github_url: extras?.ghUrl ?? githubUrl,
+            project_title: extras?.title ?? projectTitle,
+            project_description: extras?.desc ?? projectDescription,
             updated_at: new Date().toISOString(),
           } as any,
           { onConflict: "student_name,stream_id" }
         );
     }, 500);
-  }, [studentName, streamId, githubUrl]);
+  }, [studentName, streamId, githubUrl, projectTitle, projectDescription]);
 
   const toggleStep = useCallback((stepNum: number) => {
     setCompletedSteps(prev => {

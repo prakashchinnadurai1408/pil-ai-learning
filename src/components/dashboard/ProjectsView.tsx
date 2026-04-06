@@ -1,16 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import {
   Monitor, BookOpen, ArrowLeft, CheckCircle, ChevronDown, ChevronRight,
-  FileText, Clock, Target, AlertCircle, Lightbulb, Layers, Github, PenLine
+  FileText, Clock, Target, AlertCircle, Lightbulb, Layers, Github, PenLine, MessageSquare
 } from "lucide-react";
 import { techStream, nonTechStream, type ProjectStream, type ProjectStep } from "@/data/projectGuideData";
 import { useProjectDocuments } from "@/hooks/useProjectDocuments";
 import { useProjectProgress } from "@/hooks/useProjectProgress";
+import { supabase } from "@/integrations/supabase/client";
 import StepFileUpload from "./StepFileUpload";
+
+interface FeedbackComment {
+  id: string;
+  feedback: string;
+  reviewer_name: string;
+  reviewer_role: string;
+  created_at: string;
+}
 
 const ProjectsView = () => {
   const [selectedStream, setSelectedStream] = useState<ProjectStream | null>(null);

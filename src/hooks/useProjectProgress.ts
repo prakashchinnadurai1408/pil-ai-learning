@@ -92,14 +92,26 @@ export const useProjectProgress = (studentName: string, streamId: string | null)
 
   const updateGithubUrl = useCallback((url: string) => {
     setGithubUrl(url);
-    save(completedSteps, completedDocs, url);
+    save(completedSteps, completedDocs, { ghUrl: url });
+  }, [save, completedSteps, completedDocs]);
+
+  const updateProjectTitle = useCallback((title: string) => {
+    setProjectTitle(title);
+    save(completedSteps, completedDocs, { title });
+  }, [save, completedSteps, completedDocs]);
+
+  const updateProjectDescription = useCallback((desc: string) => {
+    setProjectDescription(desc);
+    save(completedSteps, completedDocs, { desc });
   }, [save, completedSteps, completedDocs]);
 
   const reset = useCallback(() => {
     setCompletedSteps({});
     setCompletedDocs({});
     setGithubUrl("");
+    setProjectTitle("");
+    setProjectDescription("");
   }, []);
 
-  return { completedSteps, completedDocs, githubUrl, toggleStep, toggleDoc, updateGithubUrl, reset, loaded };
+  return { completedSteps, completedDocs, githubUrl, projectTitle, projectDescription, toggleStep, toggleDoc, updateGithubUrl, updateProjectTitle, updateProjectDescription, reset, loaded };
 };

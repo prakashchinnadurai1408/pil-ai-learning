@@ -5,12 +5,16 @@ interface ProgressState {
   completedSteps: Record<number, boolean>;
   completedDocs: Record<string, boolean>;
   githubUrl: string;
+  projectTitle: string;
+  projectDescription: string;
 }
 
 export const useProjectProgress = (studentName: string, streamId: string | null) => {
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
   const [completedDocs, setCompletedDocs] = useState<Record<string, boolean>>({});
   const [githubUrl, setGithubUrl] = useState("");
+  const [projectTitle, setProjectTitle] = useState("");
+  const [projectDescription, setProjectDescription] = useState("");
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -21,7 +25,7 @@ export const useProjectProgress = (studentName: string, streamId: string | null)
     const load = async () => {
       const { data } = await supabase
         .from("student_project_progress")
-        .select("completed_steps, completed_docs, github_url")
+        .select("completed_steps, completed_docs, github_url, project_title, project_description")
         .eq("student_name", studentName)
         .eq("stream_id", streamId)
         .maybeSingle();
@@ -32,10 +36,14 @@ export const useProjectProgress = (studentName: string, streamId: string | null)
           : {});
         setCompletedDocs((data.completed_docs as Record<string, boolean>) || {});
         setGithubUrl((data as any).github_url || "");
+        setProjectTitle((data as any).project_title || "");
+        setProjectDescription((data as any).project_description || "");
       } else {
         setCompletedSteps({});
         setCompletedDocs({});
         setGithubUrl("");
+        setProjectTitle("");
+        setProjectDescription("");
       }
       setLoaded(true);
     };
@@ -43,7 +51,7 @@ export const useProjectProgress = (studentName: string, streamId: string | null)
   }, [studentName, streamId]);
 
   // Debounced save
-  const save = useCallback((steps: Record<number, boolean>, docs: Record<string, boolean>, ghUrl?: string) => {
+  const save = useCallback((steps: Record<number, boolean>, docs: Record<string, boolean>, extras?: { ghUrl?: string; title?: string; desc?: string }) => {
     if (!streamId || !studentName) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
 
@@ -56,13 +64,15 @@ export const useProjectProgress = (studentName: string, streamId: string | null)
             stream_id: streamId,
             completed_steps: steps as any,
             completed_docs: docs as any,
-            github_url: ghUrl ?? githubUrl,
+            github_url: extras?.ghUrl ?? githubUrl,
+            project_title: extras?.title ?? projectTitle,
+            project_description: extras?.desc ?? projectDescription,
             updated_at: new Date().toISOString(),
           } as any,
           { onConflict: "student_name,stream_id" }
         );
     }, 500);
-  }, [studentName, streamId, githubUrl]);
+  }, [studentName, streamId, githubUrl, projectTitle, projectDescription]);
 
   const toggleStep = useCallback((stepNum: number) => {
     setCompletedSteps(prev => {
@@ -82,14 +92,26 @@ export const useProjectProgress = (studentName: string, streamId: string | null)
 
   const updateGithubUrl = useCallback((url: string) => {
     setGithubUrl(url);
-    save(completedSteps, completedDocs, url);
+    save(completedSteps, completedDocs, { ghUrl: url });
+  }, [save, completedSteps, completedDocs]);
+
+  const updateProjectTitle = useCallback((title: string) => {
+    setProjectTitle(title);
+    save(completedSteps, completedDocs, { title });
+  }, [save, completedSteps, completedDocs]);
+
+  const updateProjectDescription = useCallback((desc: string) => {
+    setProjectDescription(desc);
+    save(completedSteps, completedDocs, { desc });
   }, [save, completedSteps, completedDocs]);
 
   const reset = useCallback(() => {
     setCompletedSteps({});
     setCompletedDocs({});
     setGithubUrl("");
+    setProjectTitle("");
+    setProjectDescription("");
   }, []);
 
-  return { completedSteps, completedDocs, githubUrl, toggleStep, toggleDoc, updateGithubUrl, reset, loaded };
+  return { completedSteps, completedDocs, githubUrl, projectTitle, projectDescription, toggleStep, toggleDoc, updateGithubUrl, updateProjectTitle, updateProjectDescription, reset, loaded };
 };

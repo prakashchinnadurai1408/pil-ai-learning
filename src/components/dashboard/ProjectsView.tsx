@@ -17,7 +17,7 @@ const ProjectsView = () => {
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const studentName = sessionStorage.getItem("studentName") || "Student";
 
-  const { completedSteps, completedDocs, githubUrl, toggleStep, toggleDoc, updateGithubUrl, reset, loaded } = useProjectProgress(
+  const { completedSteps, completedDocs, githubUrl, projectTitle, projectDescription, toggleStep, toggleDoc, updateGithubUrl, updateProjectTitle, updateProjectDescription, reset, loaded } = useProjectProgress(
     studentName,
     selectedStream?.id || null
   );

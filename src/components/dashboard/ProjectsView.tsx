@@ -127,6 +127,26 @@ const ProjectsView = () => {
         <Progress value={overallProgress} className="h-2" />
       </div>
 
+      {/* Project Title & Description */}
+      <div className="bg-card rounded-lg border border-border p-4 shadow-card space-y-3">
+        <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+          <PenLine className="h-3.5 w-3.5" /> Project Details
+        </h5>
+        <Input
+          placeholder="Enter your project title"
+          value={projectTitle}
+          onChange={(e) => updateProjectTitle(e.target.value)}
+          className="h-9 text-sm"
+        />
+        <Textarea
+          placeholder="Briefly describe your project (objectives, scope, technologies used...)"
+          value={projectDescription}
+          onChange={(e) => updateProjectDescription(e.target.value)}
+          className="text-sm min-h-[60px]"
+          rows={3}
+        />
+      </div>
+
       {/* GitHub Link — Tech stream only */}
       {isTech && (
         <div className="bg-card rounded-lg border border-border p-4 shadow-card">

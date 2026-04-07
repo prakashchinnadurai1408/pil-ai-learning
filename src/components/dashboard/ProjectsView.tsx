@@ -19,6 +19,7 @@ interface FeedbackComment {
   reviewer_name: string;
   reviewer_role: string;
   created_at: string;
+  parent_id: string | null;
 }
 
 const ProjectsView = () => {
@@ -40,19 +41,41 @@ const ProjectsView = () => {
 
   // Fetch trainer feedback
   const [feedbackComments, setFeedbackComments] = useState<FeedbackComment[]>([]);
-  useEffect(() => {
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [submittingReply, setSubmittingReply] = useState(false);
+
+  const loadFeedback = async () => {
     if (!selectedStream) return;
-    const load = async () => {
-      const { data } = await supabase
-        .from("project_feedback")
-        .select("id, feedback, reviewer_name, reviewer_role, created_at")
-        .eq("student_name", studentName)
-        .eq("stream_id", selectedStream.id)
-        .order("created_at", { ascending: false });
-      setFeedbackComments((data as FeedbackComment[]) || []);
-    };
-    load();
+    const { data } = await supabase
+      .from("project_feedback")
+      .select("id, feedback, reviewer_name, reviewer_role, created_at, parent_id")
+      .eq("student_name", studentName)
+      .eq("stream_id", selectedStream.id)
+      .order("created_at", { ascending: true });
+    setFeedbackComments((data as FeedbackComment[]) || []);
+  };
+
+  useEffect(() => {
+    loadFeedback();
   }, [studentName, selectedStream]);
+
+  const submitReply = async (parentId: string) => {
+    if (!replyText.trim() || !selectedStream) return;
+    setSubmittingReply(true);
+    await supabase.from("project_feedback").insert({
+      student_name: studentName,
+      stream_id: selectedStream.id,
+      feedback: replyText.trim(),
+      reviewer_name: studentName,
+      reviewer_role: "student",
+      parent_id: parentId,
+    } as any);
+    setReplyText("");
+    setReplyingTo(null);
+    setSubmittingReply(false);
+    loadFeedback();
+  };
 
   const completedStepCount = selectedStream
     ? selectedStream.steps.filter(s => completedSteps[s.stepNumber]).length
@@ -200,28 +223,83 @@ const ProjectsView = () => {
       )}
 
       {/* Trainer Feedback */}
-      {feedbackComments.length > 0 && (
-        <div className="bg-card rounded-lg border border-border p-4 shadow-card">
-          <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-            <MessageSquare className="h-3.5 w-3.5" /> Trainer Feedback ({feedbackComments.length})
-          </h5>
-          <div className="space-y-2">
-            {feedbackComments.map((fb) => (
-              <div key={fb.id} className="p-3 rounded-lg border border-border bg-muted/10">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-medium text-foreground">
-                    {fb.reviewer_name} <span className="text-muted-foreground">({fb.reviewer_role})</span>
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {new Date(fb.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{fb.feedback}</p>
-              </div>
-            ))}
+      {feedbackComments.length > 0 && (() => {
+        const topLevel = feedbackComments.filter(fb => !fb.parent_id);
+        const replies = feedbackComments.filter(fb => fb.parent_id);
+        return (
+          <div className="bg-card rounded-lg border border-border p-4 shadow-card">
+            <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+              <MessageSquare className="h-3.5 w-3.5" /> Trainer Feedback ({topLevel.length})
+            </h5>
+            <div className="space-y-3">
+              {topLevel.map((fb) => {
+                const fbReplies = replies.filter(r => r.parent_id === fb.id);
+                return (
+                  <div key={fb.id} className="space-y-2">
+                    <div className="p-3 rounded-lg border border-border bg-muted/10">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-foreground">
+                          {fb.reviewer_name} <span className="text-muted-foreground">({fb.reviewer_role})</span>
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(fb.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{fb.feedback}</p>
+                      <button
+                        onClick={() => setReplyingTo(replyingTo === fb.id ? null : fb.id)}
+                        className="mt-2 text-xs text-primary hover:underline flex items-center gap-1"
+                      >
+                        <MessageSquare className="h-3 w-3" /> Reply
+                      </button>
+                    </div>
+
+                    {/* Replies */}
+                    {fbReplies.length > 0 && (
+                      <div className="ml-6 space-y-2">
+                        {fbReplies.map((r) => (
+                          <div key={r.id} className="p-2.5 rounded-lg border border-primary/20 bg-primary/5">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-medium text-foreground">
+                                {r.reviewer_name} <span className="text-muted-foreground">({r.reviewer_role})</span>
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {new Date(r.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="text-sm text-foreground whitespace-pre-wrap">{r.feedback}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Reply form */}
+                    {replyingTo === fb.id && (
+                      <div className="ml-6 flex gap-2">
+                        <Textarea
+                          placeholder="Write your reply..."
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          className="text-sm min-h-[36px]"
+                          rows={2}
+                        />
+                        <Button
+                          size="sm"
+                          className="h-auto px-3 self-end"
+                          disabled={!replyText.trim() || submittingReply}
+                          onClick={() => submitReply(fb.id)}
+                        >
+                          Send
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <div className="space-y-3">
         {selectedStream.steps.map((step) => (

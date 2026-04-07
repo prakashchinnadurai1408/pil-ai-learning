@@ -32,6 +32,7 @@ interface FeedbackComment {
   reviewer_name: string;
   reviewer_role: string;
   created_at: string;
+  parent_id: string | null;
 }
 
 interface ProjectDocument {
@@ -425,35 +426,64 @@ const TrainerProjectReview = () => {
                                   <MessageSquare className="h-3.5 w-3.5" /> Feedback ({stream.feedback.length})
                                 </h6>
 
-                                {stream.feedback.length > 0 && (
-                                  <div className="space-y-2 mb-3">
-                                    {stream.feedback.map((fb) => (
-                                      <div key={fb.id} className="p-2.5 rounded-lg border border-border bg-muted/10">
-                                        <div className="flex items-center justify-between mb-1">
-                                          <span className="text-xs font-medium text-foreground">
-                                            {fb.reviewer_name} <span className="text-muted-foreground">({fb.reviewer_role})</span>
-                                          </span>
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-[10px] text-muted-foreground">
-                                              {new Date(fb.created_at).toLocaleDateString()}
-                                            </span>
-                                            <button
-                                              onClick={async () => {
-                                                await supabase.from("project_feedback").delete().eq("id", fb.id);
-                                                fetchAll();
-                                                toast.success("Feedback deleted");
-                                              }}
-                                              className="text-destructive/60 hover:text-destructive"
-                                            >
-                                              <Trash2 className="h-3 w-3" />
-                                            </button>
+                                {(() => {
+                                  const topLevel = stream.feedback.filter(f => !f.parent_id);
+                                  const replies = stream.feedback.filter(f => f.parent_id);
+                                  return topLevel.length > 0 ? (
+                                    <div className="space-y-2 mb-3">
+                                      {topLevel.map((fb) => {
+                                        const fbReplies = replies.filter(r => r.parent_id === fb.id);
+                                        return (
+                                          <div key={fb.id} className="space-y-1.5">
+                                            <div className="p-2.5 rounded-lg border border-border bg-muted/10">
+                                              <div className="flex items-center justify-between mb-1">
+                                                <span className="text-xs font-medium text-foreground">
+                                                  {fb.reviewer_name} <span className="text-muted-foreground">({fb.reviewer_role})</span>
+                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-[10px] text-muted-foreground">
+                                                    {new Date(fb.created_at).toLocaleDateString()}
+                                                  </span>
+                                                  {fb.reviewer_role !== "student" && (
+                                                    <button
+                                                      onClick={async () => {
+                                                        await supabase.from("project_feedback").delete().eq("id", fb.id);
+                                                        fetchAll();
+                                                        toast.success("Feedback deleted");
+                                                      }}
+                                                      className="text-destructive/60 hover:text-destructive"
+                                                    >
+                                                      <Trash2 className="h-3 w-3" />
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              </div>
+                                              <p className="text-sm text-foreground whitespace-pre-wrap">{fb.feedback}</p>
+                                            </div>
+                                            {/* Student replies */}
+                                            {fbReplies.length > 0 && (
+                                              <div className="ml-5 space-y-1.5">
+                                                {fbReplies.map((r) => (
+                                                  <div key={r.id} className="p-2 rounded-lg border border-primary/20 bg-primary/5">
+                                                    <div className="flex items-center justify-between mb-0.5">
+                                                      <span className="text-xs font-medium text-foreground">
+                                                        {r.reviewer_name} <span className="text-muted-foreground">({r.reviewer_role})</span>
+                                                      </span>
+                                                      <span className="text-[10px] text-muted-foreground">
+                                                        {new Date(r.created_at).toLocaleDateString()}
+                                                      </span>
+                                                    </div>
+                                                    <p className="text-sm text-foreground whitespace-pre-wrap">{r.feedback}</p>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            )}
                                           </div>
-                                        </div>
-                                        <p className="text-sm text-foreground whitespace-pre-wrap">{fb.feedback}</p>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
+                                        );
+                                      })}
+                                    </div>
+                                  ) : null;
+                                })()}
 
                                 {/* Add feedback form */}
                                 <div className="flex gap-2">

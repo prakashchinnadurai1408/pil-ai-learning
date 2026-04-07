@@ -1,0 +1,1 @@
+ALTER TABLE public.project_feedback ADD COLUMN parent_id uuid REFERENCES public.project_feedback(id) ON DELETE CASCADE DEFAULT NULL;

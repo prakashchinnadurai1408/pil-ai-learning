@@ -41,19 +41,41 @@ const ProjectsView = () => {
 
   // Fetch trainer feedback
   const [feedbackComments, setFeedbackComments] = useState<FeedbackComment[]>([]);
-  useEffect(() => {
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [submittingReply, setSubmittingReply] = useState(false);
+
+  const loadFeedback = async () => {
     if (!selectedStream) return;
-    const load = async () => {
-      const { data } = await supabase
-        .from("project_feedback")
-        .select("id, feedback, reviewer_name, reviewer_role, created_at")
-        .eq("student_name", studentName)
-        .eq("stream_id", selectedStream.id)
-        .order("created_at", { ascending: false });
-      setFeedbackComments((data as FeedbackComment[]) || []);
-    };
-    load();
+    const { data } = await supabase
+      .from("project_feedback")
+      .select("id, feedback, reviewer_name, reviewer_role, created_at, parent_id")
+      .eq("student_name", studentName)
+      .eq("stream_id", selectedStream.id)
+      .order("created_at", { ascending: true });
+    setFeedbackComments((data as FeedbackComment[]) || []);
+  };
+
+  useEffect(() => {
+    loadFeedback();
   }, [studentName, selectedStream]);
+
+  const submitReply = async (parentId: string) => {
+    if (!replyText.trim() || !selectedStream) return;
+    setSubmittingReply(true);
+    await supabase.from("project_feedback").insert({
+      student_name: studentName,
+      stream_id: selectedStream.id,
+      feedback: replyText.trim(),
+      reviewer_name: studentName,
+      reviewer_role: "student",
+      parent_id: parentId,
+    } as any);
+    setReplyText("");
+    setReplyingTo(null);
+    setSubmittingReply(false);
+    loadFeedback();
+  };
 
   const completedStepCount = selectedStream
     ? selectedStream.steps.filter(s => completedSteps[s.stepNumber]).length

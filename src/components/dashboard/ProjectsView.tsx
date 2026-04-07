@@ -225,77 +225,105 @@ const ProjectsView = () => {
       {/* Trainer Feedback */}
       {feedbackComments.length > 0 && (() => {
         const topLevel = feedbackComments.filter(fb => !fb.parent_id);
-        const replies = feedbackComments.filter(fb => fb.parent_id);
+        const allReplies = feedbackComments.filter(fb => fb.parent_id);
+
+        const renderReplies = (parentId: string, depth: number) => {
+          const children = allReplies.filter(r => r.parent_id === parentId);
+          if (children.length === 0) return null;
+          return (
+            <div className={`${depth === 1 ? 'ml-6' : 'ml-4'} space-y-2`}>
+              {children.map((r) => (
+                <div key={r.id} className="space-y-2">
+                  <div className={`p-2.5 rounded-lg border ${r.reviewer_role === 'student' ? 'border-primary/20 bg-primary/5' : 'border-accent/20 bg-accent/5'}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-foreground">
+                        {r.reviewer_name} <span className="text-muted-foreground">({r.reviewer_role})</span>
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(r.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="text-sm text-foreground whitespace-pre-wrap">{r.feedback}</p>
+                    <button
+                      onClick={() => setReplyingTo(replyingTo === r.id ? null : r.id)}
+                      className="mt-2 text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      <MessageSquare className="h-3 w-3" /> Reply
+                    </button>
+                  </div>
+                  {replyingTo === r.id && (
+                    <div className={`${depth === 1 ? 'ml-6' : 'ml-4'} flex gap-2`}>
+                      <Textarea
+                        placeholder="Write your reply..."
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        className="text-sm min-h-[36px]"
+                        rows={2}
+                      />
+                      <Button
+                        size="sm"
+                        className="h-auto px-3 self-end"
+                        disabled={!replyText.trim() || submittingReply}
+                        onClick={() => submitReply(r.id)}
+                      >
+                        Send
+                      </Button>
+                    </div>
+                  )}
+                  {renderReplies(r.id, depth + 1)}
+                </div>
+              ))}
+            </div>
+          );
+        };
+
         return (
           <div className="bg-card rounded-lg border border-border p-4 shadow-card">
             <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
               <MessageSquare className="h-3.5 w-3.5" /> Trainer Feedback ({topLevel.length})
             </h5>
             <div className="space-y-3">
-              {topLevel.map((fb) => {
-                const fbReplies = replies.filter(r => r.parent_id === fb.id);
-                return (
-                  <div key={fb.id} className="space-y-2">
-                    <div className="p-3 rounded-lg border border-border bg-muted/10">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-foreground">
-                          {fb.reviewer_name} <span className="text-muted-foreground">({fb.reviewer_role})</span>
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {new Date(fb.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{fb.feedback}</p>
-                      <button
-                        onClick={() => setReplyingTo(replyingTo === fb.id ? null : fb.id)}
-                        className="mt-2 text-xs text-primary hover:underline flex items-center gap-1"
-                      >
-                        <MessageSquare className="h-3 w-3" /> Reply
-                      </button>
+              {topLevel.map((fb) => (
+                <div key={fb.id} className="space-y-2">
+                  <div className="p-3 rounded-lg border border-border bg-muted/10">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-foreground">
+                        {fb.reviewer_name} <span className="text-muted-foreground">({fb.reviewer_role})</span>
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(fb.created_at).toLocaleDateString()}
+                      </span>
                     </div>
-
-                    {/* Replies */}
-                    {fbReplies.length > 0 && (
-                      <div className="ml-6 space-y-2">
-                        {fbReplies.map((r) => (
-                          <div key={r.id} className="p-2.5 rounded-lg border border-primary/20 bg-primary/5">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-medium text-foreground">
-                                {r.reviewer_name} <span className="text-muted-foreground">({r.reviewer_role})</span>
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {new Date(r.created_at).toLocaleDateString()}
-                              </span>
-                            </div>
-                            <p className="text-sm text-foreground whitespace-pre-wrap">{r.feedback}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Reply form */}
-                    {replyingTo === fb.id && (
-                      <div className="ml-6 flex gap-2">
-                        <Textarea
-                          placeholder="Write your reply..."
-                          value={replyText}
-                          onChange={(e) => setReplyText(e.target.value)}
-                          className="text-sm min-h-[36px]"
-                          rows={2}
-                        />
-                        <Button
-                          size="sm"
-                          className="h-auto px-3 self-end"
-                          disabled={!replyText.trim() || submittingReply}
-                          onClick={() => submitReply(fb.id)}
-                        >
-                          Send
-                        </Button>
-                      </div>
-                    )}
+                    <p className="text-sm text-foreground whitespace-pre-wrap">{fb.feedback}</p>
+                    <button
+                      onClick={() => setReplyingTo(replyingTo === fb.id ? null : fb.id)}
+                      className="mt-2 text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      <MessageSquare className="h-3 w-3" /> Reply
+                    </button>
                   </div>
-                );
-              })}
+                  {replyingTo === fb.id && (
+                    <div className="ml-6 flex gap-2">
+                      <Textarea
+                        placeholder="Write your reply..."
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        className="text-sm min-h-[36px]"
+                        rows={2}
+                      />
+                      <Button
+                        size="sm"
+                        className="h-auto px-3 self-end"
+                        disabled={!replyText.trim() || submittingReply}
+                        onClick={() => submitReply(fb.id)}
+                      >
+                        Send
+                      </Button>
+                    </div>
+                  )}
+                  {renderReplies(fb.id, 1)}
+                </div>
+              ))}
             </div>
           </div>
         );

@@ -82,6 +82,7 @@ const TrainerProjectReview = () => {
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
   const [expandedStream, setExpandedStream] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState("");
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [submittingReply, setSubmittingReply] = useState(false);

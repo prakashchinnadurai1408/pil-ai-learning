@@ -82,7 +82,27 @@ const TrainerProjectReview = () => {
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
   const [expandedStream, setExpandedStream] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState("");
-  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [submittingReply, setSubmittingReply] = useState(false);
+
+  const submitReply = async (parentId: string, studentName: string, streamId: string) => {
+    if (!replyText.trim()) return;
+    setSubmittingReply(true);
+    await supabase.from("project_feedback").insert({
+      student_name: studentName,
+      stream_id: streamId,
+      feedback: replyText.trim(),
+      reviewer_name: reviewerName,
+      reviewer_role: reviewerRole,
+      parent_id: parentId,
+    } as any);
+    setReplyText("");
+    setReplyingTo(null);
+    setSubmittingReply(false);
+    fetchAll();
+    toast.success("Reply sent");
+  };
 
   const reviewerName = sessionStorage.getItem("trainerName") || sessionStorage.getItem("adminEmail") || "Reviewer";
   const reviewerRole = sessionStorage.getItem("trainerName") ? "trainer" : "admin";

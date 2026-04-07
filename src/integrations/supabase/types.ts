@@ -503,6 +503,7 @@ export type Database = {
           created_at: string
           feedback: string
           id: string
+          parent_id: string | null
           reviewer_name: string
           reviewer_role: string
           step_number: number | null
@@ -513,6 +514,7 @@ export type Database = {
           created_at?: string
           feedback: string
           id?: string
+          parent_id?: string | null
           reviewer_name?: string
           reviewer_role?: string
           step_number?: number | null
@@ -523,13 +525,22 @@ export type Database = {
           created_at?: string
           feedback?: string
           id?: string
+          parent_id?: string | null
           reviewer_name?: string
           reviewer_role?: string
           step_number?: number | null
           stream_id?: string
           student_name?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "project_feedback_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "project_feedback"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quiz_question_bank: {
         Row: {

@@ -19,6 +19,7 @@ interface FeedbackComment {
   reviewer_name: string;
   reviewer_role: string;
   created_at: string;
+  parent_id: string | null;
 }
 
 const ProjectsView = () => {

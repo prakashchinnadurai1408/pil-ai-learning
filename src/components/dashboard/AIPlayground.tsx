@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
 import ChatMessage from "./chat/ChatMessage";
 import ChatLanguageSelector, { LANGUAGES, type LanguageCode } from "./chat/ChatLanguageSelector";
+import ChatVoiceInput from "./chat/ChatVoiceInput";
 
 type Message = { role: "user" | "assistant"; content: string };
 

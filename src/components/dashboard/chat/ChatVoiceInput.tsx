@@ -3,6 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Mic, MicOff } from "lucide-react";
 import type { LanguageCode } from "./ChatLanguageSelector";
 
+type SpeechRecognitionType = typeof window extends { SpeechRecognition: infer T } ? T : any;
+
+const getSpeechRecognition = (): (new () => any) | null => {
+  return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
+};
+
 interface Props {
   lang: LanguageCode;
   onTranscript: (text: string) => void;
@@ -11,7 +17,7 @@ interface Props {
 
 const ChatVoiceInput = ({ lang, onTranscript, disabled }: Props) => {
   const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   const toggle = useCallback(() => {
     if (listening) {

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
 import ChatMessage from "./chat/ChatMessage";
 import ChatLanguageSelector, { LANGUAGES, type LanguageCode } from "./chat/ChatLanguageSelector";
+import ChatVoiceInput from "./chat/ChatVoiceInput";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -151,9 +152,14 @@ const AIPlayground = () => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="Type your prompt here..."
+          placeholder="Type or speak your question..."
           className="flex-1"
           aria-label="Type your message"
+        />
+        <ChatVoiceInput
+          lang={lang}
+          onTranscript={(text) => { setInput(text); }}
+          disabled={isLoading}
         />
         <Button
           onClick={() => handleSend()}

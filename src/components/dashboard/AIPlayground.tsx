@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Bot, User, Sparkles, Lightbulb, AlertTriangle } from "lucide-react";
+import { Send, Sparkles, Lightbulb } from "lucide-react";
 import { streamChat } from "@/lib/streamChat";
-import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
-import AIFeedback from "@/components/dashboard/AIFeedback";
 import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
+import ChatMessage from "./chat/ChatMessage";
+import ChatLanguageSelector, { LANGUAGES, type LanguageCode } from "./chat/ChatLanguageSelector";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -19,7 +19,7 @@ const defaultSuggestions = [
   "What are AI Agents and how do they work?",
 ];
 
-const FALLBACK_ERROR = "I'm having trouble connecting right now. Please try again in a moment. If the issue persists, check your internet connection.";
+const FALLBACK_ERROR = "I'm having trouble connecting right now. Please try again in a moment.";
 const EMPTY_RESPONSE_MSG = "I wasn't able to generate a response for that. Could you try rephrasing your question?";
 
 const AIPlayground = () => {
@@ -29,10 +29,11 @@ const AIPlayground = () => {
     ...adminChatItems.map(item => item.content?.prompt).filter(Boolean),
   ];
   const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "👋 Hi! I'm your **AI learning assistant** powered by real AI. Ask me anything about AI concepts, tools, or prompt engineering. Try the suggestions below to get started!" },
+    { role: "assistant", content: "👋 Hi! I'm **Aira**, your AI learning assistant. Ask me anything about AI concepts, tools, or prompt engineering — in English or any Indian language! Try the suggestions below to get started." },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [lang, setLang] = useState<LanguageCode>("en-IN");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,16 +42,15 @@ const AIPlayground = () => {
 
   const handleSend = useCallback(async (text?: string) => {
     const msg = text || input;
-
-    // AI-05: Block empty or whitespace-only messages
     if (!msg.trim() || isLoading) return;
 
     const userMsg: Message = { role: "user", content: msg.trim() };
-    // AI-03: Send full conversation history for context memory
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
+
+    const selectedLang = LANGUAGES.find(l => l.code === lang);
 
     let assistantSoFar = "";
     const upsertAssistant = (chunk: string) => {
@@ -66,14 +66,13 @@ const AIPlayground = () => {
 
     try {
       await streamChat({
-        // AI-03: Pass complete history (excluding the initial greeting) for context
         messages: updatedMessages
-          .filter((_, i) => i > 0 || updatedMessages[0].role === "user") // skip greeting
+          .filter((_, i) => i > 0 || updatedMessages[0].role === "user")
           .map(m => ({ role: m.role, content: m.content })),
+        tool: lang !== "en-IN" ? `lang:${selectedLang?.aiLabel}` : undefined,
         onDelta: (chunk) => upsertAssistant(chunk),
         onDone: () => {
           setIsLoading(false);
-          // AI-05: Handle empty AI response
           if (!assistantSoFar.trim()) {
             setMessages(prev => {
               const last = prev[prev.length - 1];
@@ -93,63 +92,34 @@ const AIPlayground = () => {
         : e instanceof Error && e.message.includes("usage limit")
         ? "💳 AI usage limit reached. Please try again later."
         : FALLBACK_ERROR;
-      
       setMessages(prev => [...prev, { role: "assistant", content: `⚠️ ${errorMessage}` }]);
       toast.error("AI service temporarily unavailable", { duration: 3000 });
     }
-  }, [input, isLoading, messages]);
+  }, [input, isLoading, messages, lang]);
 
   return (
     <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden" role="region" aria-label="AI Chat Playground">
-      <div className="p-4 border-b border-border flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-          <Sparkles className="h-4 w-4 text-primary-foreground" aria-hidden="true" />
+      <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+            <Sparkles className="h-4 w-4 text-primary-foreground" aria-hidden="true" />
+          </div>
+          <div>
+            <h3 className="font-display font-semibold text-card-foreground">Aira — AI Chat</h3>
+            <p className="text-xs text-muted-foreground">Multilingual AI assistant with voice — remembers your conversation</p>
+          </div>
         </div>
-        <div>
-          <h3 className="font-display font-semibold text-card-foreground">AI Chat Playground</h3>
-          <p className="text-xs text-muted-foreground">Practice prompt engineering with real AI — remembers your conversation</p>
-        </div>
+        <ChatLanguageSelector value={lang} onChange={setLang} />
       </div>
 
       <div ref={scrollRef} className="h-[400px] overflow-y-auto p-4 space-y-4" role="log" aria-label="Chat messages" aria-live="polite">
         {messages.map((msg, i) => (
-          <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
-            {msg.role === "assistant" && (
-              <div className="w-7 h-7 rounded-full bg-gradient-accent flex items-center justify-center flex-shrink-0" aria-hidden="true">
-                <Bot className="h-4 w-4 text-accent-foreground" />
-              </div>
-            )}
-            <div
-              className={`max-w-[80%] rounded-lg px-4 py-3 text-sm ${
-                msg.role === "user"
-                  ? "bg-primary text-primary-foreground rounded-br-sm"
-                  : "bg-muted text-foreground rounded-bl-sm"
-              }`}
-            >
-              {msg.role === "assistant" ? (
-                <div>
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
-                  {i > 0 && !msg.content.startsWith("⚠️") && (
-                    <AIFeedback messageIndex={i} />
-                  )}
-                </div>
-              ) : (
-                <span className="whitespace-pre-wrap">{msg.content}</span>
-              )}
-            </div>
-            {msg.role === "user" && (
-              <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center flex-shrink-0" aria-hidden="true">
-                <User className="h-4 w-4 text-secondary-foreground" />
-              </div>
-            )}
-          </div>
+          <ChatMessage key={i} msg={msg} index={i} lang={lang} />
         ))}
         {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
           <div className="flex gap-3">
-            <div className="w-7 h-7 rounded-full bg-gradient-accent flex items-center justify-center flex-shrink-0" aria-hidden="true">
-              <Bot className="h-4 w-4 text-accent-foreground" />
+            <div className="w-8 h-8 rounded-full bg-gradient-accent flex items-center justify-center flex-shrink-0">
+              <Sparkles className="h-4 w-4 text-accent-foreground" />
             </div>
             <div className="bg-muted rounded-lg px-4 py-3 text-sm text-muted-foreground flex items-center gap-1.5" role="status" aria-label="AI is thinking">
               <span className="flex gap-1" aria-hidden="true">
@@ -157,7 +127,7 @@ const AIPlayground = () => {
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
               </span>
-              <span className="ml-1">AI is thinking...</span>
+              <span className="ml-1">Aira is thinking...</span>
             </div>
           </div>
         )}
@@ -170,7 +140,6 @@ const AIPlayground = () => {
             key={s}
             onClick={() => handleSend(s)}
             className="text-xs px-3 py-1.5 rounded-full border border-border bg-muted/50 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors whitespace-nowrap flex-shrink-0"
-            aria-label={`Ask: ${s}`}
           >
             {s}
           </button>

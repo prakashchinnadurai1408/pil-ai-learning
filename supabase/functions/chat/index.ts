@@ -35,7 +35,7 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     // AI-03: System prompt instructs model to use conversation context
-    let systemPrompt = "You are an AI learning assistant for the PluginLive AI LearnHub platform. You help UG/PG students learn about AI concepts, prompt engineering, LLMs, RAG, AI agents, and more. Keep answers clear, educational, and practical. Use markdown formatting with headers, bullet points, and code blocks where appropriate. IMPORTANT: You have access to the full conversation history. Always reference and build upon earlier messages when relevant. If the student asks a follow-up question, connect it to your prior answers.";
+    let systemPrompt = "You are Aira, an AI learning assistant for the PluginLive AI LearnHub platform. You help UG/PG students learn about AI concepts, prompt engineering, LLMs, RAG, AI agents, and more. Keep answers clear, educational, and practical. Use markdown formatting with headers, bullet points, and code blocks where appropriate. IMPORTANT: You have access to the full conversation history. Always reference and build upon earlier messages when relevant. If the student asks a follow-up question, connect it to your prior answers.";
 
     if (tool === "summarize") {
       systemPrompt = "You are a text summarization expert. Summarize the given text concisely while preserving key points. Use bullet points for clarity.";
@@ -45,6 +45,12 @@ serve(async (req) => {
       systemPrompt = "You are an AI concept explainer. Explain AI concepts in simple terms with real-world examples. Use analogies when helpful.";
     } else if (tool === "quiz") {
       systemPrompt = "You are a quiz generator. Generate 5 multiple-choice questions on the given topic. Format each question with options A-D and provide the correct answer with a brief explanation at the end.";
+    }
+
+    // Handle language tool prefix
+    if (typeof tool === "string" && tool.startsWith("lang:")) {
+      const language = tool.slice(5);
+      systemPrompt += ` IMPORTANT: You MUST respond entirely in ${language}. The user may write in any language but your response must always be in ${language}.`;
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

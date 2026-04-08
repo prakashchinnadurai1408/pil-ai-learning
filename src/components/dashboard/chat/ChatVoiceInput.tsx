@@ -25,10 +25,10 @@ const ChatVoiceInput = ({ lang, onTranscript, disabled }: Props) => {
       return;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+    const SR = getSpeechRecognition();
+    if (!SR) return;
 
-    const recognition = new SpeechRecognition();
+    const recognition = new SR();
     recognition.lang = lang;
     recognition.interimResults = false;
     recognition.continuous = false;
@@ -46,7 +46,7 @@ const ChatVoiceInput = ({ lang, onTranscript, disabled }: Props) => {
   }, [listening, lang, onTranscript]);
 
   // Hide if browser doesn't support Speech Recognition
-  if (typeof window !== "undefined" && !window.SpeechRecognition && !(window as any).webkitSpeechRecognition) {
+  if (typeof window !== "undefined" && !getSpeechRecognition()) {
     return null;
   }
 

@@ -448,7 +448,7 @@ const StepCard = ({
             <ul className="space-y-2">
               {step.whatHappens.map((item, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                  <span className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${isTech ? "bg-primary" : isTech === false && accentClass.includes("warning") ? "bg-warning" : "bg-accent"}`} />
+                  <span className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${accentClass.includes("primary") ? "bg-primary" : accentClass.includes("warning") ? "bg-warning" : "bg-accent"}`} />
                   {item}
                 </li>
               ))}

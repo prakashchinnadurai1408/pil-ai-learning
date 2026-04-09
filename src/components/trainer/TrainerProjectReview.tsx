@@ -65,7 +65,11 @@ interface StudentProjectSummary {
   }[];
 }
 
-const getStream = (id: string) => (id === "tech" ? techStream : nonTechStream);
+const getStream = (id: string) => {
+  if (id === "tech") return techStream;
+  if (id === "mba-casestudy") return mbaCaseStudyStream;
+  return nonTechStream;
+};
 
 const formatSize = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`;

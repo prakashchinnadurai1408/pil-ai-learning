@@ -96,7 +96,7 @@ const ProjectsView = () => {
           </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
+        <div className="grid sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
           {/* Tech Stream */}
           <button
             onClick={() => setSelectedStream(techStream)}
@@ -129,6 +129,24 @@ const ProjectsView = () => {
               Covers: Research Proposal, Data Collection, Analysis, Report Writing, Presentation
             </p>
             <div className="mt-4 flex items-center gap-2 text-xs font-medium text-accent opacity-0 group-hover:opacity-100 transition-opacity">
+              Get Started <ChevronRight className="h-3 w-3" />
+            </div>
+          </button>
+
+          {/* MBA Case Study Stream */}
+          <button
+            onClick={() => setSelectedStream(mbaCaseStudyStream)}
+            className="group bg-card rounded-xl border-2 border-border p-6 shadow-card hover:shadow-elevated hover:border-warning/40 transition-all text-left"
+          >
+            <div className="w-14 h-14 rounded-xl bg-warning/10 flex items-center justify-center mb-4 group-hover:bg-warning/20 transition-colors">
+              <Briefcase className="h-7 w-7 text-warning" />
+            </div>
+            <h4 className="font-display font-bold text-lg text-card-foreground mb-1">MBA Case Study Stream</h4>
+            <p className="text-sm text-warning font-medium mb-2">10 Steps · CaseIQ — Business Analysis</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Covers: Team Formation, AI Research, Collaborative Drafting, Peer Review, Grading, Presentation, Portfolio
+            </p>
+            <div className="mt-4 flex items-center gap-2 text-xs font-medium text-warning opacity-0 group-hover:opacity-100 transition-opacity">
               Get Started <ChevronRight className="h-3 w-3" />
             </div>
           </button>

@@ -156,9 +156,10 @@ const ProjectsView = () => {
   }
 
   const isTech = selectedStream.id === "tech";
-  const accentClass = isTech ? "text-primary" : "text-accent";
-  const accentBg = isTech ? "bg-primary/10" : "bg-accent/10";
-  const accentBorder = isTech ? "border-primary/30" : "border-accent/30";
+  const isMba = selectedStream.id === "mba-casestudy";
+  const accentClass = isMba ? "text-warning" : isTech ? "text-primary" : "text-accent";
+  const accentBg = isMba ? "bg-warning/10" : isTech ? "bg-primary/10" : "bg-accent/10";
+  const accentBorder = isMba ? "border-warning/30" : isTech ? "border-primary/30" : "border-accent/30";
 
   return (
     <div className="space-y-6">

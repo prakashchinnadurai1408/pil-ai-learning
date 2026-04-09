@@ -8,7 +8,7 @@ import {
   Search, ChevronDown, ChevronRight, FileText, ExternalLink,
   CheckCircle, Monitor, BookOpen, FolderOpen, Github, MessageSquare, Send, Trash2, PenLine
 } from "lucide-react";
-import { techStream, nonTechStream } from "@/data/projectGuideData";
+import { techStream, nonTechStream, mbaCaseStudyStream } from "@/data/projectGuideData";
 import { toast } from "sonner";
 
 interface ProjectProgress {
@@ -65,7 +65,11 @@ interface StudentProjectSummary {
   }[];
 }
 
-const getStream = (id: string) => (id === "tech" ? techStream : nonTechStream);
+const getStream = (id: string) => {
+  if (id === "tech") return techStream;
+  if (id === "mba-casestudy") return mbaCaseStudyStream;
+  return nonTechStream;
+};
 
 const formatSize = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`;

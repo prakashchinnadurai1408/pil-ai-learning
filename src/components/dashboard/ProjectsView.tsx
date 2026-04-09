@@ -5,9 +5,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import {
   Monitor, BookOpen, ArrowLeft, CheckCircle, ChevronDown, ChevronRight,
-  FileText, Clock, Target, AlertCircle, Lightbulb, Layers, Github, PenLine, MessageSquare
+  FileText, Clock, Target, AlertCircle, Lightbulb, Layers, Github, PenLine, MessageSquare, Briefcase
 } from "lucide-react";
-import { techStream, nonTechStream, type ProjectStream, type ProjectStep } from "@/data/projectGuideData";
+import { techStream, nonTechStream, mbaCaseStudyStream, type ProjectStream, type ProjectStep } from "@/data/projectGuideData";
 import { useProjectDocuments } from "@/hooks/useProjectDocuments";
 import { useProjectProgress } from "@/hooks/useProjectProgress";
 import { supabase } from "@/integrations/supabase/client";
@@ -96,7 +96,7 @@ const ProjectsView = () => {
           </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
+        <div className="grid sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
           {/* Tech Stream */}
           <button
             onClick={() => setSelectedStream(techStream)}
@@ -132,15 +132,34 @@ const ProjectsView = () => {
               Get Started <ChevronRight className="h-3 w-3" />
             </div>
           </button>
+
+          {/* MBA Case Study Stream */}
+          <button
+            onClick={() => setSelectedStream(mbaCaseStudyStream)}
+            className="group bg-card rounded-xl border-2 border-border p-6 shadow-card hover:shadow-elevated hover:border-warning/40 transition-all text-left"
+          >
+            <div className="w-14 h-14 rounded-xl bg-warning/10 flex items-center justify-center mb-4 group-hover:bg-warning/20 transition-colors">
+              <Briefcase className="h-7 w-7 text-warning" />
+            </div>
+            <h4 className="font-display font-bold text-lg text-card-foreground mb-1">MBA Case Study Stream</h4>
+            <p className="text-sm text-warning font-medium mb-2">10 Steps · CaseIQ — Business Analysis</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Covers: Team Formation, AI Research, Collaborative Drafting, Peer Review, Grading, Presentation, Portfolio
+            </p>
+            <div className="mt-4 flex items-center gap-2 text-xs font-medium text-warning opacity-0 group-hover:opacity-100 transition-opacity">
+              Get Started <ChevronRight className="h-3 w-3" />
+            </div>
+          </button>
         </div>
       </div>
     );
   }
 
   const isTech = selectedStream.id === "tech";
-  const accentClass = isTech ? "text-primary" : "text-accent";
-  const accentBg = isTech ? "bg-primary/10" : "bg-accent/10";
-  const accentBorder = isTech ? "border-primary/30" : "border-accent/30";
+  const isMba = selectedStream.id === "mba-casestudy";
+  const accentClass = isMba ? "text-warning" : isTech ? "text-primary" : "text-accent";
+  const accentBg = isMba ? "bg-warning/10" : isTech ? "bg-primary/10" : "bg-accent/10";
+  const accentBorder = isMba ? "border-warning/30" : isTech ? "border-primary/30" : "border-accent/30";
 
   return (
     <div className="space-y-6">
@@ -429,7 +448,7 @@ const StepCard = ({
             <ul className="space-y-2">
               {step.whatHappens.map((item, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                  <span className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${isTech ? "bg-primary" : "bg-accent"}`} />
+                  <span className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${accentClass.includes("primary") ? "bg-primary" : accentClass.includes("warning") ? "bg-warning" : "bg-accent"}`} />
                   {item}
                 </li>
               ))}

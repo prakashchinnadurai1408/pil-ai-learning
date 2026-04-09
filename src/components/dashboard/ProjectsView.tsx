@@ -5,9 +5,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import {
   Monitor, BookOpen, ArrowLeft, CheckCircle, ChevronDown, ChevronRight,
-  FileText, Clock, Target, AlertCircle, Lightbulb, Layers, Github, PenLine, MessageSquare
+  FileText, Clock, Target, AlertCircle, Lightbulb, Layers, Github, PenLine, MessageSquare, Briefcase
 } from "lucide-react";
-import { techStream, nonTechStream, type ProjectStream, type ProjectStep } from "@/data/projectGuideData";
+import { techStream, nonTechStream, mbaCaseStudyStream, type ProjectStream, type ProjectStep } from "@/data/projectGuideData";
 import { useProjectDocuments } from "@/hooks/useProjectDocuments";
 import { useProjectProgress } from "@/hooks/useProjectProgress";
 import { supabase } from "@/integrations/supabase/client";

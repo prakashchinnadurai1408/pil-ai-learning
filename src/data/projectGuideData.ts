@@ -16,7 +16,7 @@ export interface ProjectStep {
 }
 
 export interface ProjectStream {
-  id: "tech" | "non-tech";
+  id: "tech" | "non-tech" | "mba-casestudy";
   title: string;
   subtitle: string;
   stepsCount: number;

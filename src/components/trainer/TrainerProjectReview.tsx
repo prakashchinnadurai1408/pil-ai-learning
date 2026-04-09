@@ -8,7 +8,7 @@ import {
   Search, ChevronDown, ChevronRight, FileText, ExternalLink,
   CheckCircle, Monitor, BookOpen, FolderOpen, Github, MessageSquare, Send, Trash2, PenLine
 } from "lucide-react";
-import { techStream, nonTechStream } from "@/data/projectGuideData";
+import { techStream, nonTechStream, mbaCaseStudyStream } from "@/data/projectGuideData";
 import { toast } from "sonner";
 
 interface ProjectProgress {

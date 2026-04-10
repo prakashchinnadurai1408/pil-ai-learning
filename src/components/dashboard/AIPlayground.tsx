@@ -115,6 +115,7 @@ const AIPlayground = () => {
           .filter((_, i) => i > 0 || updatedMessages[0].role === "user")
           .map(m => ({ role: m.role, content: m.content })),
         tool: lang !== "en-IN" ? `lang:${selectedLang?.aiLabel}` : undefined,
+        studentContext: studentCtx,
         onDelta: (chunk) => upsertAssistant(chunk),
         onDone: () => {
           setIsLoading(false);

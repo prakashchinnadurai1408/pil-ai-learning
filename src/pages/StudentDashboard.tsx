@@ -41,6 +41,9 @@ const StudentDashboard = () => {
   const publishedAdminModules = adminModules.filter(m => m.status === "published");
   const studentName = sessionStorage.getItem("studentName") || "Student";
   const studentId = sessionStorage.getItem("studentId");
+  const studentCollege = sessionStorage.getItem("studentCollege") || "";
+  const studentDepartment = sessionStorage.getItem("studentDepartment") || "";
+  const studentDegree = sessionStorage.getItem("studentDegree") || "";
   const overallProgress = 28;
   const [userTier, setUserTier] = useState<"free" | "premium">("free");
   const [menuAccess, setMenuAccess] = useState<MenuAccessConfig>({
@@ -57,12 +60,26 @@ const StudentDashboard = () => {
   useEffect(() => {
     getMenuAccess().then(setMenuAccess);
     if (studentId) {
-      supabase.from("students").select("subscription_tier").eq("id", studentId).single()
+      supabase.from("students").select("subscription_tier, college, department, degree").eq("id", studentId).single()
         .then(({ data }) => {
           if (data?.subscription_tier === "premium") setUserTier("premium");
+          if (data?.college) sessionStorage.setItem("studentCollege", data.college);
+          if (data?.department) sessionStorage.setItem("studentDepartment", data.department);
+          if (data?.degree) sessionStorage.setItem("studentDegree", data.degree);
         });
     }
   }, [studentId]);
+
+  const { allowedModuleIds, pathNames } = useStudentLearningPaths(studentCollege, studentDepartment, studentDegree, userTier);
+
+  // Filter modules based on learning paths (null = show all)
+  const filteredModules = allowedModuleIds === null
+    ? modules
+    : modules.filter(m => allowedModuleIds.includes(m.id));
+
+  const filteredAdminModules = allowedModuleIds === null
+    ? publishedAdminModules
+    : publishedAdminModules.filter(m => allowedModuleIds.includes(m.id));
 
   const allTabs = [
     { value: "modules" as keyof MenuAccessConfig, icon: BookOpen, label: "Modules" },

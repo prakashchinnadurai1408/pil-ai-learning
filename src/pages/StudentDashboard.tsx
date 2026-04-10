@@ -142,6 +142,29 @@ const StudentDashboard = () => {
           <Progress value={overallProgress} className="h-2" aria-label={`Progress: ${overallProgress}%`} />
         </div>
 
+        {/* AI Coach Widget */}
+        {studentId && (
+          <div className="mb-8">
+            <ErrorBoundary>
+              <Suspense fallback={<ContentSkeleton />}>
+                <AICoachWidget
+                  studentId={studentId}
+                  studentName={studentName}
+                  onOpenChat={(msg) => { setActiveTab("playground"); }}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+        )}
+
+        {/* Learning Path indicator */}
+        {pathNames.length > 0 && (
+          <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+            <BookOpen className="h-4 w-4 text-primary" />
+            <span>Your learning paths: <strong className="text-foreground">{pathNames.join(", ")}</strong></span>
+          </div>
+        )}
+
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => {
           const isLocked = lockedTabs.some(t => t.value === v);

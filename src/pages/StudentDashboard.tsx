@@ -254,15 +254,15 @@ const StudentDashboard = () => {
                   })}
                 </div>
 
-                {publishedAdminModules.length > 0 && (
+                {filteredAdminModules.length > 0 && (
                   <>
                     <div className="flex items-center gap-2 mt-8 mb-4">
                       <Sparkles className="h-4 w-4 text-accent" />
                       <h3 className="font-display font-semibold text-card-foreground">Additional Modules</h3>
-                      <span className="text-xs text-muted-foreground">({publishedAdminModules.length} new)</span>
+                      <span className="text-xs text-muted-foreground">({filteredAdminModules.length} new)</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" role="list">
-                      {publishedAdminModules.map((mod) => (
+                      {filteredAdminModules.map((mod) => (
                         <div
                           key={`admin-${mod.id}`}
                           role="listitem"

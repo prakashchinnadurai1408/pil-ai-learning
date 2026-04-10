@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { modules } from "@/data/modules";
 import { useAdminModules } from "@/hooks/useAdminModules";
+import { useStudentLearningPaths } from "@/hooks/useLearningPaths";
 import {
   BookOpen, MessageSquare, Video, FlaskConical, ClipboardCheck,
   FolderKanban, LogOut, Play, CheckCircle, Sparkles, Code2, Pencil,
@@ -17,6 +18,7 @@ import { getMenuAccess, type MenuAccessConfig } from "@/hooks/useMenuAccessContr
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { toast } from "sonner";
 import NotificationsPanel from "@/components/dashboard/NotificationsPanel";
+import { ContentSkeleton } from "@/components/LoadingFallback";
 import { ContentSkeleton } from "@/components/LoadingFallback";
 
 const AIPlayground = lazy(() => import("@/components/dashboard/AIPlayground"));
@@ -29,6 +31,7 @@ const ModuleDetailView = lazy(() => import("@/components/dashboard/ModuleDetailV
 const ProgrammingModule = lazy(() => import("@/components/dashboard/ProgrammingModule"));
 const PromptEngineeringLab = lazy(() => import("@/components/dashboard/PromptEngineeringLab"));
 const StudentProfilePage = lazy(() => import("@/components/dashboard/StudentProfilePage"));
+const AICoachWidget = lazy(() => import("@/components/dashboard/AICoachWidget"));
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState("modules");

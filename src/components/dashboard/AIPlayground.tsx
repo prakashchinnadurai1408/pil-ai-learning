@@ -38,6 +38,48 @@ const AIPlayground = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [lang, setLang] = useState<LanguageCode>("en-IN");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [studentCtx, setStudentCtx] = useState<Record<string, any> | undefined>(undefined);
+
+  // Fetch student learning context for adaptive AI
+  useEffect(() => {
+    const fetchContext = async () => {
+      const studentId = sessionStorage.getItem("studentId");
+      const studentName = sessionStorage.getItem("studentName");
+      if (!studentId) return;
+
+      const [{ data: modProgress }, { data: quizScores }, { data: assessScores }, { data: codingSolved }] = await Promise.all([
+        supabase.from("student_module_progress").select("module_id, progress_percent, completed").eq("student_id", studentId),
+        supabase.from("student_assessment_scores").select("module_id, score").eq("student_id", studentId),
+        supabase.from("assessment_attempts").select("score").eq("student_id", studentId),
+        supabase.from("student_solved_challenges").select("id").eq("student_name", studentName || ""),
+      ]);
+
+      const completed = (modProgress || []).filter((m: any) => m.completed).length;
+      const avgQuiz = quizScores && quizScores.length > 0
+        ? Math.round(quizScores.reduce((a: number, b: any) => a + b.score, 0) / quizScores.length)
+        : 0;
+      const avgAssess = assessScores && assessScores.length > 0
+        ? Math.round(assessScores.reduce((a: number, b: any) => a + b.score, 0) / assessScores.length)
+        : 0;
+
+      // Identify weak modules (quiz score < 60)
+      const weakModules = (quizScores || [])
+        .filter((q: any) => q.score < 60)
+        .map((q: any) => modules.find(m => m.id === q.module_id)?.title)
+        .filter(Boolean);
+
+      setStudentCtx({
+        completedModules: completed,
+        totalModules: modules.length,
+        avgQuizScore: avgQuiz,
+        assessmentCount: assessScores?.length || 0,
+        avgAssessmentScore: avgAssess,
+        codingSolved: codingSolved?.length || 0,
+        weakAreas: weakModules.length > 0 ? weakModules.join(", ") : "Not yet determined",
+      });
+    };
+    fetchContext();
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });

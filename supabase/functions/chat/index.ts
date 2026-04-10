@@ -9,7 +9,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, tool } = await req.json();
+    const { messages, tool, studentContext } = await req.json();
 
     // AI-05: Validate messages are non-empty
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -36,6 +36,20 @@ serve(async (req) => {
 
     // AI-03: System prompt instructs model to use conversation context
     let systemPrompt = "You are Aira, an AI learning assistant for the PluginLive AI LearnHub platform. You help UG/PG students learn about AI concepts, prompt engineering, LLMs, RAG, AI agents, and more. Keep answers clear, educational, and practical. Use markdown formatting with headers, bullet points, and code blocks where appropriate. IMPORTANT: You have access to the full conversation history. Always reference and build upon earlier messages when relevant. If the student asks a follow-up question, connect it to your prior answers.";
+
+    // Inject student learning context for adaptive coaching
+    if (studentContext && typeof studentContext === "object") {
+      const ctx = studentContext;
+      systemPrompt += `\n\nSTUDENT LEARNING CONTEXT (use this to personalize your responses):
+- Modules completed: ${ctx.completedModules || 0}/${ctx.totalModules || 10}
+- Average quiz score: ${ctx.avgQuizScore || 0}%
+- Assessments taken: ${ctx.assessmentCount || 0}, avg score: ${ctx.avgAssessmentScore || 0}%
+- Coding challenges solved: ${ctx.codingSolved || 0}
+- Current learning paths: ${ctx.pathNames || "None assigned"}
+- Weak areas: ${ctx.weakAreas || "Not yet determined"}
+
+When the student asks for help, adapt your explanations to their level. If they have low scores in certain areas, provide more foundational explanations. If they're advanced, provide deeper insights. When they ask for advice, reference their actual progress data.`;
+    }
 
     if (tool === "summarize") {
       systemPrompt = "You are a text summarization expert. Summarize the given text concisely while preserving key points. Use bullet points for clarity.";

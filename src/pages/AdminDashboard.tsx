@@ -2,7 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2, LayoutDashboard, ClipboardCheck, BarChart3, Eye, FolderKanban } from "lucide-react";
+import { Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2, LayoutDashboard, ClipboardCheck, BarChart3, Eye, FolderKanban, Route } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
 const UserManagement = lazy(() => import("@/components/admin/UserManagement"));
@@ -16,6 +16,7 @@ const AssessmentCreator = lazy(() => import("@/components/admin/AssessmentCreato
 const AssessmentAnalytics = lazy(() => import("@/components/admin/AssessmentAnalytics"));
 const ProctoringAnalytics = lazy(() => import("@/components/admin/ProctoringAnalytics"));
 const TrainerProjectReview = lazy(() => import("@/components/trainer/TrainerProjectReview"));
+const LearningPathsManager = lazy(() => import("@/components/admin/LearningPathsManager"));
 
 const TabSkeleton = () => (
   <div className="space-y-4 animate-pulse">
@@ -87,6 +88,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="projects" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <FolderKanban className="h-4 w-4" /> Projects
             </TabsTrigger>
+            <TabsTrigger value="learning-paths" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Route className="h-4 w-4" /> Paths
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -152,6 +156,12 @@ const AdminDashboard = () => {
           <TabsContent value="projects">
             <Suspense fallback={<TabSkeleton />}>
               <TrainerProjectReview />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="learning-paths">
+            <Suspense fallback={<TabSkeleton />}>
+              <LearningPathsManager />
             </Suspense>
           </TabsContent>
         </Tabs>

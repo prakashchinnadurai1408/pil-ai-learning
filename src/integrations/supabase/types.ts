@@ -339,6 +339,103 @@ export type Database = {
         }
         Relationships: []
       }
+      learning_path_assignments: {
+        Row: {
+          college: string
+          created_at: string
+          degree: string
+          department: string
+          id: string
+          path_id: string
+        }
+        Insert: {
+          college?: string
+          created_at?: string
+          degree?: string
+          department?: string
+          id?: string
+          path_id: string
+        }
+        Update: {
+          college?: string
+          created_at?: string
+          degree?: string
+          department?: string
+          id?: string
+          path_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_path_assignments_path_id_fkey"
+            columns: ["path_id"]
+            isOneToOne: false
+            referencedRelation: "learning_paths"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_path_modules: {
+        Row: {
+          created_at: string
+          id: string
+          module_id: number
+          path_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          module_id: number
+          path_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          module_id?: number
+          path_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_path_modules_path_id_fkey"
+            columns: ["path_id"]
+            isOneToOne: false
+            referencedRelation: "learning_paths"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_paths: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          required_tier: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          required_tier?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          required_tier?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       locations: {
         Row: {
           created_at: string

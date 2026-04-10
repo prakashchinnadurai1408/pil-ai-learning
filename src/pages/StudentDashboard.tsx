@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { modules } from "@/data/modules";
 import { useAdminModules } from "@/hooks/useAdminModules";
+import { useStudentLearningPaths } from "@/hooks/useLearningPaths";
 import {
   BookOpen, MessageSquare, Video, FlaskConical, ClipboardCheck,
   FolderKanban, LogOut, Play, CheckCircle, Sparkles, Code2, Pencil,
@@ -29,6 +30,7 @@ const ModuleDetailView = lazy(() => import("@/components/dashboard/ModuleDetailV
 const ProgrammingModule = lazy(() => import("@/components/dashboard/ProgrammingModule"));
 const PromptEngineeringLab = lazy(() => import("@/components/dashboard/PromptEngineeringLab"));
 const StudentProfilePage = lazy(() => import("@/components/dashboard/StudentProfilePage"));
+const AICoachWidget = lazy(() => import("@/components/dashboard/AICoachWidget"));
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState("modules");
@@ -39,6 +41,9 @@ const StudentDashboard = () => {
   const publishedAdminModules = adminModules.filter(m => m.status === "published");
   const studentName = sessionStorage.getItem("studentName") || "Student";
   const studentId = sessionStorage.getItem("studentId");
+  const studentCollege = sessionStorage.getItem("studentCollege") || "";
+  const studentDepartment = sessionStorage.getItem("studentDepartment") || "";
+  const studentDegree = sessionStorage.getItem("studentDegree") || "";
   const overallProgress = 28;
   const [userTier, setUserTier] = useState<"free" | "premium">("free");
   const [menuAccess, setMenuAccess] = useState<MenuAccessConfig>({
@@ -55,12 +60,26 @@ const StudentDashboard = () => {
   useEffect(() => {
     getMenuAccess().then(setMenuAccess);
     if (studentId) {
-      supabase.from("students").select("subscription_tier").eq("id", studentId).single()
+      supabase.from("students").select("subscription_tier, college, department, degree").eq("id", studentId).single()
         .then(({ data }) => {
           if (data?.subscription_tier === "premium") setUserTier("premium");
+          if (data?.college) sessionStorage.setItem("studentCollege", data.college);
+          if (data?.department) sessionStorage.setItem("studentDepartment", data.department);
+          if (data?.degree) sessionStorage.setItem("studentDegree", data.degree);
         });
     }
   }, [studentId]);
+
+  const { allowedModuleIds, pathNames } = useStudentLearningPaths(studentCollege, studentDepartment, studentDegree, userTier);
+
+  // Filter modules based on learning paths (null = show all)
+  const filteredModules = allowedModuleIds === null
+    ? modules
+    : modules.filter(m => allowedModuleIds.includes(m.id));
+
+  const filteredAdminModules = allowedModuleIds === null
+    ? publishedAdminModules
+    : publishedAdminModules.filter(m => allowedModuleIds.includes(m.id));
 
   const allTabs = [
     { value: "modules" as keyof MenuAccessConfig, icon: BookOpen, label: "Modules" },
@@ -123,6 +142,29 @@ const StudentDashboard = () => {
           <Progress value={overallProgress} className="h-2" aria-label={`Progress: ${overallProgress}%`} />
         </div>
 
+        {/* AI Coach Widget */}
+        {studentId && (
+          <div className="mb-8">
+            <ErrorBoundary>
+              <Suspense fallback={<ContentSkeleton />}>
+                <AICoachWidget
+                  studentId={studentId}
+                  studentName={studentName}
+                  onOpenChat={(msg) => { setActiveTab("playground"); }}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+        )}
+
+        {/* Learning Path indicator */}
+        {pathNames.length > 0 && (
+          <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+            <BookOpen className="h-4 w-4 text-primary" />
+            <span>Your learning paths: <strong className="text-foreground">{pathNames.join(", ")}</strong></span>
+          </div>
+        )}
+
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => {
           const isLocked = lockedTabs.some(t => t.value === v);
@@ -167,7 +209,7 @@ const StudentDashboard = () => {
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" role="list" aria-label="Course modules">
-                  {modules.map((mod, i) => {
+                  {filteredModules.map((mod, i) => {
                     const Icon = mod.icon;
                     const isCompleted = i < 2;
                     const isActive = i === 2;
@@ -212,15 +254,15 @@ const StudentDashboard = () => {
                   })}
                 </div>
 
-                {publishedAdminModules.length > 0 && (
+                {filteredAdminModules.length > 0 && (
                   <>
                     <div className="flex items-center gap-2 mt-8 mb-4">
                       <Sparkles className="h-4 w-4 text-accent" />
                       <h3 className="font-display font-semibold text-card-foreground">Additional Modules</h3>
-                      <span className="text-xs text-muted-foreground">({publishedAdminModules.length} new)</span>
+                      <span className="text-xs text-muted-foreground">({filteredAdminModules.length} new)</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" role="list">
-                      {publishedAdminModules.map((mod) => (
+                      {filteredAdminModules.map((mod) => (
                         <div
                           key={`admin-${mod.id}`}
                           role="listitem"

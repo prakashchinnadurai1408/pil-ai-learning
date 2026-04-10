@@ -209,7 +209,7 @@ const StudentDashboard = () => {
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" role="list" aria-label="Course modules">
-                  {modules.map((mod, i) => {
+                  {filteredModules.map((mod, i) => {
                     const Icon = mod.icon;
                     const isCompleted = i < 2;
                     const isActive = i === 2;

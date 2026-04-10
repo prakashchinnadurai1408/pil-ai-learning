@@ -19,7 +19,6 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { toast } from "sonner";
 import NotificationsPanel from "@/components/dashboard/NotificationsPanel";
 import { ContentSkeleton } from "@/components/LoadingFallback";
-import { ContentSkeleton } from "@/components/LoadingFallback";
 
 const AIPlayground = lazy(() => import("@/components/dashboard/AIPlayground"));
 const VideoLearning = lazy(() => import("@/components/dashboard/VideoLearning"));

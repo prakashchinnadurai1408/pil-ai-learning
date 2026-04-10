@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Sparkles, Lightbulb } from "lucide-react";
 import { streamChat } from "@/lib/streamChat";
 import { toast } from "sonner";
 import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
+import { modules } from "@/data/modules";
 import ChatMessage from "./chat/ChatMessage";
 import ChatLanguageSelector, { LANGUAGES, type LanguageCode } from "./chat/ChatLanguageSelector";
 import ChatVoiceInput from "./chat/ChatVoiceInput";

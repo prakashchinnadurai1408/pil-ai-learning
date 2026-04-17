@@ -100,7 +100,7 @@ const TrainerLogin = () => {
         <div className="relative z-10 max-w-md">
           <img src={pluginliveLogo} alt="PluginLive" className="h-12 mb-8 animate-float" />
           <h2 className="text-3xl font-display font-bold mb-4" style={{ color: "hsl(0, 0%, 95%)" }}>Trainer & Coordinator Portal</h2>
-          <p style={{ color: "hsl(220, 15%, 65%)" }}>Monitor student progress, assign training modules, conduct assessments, and manage your institute's AI learning journey.</p>
+          <p style={{ color: "hsl(220, 15%, 65%)" }}>Monitor candidate progress, assign training modules, conduct assessments, and manage your institute's AI learning journey.</p>
         </div>
       </div>
 

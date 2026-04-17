@@ -50,7 +50,7 @@ const lessons = [
     title: "Coding with AI Prompts",
     icon: Code2,
     difficulty: "Intermediate",
-    content: `### Code Generation\n\`\`\`\nWrite a Python function that:\n- Takes a list of student grades as input\n- Calculates mean, median, and mode\n- Returns a dictionary with these statistics\n- Include error handling for empty lists\n- Add docstring and type hints\n\`\`\`\n\n### Code Review\n\`\`\`\nReview this code for:\n1. Bug identification\n2. Performance improvements\n3. Security vulnerabilities\n4. Code style (PEP 8)\nProvide specific line-by-line feedback.\n\`\`\`\n\n### Debugging\n\`\`\`\nI'm getting [error message] when running [code].\nExplain why this error occurs and provide\na corrected version with explanation.\n\`\`\``,
+    content: `### Code Generation\n\`\`\`\nWrite a Python function that:\n- Takes a list of candidate grades as input\n- Calculates mean, median, and mode\n- Returns a dictionary with these statistics\n- Include error handling for empty lists\n- Add docstring and type hints\n\`\`\`\n\n### Code Review\n\`\`\`\nReview this code for:\n1. Bug identification\n2. Performance improvements\n3. Security vulnerabilities\n4. Code style (PEP 8)\nProvide specific line-by-line feedback.\n\`\`\`\n\n### Debugging\n\`\`\`\nI'm getting [error message] when running [code].\nExplain why this error occurs and provide\na corrected version with explanation.\n\`\`\``,
   },
   {
     id: 6,
@@ -81,7 +81,7 @@ const challenges = [
     id: 1,
     title: "Write a Research Abstract",
     difficulty: "Beginner",
-    task: "Craft a prompt that generates a 150-word abstract for a research paper on 'Impact of Social Media on Student Mental Health'. The abstract should include background, methodology, key findings, and conclusion.",
+    task: "Craft a prompt that generates a 150-word abstract for a research paper on 'Impact of Social Media on Candidate Mental Health'. The abstract should include background, methodology, key findings, and conclusion.",
     hint: "Use the RACE framework: define a Role (academic researcher), Action (write abstract), Context (topic details), Expectation (word count and structure).",
   },
   {

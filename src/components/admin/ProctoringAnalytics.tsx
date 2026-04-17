@@ -140,7 +140,7 @@ const ProctoringAnalytics = () => {
         </Select>
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search student..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input placeholder="Search candidate..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
       </div>
 
@@ -178,7 +178,7 @@ const ProctoringAnalytics = () => {
           <table className="w-full">
             <thead className="bg-muted/50">
               <tr className="text-left text-xs text-muted-foreground">
-                <th className="p-3 font-medium">Student</th>
+                <th className="p-3 font-medium">Candidate</th>
                 <th className="p-3 font-medium">Assessment</th>
                 <th className="p-3 font-medium text-center">Tab Switches</th>
                 <th className="p-3 font-medium text-center">FS Exits</th>

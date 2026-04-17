@@ -54,7 +54,7 @@ export const techStream: ProjectStream = {
       title: "Requirements Gathering & SRS Document",
       subtitle: "Define what the system must do — functional & non-functional requirements",
       whatHappens: [
-        "Identify stakeholders — who will use this system? (admin, student, teacher, public)",
+        "Identify stakeholders — who will use this system? (admin, candidate, teacher, public)",
         "List functional requirements — login, CRUD operations, search, reports, notifications etc.",
         "List non-functional requirements — performance, security, scalability, usability",
         "Write SRS — Software Requirements Specification using IEEE 830 standard format",
@@ -324,7 +324,7 @@ export const nonTechStream: ProjectStream = {
       ],
       documents: [
         { code: "CC", title: "College Certificate", description: "Signed by guide and HOD; scan and insert as Page 3 of report PDF" },
-        { code: "DL", title: "Student Declaration", description: "Signed by all team members; scan and insert after certificate" },
+        { code: "DL", title: "Candidate Declaration", description: "Signed by all team members; scan and insert after certificate" },
         { code: "SC", title: "All filled questionnaire scans", description: "Insert as Appendix A (merged PDF)" },
         { code: "VP", title: "Plagiarism Check Report", description: "Run Turnitin or Urkund; acceptable similarity below 20%" },
       ],
@@ -464,7 +464,7 @@ export const mbaCaseStudyStream: ProjectStream = {
         "Provide open-ended feedback on strengths, weaknesses, and improvement suggestions",
         "Peer review scores contribute to final grade with configurable weighting (10–20%)",
         "If configured, complete a second review round incorporating feedback from Round 1",
-        "Students can respond to peer reviews via a structured rebuttal mechanism",
+        "Candidates can respond to peer reviews via a structured rebuttal mechanism",
       ],
       documents: [
         { code: "PR", title: "Peer Review Form (Completed)", description: "Structured evaluation with Likert scores and written feedback for the reviewed team" },
@@ -490,7 +490,7 @@ export const mbaCaseStudyStream: ProjectStream = {
       duration: "Week 8",
       additionalInfo: [
         "Grade release is controlled — faculty holds grades until review is complete",
-        "Students can raise a grade appeal within 5 days of release",
+        "Candidates can raise a grade appeal within 5 days of release",
         "Grades can be exported to CSV, Excel, or pushed to LMS via API",
       ],
     },

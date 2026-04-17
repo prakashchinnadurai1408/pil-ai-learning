@@ -218,7 +218,7 @@ Format the response in clean markdown with headers and bullet points.`
   };
 
   const exportCSV = () => {
-    const headers = ["Rank", "Student", "College", "Degree", "Department", "Best Score", "Avg Score", "Attempts"];
+    const headers = ["Rank", "Candidate", "College", "Degree", "Department", "Best Score", "Avg Score", "Attempts"];
     const rows = rankings.map((r, i) => [i + 1, r.name, r.college, r.degree, r.department, r.bestScore, r.avgScore, r.attempts]);
     const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -244,7 +244,7 @@ Format the response in clean markdown with headers and bullet points.`
           <thead className="bg-muted/50">
             <tr className="text-left text-xs text-muted-foreground">
               <th className="p-3 font-medium">{groupLabel}</th>
-              <th className="p-3 font-medium">Students</th>
+              <th className="p-3 font-medium">Candidates</th>
               <th className="p-3 font-medium">Attempts</th>
               <th className="p-3 font-medium">Avg Score</th>
               {groupKey === "college" && <th className="p-3 font-medium">Pass Rate</th>}
@@ -300,7 +300,7 @@ Format the response in clean markdown with headers and bullet points.`
         </Select>
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search student or college..." className="pl-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+          <Input placeholder="Search candidate or college..." className="pl-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
         </div>
         <Button variant="outline" size="sm" className="gap-1" onClick={exportCSV}><Download className="h-3 w-3" /> CSV</Button>
         <Button variant="outline" size="sm" className="gap-1" onClick={handleExportPDF} disabled={exportingPDF || rankings.length === 0}>
@@ -316,7 +316,7 @@ Format the response in clean markdown with headers and bullet points.`
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
             { label: "Total Attempts", value: stats.totalAttempts, icon: BarChart3, color: "text-primary" },
-            { label: "Unique Students", value: stats.uniqueStudents, icon: Users, color: "text-accent" },
+            { label: "Unique Candidates", value: stats.uniqueStudents, icon: Users, color: "text-accent" },
             { label: "Avg Score", value: `${stats.avgScore}%`, icon: Target, color: "text-warning" },
             { label: "Pass Rate", value: `${stats.passRate}%`, icon: CheckCircle, color: "text-success" },
             { label: "Highest", value: `${stats.maxScore}%`, icon: TrendingUp, color: "text-success" },
@@ -341,7 +341,7 @@ Format the response in clean markdown with headers and bullet points.`
           <TabsTrigger value="college" className="gap-1 text-xs"><Building2 className="h-3 w-3" /> College-wise</TabsTrigger>
           <TabsTrigger value="degree" className="gap-1 text-xs"><GraduationCap className="h-3 w-3" /> Degree-wise</TabsTrigger>
           <TabsTrigger value="department" className="gap-1 text-xs"><Users className="h-3 w-3" /> Dept-wise</TabsTrigger>
-          <TabsTrigger value="student" className="gap-1 text-xs"><User className="h-3 w-3" /> Student-wise</TabsTrigger>
+          <TabsTrigger value="candidate" className="gap-1 text-xs"><User className="h-3 w-3" /> Candidate-wise</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overall" className="space-y-6 mt-4">
@@ -387,7 +387,7 @@ Format the response in clean markdown with headers and bullet points.`
           <GroupTable data={deptStats} groupKey="department" groupLabel="Department" icon={Users} />
         </TabsContent>
 
-        <TabsContent value="student" className="mt-4">
+        <TabsContent value="candidate" className="mt-4">
           {/* Full student rankings with degree/dept */}
           <div className="bg-card border border-border rounded-lg shadow-card overflow-hidden">
             <div className="p-4 border-b border-border">
@@ -400,7 +400,7 @@ Format the response in clean markdown with headers and bullet points.`
                 <thead className="bg-muted/50">
                   <tr className="text-left text-xs text-muted-foreground">
                     <th className="p-3 font-medium w-16">Rank</th>
-                    <th className="p-3 font-medium">Student</th>
+                    <th className="p-3 font-medium">Candidate</th>
                     <th className="p-3 font-medium">College</th>
                     <th className="p-3 font-medium">Degree</th>
                     <th className="p-3 font-medium">Department</th>

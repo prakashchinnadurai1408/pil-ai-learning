@@ -61,7 +61,7 @@ export const exportProctoringPDF = async (summaries: ProcSummary[], assessments:
 
   autoTable(doc, {
     startY: 40,
-    head: [["Student", "Assessment", "Tab Sw", "FS Exit", "No Face", "Multi Face", "Eye Viol", "Photos", "Score", "Status", "Date"]],
+    head: [["Candidate", "Assessment", "Tab Sw", "FS Exit", "No Face", "Multi Face", "Eye Viol", "Photos", "Score", "Status", "Date"]],
     body: rows,
     styles: { fontSize: 8, cellPadding: 2 },
     headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: "bold" },
@@ -91,7 +91,7 @@ export const exportProctoringPDF = async (summaries: ProcSummary[], assessments:
     doc.addPage();
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text(`Student Detail: ${name}`, 14, 18);
+    doc.text(`Candidate Detail: ${name}`, 14, 18);
 
     const totalViolations = studentSummaries.reduce((acc, s) =>
       acc + s.tab_switch_count + s.fullscreen_exit_count + s.face_not_detected_count + s.multiple_faces_count + s.eye_movement_violations, 0);

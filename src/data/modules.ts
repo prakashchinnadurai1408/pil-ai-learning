@@ -13,7 +13,7 @@ export const modules = [
   },
   {
     id: 2,
-    title: "AI Tools for Students",
+    title: "AI Tools for Candidates",
     description: "Writing, research, summarization, coding assistants & productivity tools",
     icon: Wrench,
     topics: ["ChatGPT", "Claude", "Gemini", "Perplexity", "GitHub Copilot"],

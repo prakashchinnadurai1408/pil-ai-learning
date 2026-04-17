@@ -66,7 +66,7 @@ const NotificationsPanel = ({ studentId }: NotificationsPanelProps) => {
   useEffect(() => {
     if (!studentId) return;
     const channel = supabase
-      .channel("student-notifications")
+      .channel("candidate-notifications")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "student_notifications", filter: `student_id=eq.${studentId}` },

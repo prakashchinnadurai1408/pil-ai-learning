@@ -26,11 +26,11 @@ export const videoLessons: VideoLesson[] = [
   { id: 5, title: "History & Future of AI", moduleId: 1, module: "Introduction to AI", duration: "14:10", youtubeId: "a0_lo_GDcFw", completed: false },
 
   // Module 2: AI Tools for Students
-  { id: 6, title: "ChatGPT Tutorial for Beginners", moduleId: 2, module: "AI Tools for Students", duration: "18:30", youtubeId: "JTxsNm9IdYU", completed: false },
-  { id: 7, title: "Google Gemini Complete Guide", moduleId: 2, module: "AI Tools for Students", duration: "30:00", youtubeId: "ZpXnPLSxjhQ", completed: false },
-  { id: 8, title: "Claude AI — How to Use It", moduleId: 2, module: "AI Tools for Students", duration: "49:16", youtubeId: "rRrBbyv3ChM", completed: false },
-  { id: 9, title: "Perplexity AI for Research", moduleId: 2, module: "AI Tools for Students", duration: "13:18", youtubeId: "ISeZc6qKUSw", completed: false },
-  { id: 10, title: "GitHub Copilot for Students", moduleId: 2, module: "AI Tools for Students", duration: "16:50", youtubeId: "Fi3AJZZregI", completed: false },
+  { id: 6, title: "ChatGPT Tutorial for Beginners", moduleId: 2, module: "AI Tools for Candidates", duration: "18:30", youtubeId: "JTxsNm9IdYU", completed: false },
+  { id: 7, title: "Google Gemini Complete Guide", moduleId: 2, module: "AI Tools for Candidates", duration: "30:00", youtubeId: "ZpXnPLSxjhQ", completed: false },
+  { id: 8, title: "Claude AI — How to Use It", moduleId: 2, module: "AI Tools for Candidates", duration: "49:16", youtubeId: "rRrBbyv3ChM", completed: false },
+  { id: 9, title: "Perplexity AI for Research", moduleId: 2, module: "AI Tools for Candidates", duration: "13:18", youtubeId: "ISeZc6qKUSw", completed: false },
+  { id: 10, title: "GitHub Copilot for Candidates", moduleId: 2, module: "AI Tools for Candidates", duration: "16:50", youtubeId: "Fi3AJZZregI", completed: false },
 
   // Module 3: Prompt Engineering
   { id: 11, title: "What is Prompt Engineering?", moduleId: 3, module: "Prompt Engineering", duration: "13:25", youtubeId: "_ZvnD73m40o", completed: false },
@@ -79,7 +79,7 @@ export const videoLessons: VideoLesson[] = [
   // Module 10: AI SaaS Development
   { id: 41, title: "Building AI Products — Where to Start", moduleId: 10, module: "AI SaaS Development", duration: "29:27", youtubeId: "y6DSUCB_0uE", completed: false },
   { id: 42, title: "AI APIs — Integration Guide", moduleId: 10, module: "AI SaaS Development", duration: "23:46", youtubeId: "czvVibB2lRA", completed: false },
-  { id: 43, title: "AI Startup Opportunities for Students", moduleId: 10, module: "AI SaaS Development", duration: "49:14", youtubeId: "rQcXmY6rSVY", completed: false },
+  { id: 43, title: "AI Startup Opportunities for Candidates", moduleId: 10, module: "AI SaaS Development", duration: "49:14", youtubeId: "rQcXmY6rSVY", completed: false },
   { id: 44, title: "Deploying Your First AI App", moduleId: 10, module: "AI SaaS Development", duration: "43:12", youtubeId: "sO6NSSOWDO0", completed: false },
 ];
 
@@ -187,7 +187,7 @@ export const mcqBank: MCQQuestion[] = [
 
 export const moduleNames: Record<number, string> = {
   1: "Introduction to AI",
-  2: "AI Tools for Students",
+  2: "AI Tools for Candidates",
   3: "Prompt Engineering",
   4: "Multimodal AI",
   5: "AI Agents",

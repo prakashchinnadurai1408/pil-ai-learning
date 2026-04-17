@@ -47,7 +47,7 @@ const Navbar = () => {
           <Link to="/student-login">
             <Button size="sm" className="gap-2 bg-gradient-primary border-0 text-primary-foreground hover:opacity-90">
               <GraduationCap className="h-4 w-4" />
-              <span className="hidden sm:inline">Student Login</span>
+              <span className="hidden sm:inline">Candidate Login</span>
             </Button>
           </Link>
         </div>

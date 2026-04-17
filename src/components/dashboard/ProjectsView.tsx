@@ -68,7 +68,7 @@ const ProjectsView = () => {
       stream_id: selectedStream.id,
       feedback: replyText.trim(),
       reviewer_name: studentName,
-      reviewer_role: "student",
+      reviewer_role: "candidate",
       parent_id: parentId,
     } as any);
     setReplyText("");
@@ -253,7 +253,7 @@ const ProjectsView = () => {
             <div className={`${depth === 1 ? 'ml-6' : 'ml-4'} space-y-2`}>
               {children.map((r) => (
                 <div key={r.id} className="space-y-2">
-                  <div className={`p-2.5 rounded-lg border ${r.reviewer_role === 'student' ? 'border-primary/20 bg-primary/5' : 'border-accent/20 bg-accent/5'}`}>
+                  <div className={`p-2.5 rounded-lg border ${r.reviewer_role === 'candidate' ? 'border-primary/20 bg-primary/5' : 'border-accent/20 bg-accent/5'}`}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-medium text-foreground">
                         {r.reviewer_name} <span className="text-muted-foreground">({r.reviewer_role})</span>

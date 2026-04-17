@@ -57,7 +57,7 @@ const StudentLogin = () => {
       college: form.college.trim(), location: form.location.trim(), password: form.password,
       degree: form.degree.trim(), department: form.department.trim(),
     } as any);
-    if (error) { console.error("Student insert error:", error); toast.error("Registration failed"); return; }
+    if (error) { console.error("Candidate insert error:", error); toast.error("Registration failed"); return; }
     sessionStorage.setItem("studentName", form.name);
     sessionStorage.setItem("studentMobile", form.mobile);
     sessionStorage.setItem("studentCollege", form.college);
@@ -146,7 +146,7 @@ const StudentLogin = () => {
               <GraduationCap className="h-5 w-5 text-primary-foreground" />
             </div>
             <h1 className="text-2xl font-display font-bold text-foreground">
-              {step === "register" || step === "otp" ? "Student Registration" : step === "signin" ? "Student Sign In" : "Reset Password"}
+              {step === "register" || step === "otp" ? "Candidate Registration" : step === "signin" ? "Candidate Sign In" : "Reset Password"}
             </h1>
           </div>
           <p className="text-muted-foreground mb-8">{subtitle[step]}</p>

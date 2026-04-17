@@ -34,6 +34,18 @@ const UserManagement = () => {
   const [editUser, setEditUser] = useState({ name: "", email: "", mobile: "", college: "", location: "" });
   const [newPassword, setNewPassword] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [statusMap, setStatusMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase.from("students") as any).select("id, status");
+      if (data) {
+        const map: Record<string, string> = {};
+        data.forEach((s: any) => { map[s.id] = s.status || "active"; });
+        setStatusMap(map);
+      }
+    })();
+  }, [refreshKey, students.length]);
 
   const filteredUsers = useMemo(() => {
     return students.filter(s => {

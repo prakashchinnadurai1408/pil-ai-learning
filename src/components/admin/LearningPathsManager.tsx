@@ -140,17 +140,25 @@ const LearningPathsManager = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-2">
-            <Route className="h-5 w-5 text-primary" /> Learning Paths
-          </h2>
-          <p className="text-sm text-muted-foreground">Group modules into cohort-based learning paths with access controls</p>
-        </div>
-        <Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" /> Create Path</Button>
+      <div>
+        <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-2">
+          <Route className="h-5 w-5 text-primary" /> Learning Paths
+        </h2>
+        <p className="text-sm text-muted-foreground">Cohort-based paths and AI-personalized paths per candidate</p>
       </div>
 
-      {loading ? (
+      <Tabs defaultValue="cohort" className="w-full">
+        <TabsList>
+          <TabsTrigger value="cohort" className="gap-2"><Users className="h-4 w-4" /> Cohort Paths</TabsTrigger>
+          <TabsTrigger value="ai" className="gap-2"><Brain className="h-4 w-4" /> AI Candidate Paths</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="cohort" className="space-y-4 mt-4">
+          <div className="flex justify-end">
+            <Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" /> Create Cohort Path</Button>
+          </div>
+
+          {loading ? (
         <div className="space-y-3 animate-pulse">
           {[1, 2].map(i => <div key={i} className="h-32 bg-muted rounded-lg" />)}
         </div>

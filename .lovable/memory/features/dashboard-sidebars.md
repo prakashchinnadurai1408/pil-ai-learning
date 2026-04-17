@@ -1,0 +1,9 @@
+---
+name: Dashboard sidebars
+description: All three role dashboards use shadcn Sidebar with grouped sections instead of top tabs
+type: design
+---
+- AdminDashboard groups: Overview, Manage (Users, Subscriptions, Learning Paths), Content (Modules, Section Content, Question Bank, Coding, Assessments), Analytics (Assessments, Proctoring, Projects, LLM Usage), System (LLM Settings).
+- StudentDashboard groups: Learn (Modules, Videos), Practice (AI Chat, Coding, Prompts, AI Tools), Progress (Assessments, Projects). Locked menu items show a lock icon and trigger upgrade dialog.
+- TrainerDashboard groups: Students (Student Progress), Assessments (Overview, Create), Analytics (Assessments, Modules, Coding), Reviews (Projects).
+- All use `collapsible="icon"` with `SidebarTrigger` in the sticky header.

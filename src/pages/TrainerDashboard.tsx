@@ -32,7 +32,7 @@ type TabKey = "students" | "assessments" | "create-assessment" | "assessment-ana
 
 const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: typeof Users }[] }[] = [
   {
-    label: "Students",
+    label: "Candidates",
     items: [
       { key: "students", label: "Student Progress", icon: Users },
     ],
@@ -181,7 +181,7 @@ const TrainerDashboard = () => {
           <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
             <div className="p-4 border-b border-border space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="font-display font-semibold text-card-foreground">Student Progress</h3>
+                <h3 className="font-display font-semibold text-card-foreground">Candidate Progress</h3>
                 <div className="flex items-center gap-2">
                   {hasFilters && (
                     <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" onClick={clearFilters}>
@@ -232,7 +232,7 @@ const TrainerDashboard = () => {
                 <thead className="bg-muted/50">
                   <tr className="text-left text-xs text-muted-foreground">
                     <th className="p-4 font-medium cursor-pointer select-none hover:text-foreground" onClick={() => handleSort("name")}>
-                      <span className="inline-flex items-center">Student <SortIcon col="name" /></span>
+                      <span className="inline-flex items-center">Candidate <SortIcon col="name" /></span>
                     </th>
                     <th className="p-4 font-medium cursor-pointer select-none hover:text-foreground" onClick={() => handleSort("college")}>
                       <span className="inline-flex items-center">College <SortIcon col="college" /></span>
@@ -394,7 +394,7 @@ const TrainerDashboard = () => {
           <main className="flex-1 px-6 py-8">
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
               {[
-                { label: "Total Students", value: String(totalStudents), icon: Users, color: "text-primary" },
+                { label: "Total Candidates", value: String(totalStudents), icon: Users, color: "text-primary" },
                 { label: "Avg Progress", value: `${avgProgress}%`, icon: TrendingUp, color: "text-success" },
                 { label: "Avg Score", value: `${avgOverallScore}%`, icon: ClipboardCheck, color: "text-warning" },
               ].map((stat) => {

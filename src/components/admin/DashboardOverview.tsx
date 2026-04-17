@@ -73,7 +73,7 @@ const DashboardOverview = () => {
   }
 
   const userCards = [
-    { label: "Students", value: studentCount, icon: GraduationCap, color: "text-blue-500" },
+    { label: "Candidates", value: studentCount, icon: GraduationCap, color: "text-blue-500" },
     { label: "Trainers", value: trainerCount, icon: Users, color: "text-green-500" },
     { label: "Modules", value: moduleCount, icon: Database, color: "text-purple-500" },
     { label: "Coding Challenges", value: challengeCount, icon: Code2, color: "text-orange-500" },

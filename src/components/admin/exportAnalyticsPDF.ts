@@ -92,7 +92,7 @@ export function exportAnalyticsPDF(data: ExportData) {
     addHeader("Performance Overview");
     const s = data.stats;
     const statsRows = [
-      ["Total Attempts", String(s.totalAttempts), "Unique Students", String(s.uniqueStudents)],
+      ["Total Attempts", String(s.totalAttempts), "Unique Candidates", String(s.uniqueStudents)],
       ["Average Score", `${s.avgScore}%`, "Pass Rate", `${s.passRate}%`],
       ["Highest Score", `${s.maxScore}%`, "Lowest Score", `${s.minScore}%`],
     ];
@@ -115,7 +115,7 @@ export function exportAnalyticsPDF(data: ExportData) {
     addHeader("Score Distribution");
     autoTable(doc, {
       startY: y,
-      head: [["Score Range", "Students", "Bar"]],
+      head: [["Score Range", "Candidates", "Bar"]],
       body: data.scoreDistribution.map(s => {
         const maxCount = Math.max(...data.scoreDistribution.map(d => d.count), 1);
         const bar = "█".repeat(Math.round((s.count / maxCount) * 20)) || "░";
@@ -146,10 +146,10 @@ export function exportAnalyticsPDF(data: ExportData) {
 
   // Student Rankings
   if (data.rankings.length > 0) {
-    addHeader("Student Rankings");
+    addHeader("Candidate Rankings");
     autoTable(doc, {
       startY: y,
-      head: [["Rank", "Student", "College", "Best Score", "Avg Score", "Attempts"]],
+      head: [["Rank", "Candidate", "College", "Best Score", "Avg Score", "Attempts"]],
       body: data.rankings.map((r, i) => [
         String(i + 1),
         r.name,

@@ -235,7 +235,7 @@ const TrainerProjectReview = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-card-foreground">{totalStudentsWithProjects}</p>
-            <p className="text-xs text-muted-foreground">Students with Projects</p>
+            <p className="text-xs text-muted-foreground">Candidates with Projects</p>
           </div>
         </div>
         <div className="bg-card rounded-lg border border-border shadow-card p-4 flex items-center gap-3">
@@ -265,7 +265,7 @@ const TrainerProjectReview = () => {
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search student..."
+              placeholder="Search candidate..."
               className="pl-9 h-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -462,7 +462,7 @@ const TrainerProjectReview = () => {
                                       <div className={`${depth === 1 ? 'ml-5' : 'ml-4'} space-y-1.5`}>
                                         {children.map((r) => (
                                           <div key={r.id} className="space-y-1.5">
-                                            <div className={`p-2 rounded-lg border ${r.reviewer_role === 'student' ? 'border-primary/20 bg-primary/5' : 'border-accent/20 bg-accent/5'}`}>
+                                            <div className={`p-2 rounded-lg border ${r.reviewer_role === 'candidate' ? 'border-primary/20 bg-primary/5' : 'border-accent/20 bg-accent/5'}`}>
                                               <div className="flex items-center justify-between mb-0.5">
                                                 <span className="text-xs font-medium text-foreground">
                                                   {r.reviewer_name} <span className="text-muted-foreground">({r.reviewer_role})</span>
@@ -518,7 +518,7 @@ const TrainerProjectReview = () => {
                                                 <span className="text-[10px] text-muted-foreground">
                                                   {new Date(fb.created_at).toLocaleDateString()}
                                                 </span>
-                                                {fb.reviewer_role !== "student" && (
+                                                {fb.reviewer_role !== "candidate" && (
                                                   <button
                                                     onClick={async () => {
                                                       await supabase.from("project_feedback").delete().eq("id", fb.id);
@@ -569,7 +569,7 @@ const TrainerProjectReview = () => {
                                 {/* Add feedback form */}
                                 <div className="flex gap-2">
                                   <Textarea
-                                    placeholder="Write feedback for this student's project..."
+                                    placeholder="Write feedback for this candidate's project..."
                                     value={feedbackText}
                                     onChange={(e) => setFeedbackText(e.target.value)}
                                     className="text-sm min-h-[40px]"

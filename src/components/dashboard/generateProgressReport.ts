@@ -44,7 +44,7 @@ export const generateProgressReport = (
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
-  doc.text("Student Progress Report", 14, 22);
+  doc.text("Candidate Progress Report", 14, 22);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text(`Generated on ${format(new Date(), "MMMM d, yyyy 'at' h:mm a")}`, 14, 30);
@@ -55,7 +55,7 @@ export const generateProgressReport = (
   doc.setTextColor(50, 50, 50);
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.text("Student Information", 14, y);
+  doc.text("Candidate Information", 14, y);
   y += 2;
   doc.setDrawColor(37, 99, 235);
   doc.setLineWidth(0.5);

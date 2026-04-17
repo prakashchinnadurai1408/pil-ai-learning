@@ -43,7 +43,7 @@ const StudentTierManager = () => {
       return;
     }
     setStudents(prev => prev.map(s => s.id === studentId ? { ...s, subscription_tier: newTier } : s));
-    toast.success(`Student tier updated to ${newTier}`);
+    toast.success(`Candidate tier updated to ${newTier}`);
   };
 
   const bulkUpdate = async (tier: string) => {

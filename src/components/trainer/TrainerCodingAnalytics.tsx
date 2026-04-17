@@ -105,7 +105,7 @@ const TrainerCodingAnalytics = () => {
   }, [solved, challenges]);
 
   const exportCSV = () => {
-    const headers = ["Student", "Challenges Solved", "Languages Used", "Last Solved"];
+    const headers = ["Candidate", "Challenges Solved", "Languages Used", "Last Solved"];
     const rows = studentStats.map(s => [s.name, s.solved, Array.from(s.languages).join("; "), new Date(s.lastSolved).toLocaleDateString()]);
     const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -221,7 +221,7 @@ const TrainerCodingAnalytics = () => {
           <div className="flex gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search student..." className="pl-9 h-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+              <Input placeholder="Search candidate..." className="pl-9 h-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
             </div>
             <Select value={langFilter} onValueChange={setLangFilter}>
               <SelectTrigger className="w-[150px] h-9">
@@ -239,7 +239,7 @@ const TrainerCodingAnalytics = () => {
             <thead className="bg-muted/50">
               <tr className="text-left text-xs text-muted-foreground">
                 <th className="p-4 font-medium w-10">#</th>
-                <th className="p-4 font-medium">Student</th>
+                <th className="p-4 font-medium">Candidate</th>
                 <th className="p-4 font-medium">Solved</th>
                 <th className="p-4 font-medium">Languages</th>
                 <th className="p-4 font-medium">Last Active</th>

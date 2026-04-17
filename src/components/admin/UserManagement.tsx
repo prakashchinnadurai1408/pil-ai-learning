@@ -30,7 +30,7 @@ const UserManagement = () => {
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<StudentData | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [newUser, setNewUser] = useState({ name: "", email: "", mobile: "", college: "", location: "", role: "student" });
+  const [newUser, setNewUser] = useState({ name: "", email: "", mobile: "", college: "", location: "", role: "candidate" });
   const [editUser, setEditUser] = useState({ name: "", email: "", mobile: "", college: "", location: "" });
   const [newPassword, setNewPassword] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -72,7 +72,7 @@ const UserManagement = () => {
     }
     toast.success(`${newUser.name} added successfully`);
     setAddDialogOpen(false);
-    setNewUser({ name: "", email: "", mobile: "", college: "", location: "", role: "student" });
+    setNewUser({ name: "", email: "", mobile: "", college: "", location: "", role: "candidate" });
     window.location.reload();
   };
 

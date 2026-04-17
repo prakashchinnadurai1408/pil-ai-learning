@@ -67,7 +67,7 @@ const ComposeMessageDialog = ({ recipientStudents }: ComposeMessageDialogProps) 
         console.warn("Email delivery attempted but may not be configured yet");
       }
 
-      toast.success(`Message sent to ${recipientStudents.length} student(s)`);
+      toast.success(`Message sent to ${recipientStudents.length} candidate(s)`);
       setSubject("");
       setBody("");
       setOpen(false);
@@ -88,7 +88,7 @@ const ComposeMessageDialog = ({ recipientStudents }: ComposeMessageDialogProps) 
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-display">Send Message to Students</DialogTitle>
+          <DialogTitle className="font-display">Send Message to Candidates</DialogTitle>
           <DialogDescription>
             This will send an in-app notification{" "}
             {recipientStudents.length > 0 && (

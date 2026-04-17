@@ -71,7 +71,7 @@ const defaultPlans: SubscriptionPlan[] = [
 const features: PlanFeature[] = [
   // Modules
   { name: "Introduction to AI Module", free: true, premium: true },
-  { name: "AI Tools for Students Module", free: true, premium: true },
+  { name: "AI Tools for Candidates Module", free: true, premium: true },
   { name: "Prompt Engineering Module", free: true, premium: true },
   { name: "Multimodal AI Module", free: false, premium: true },
   { name: "AI Agents Module", free: false, premium: true },

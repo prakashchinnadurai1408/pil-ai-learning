@@ -285,6 +285,42 @@ export type Database = {
           },
         ]
       }
+      candidate_diagnostic_results: {
+        Row: {
+          answers: Json
+          candidate_id: string
+          candidate_name: string
+          correct_answers: number
+          id: string
+          score: number
+          taken_at: string
+          topic_breakdown: Json
+          total_questions: number
+        }
+        Insert: {
+          answers?: Json
+          candidate_id: string
+          candidate_name?: string
+          correct_answers?: number
+          id?: string
+          score?: number
+          taken_at?: string
+          topic_breakdown?: Json
+          total_questions?: number
+        }
+        Update: {
+          answers?: Json
+          candidate_id?: string
+          candidate_name?: string
+          correct_answers?: number
+          id?: string
+          score?: number
+          taken_at?: string
+          topic_breakdown?: Json
+          total_questions?: number
+        }
+        Relationships: []
+      }
       candidate_learning_path_modules: {
         Row: {
           created_at: string
@@ -636,6 +672,36 @@ export type Database = {
           menu_key?: string
           premium_access?: boolean
           updated_at?: string
+        }
+        Relationships: []
+      }
+      path_regeneration_settings: {
+        Row: {
+          enabled: boolean
+          frequency: string
+          id: string
+          last_run_at: string | null
+          last_run_count: number
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          enabled?: boolean
+          frequency?: string
+          id?: string
+          last_run_at?: string | null
+          last_run_count?: number
+          updated_at?: string
+          updated_by?: string
+        }
+        Update: {
+          enabled?: boolean
+          frequency?: string
+          id?: string
+          last_run_at?: string | null
+          last_run_count?: number
+          updated_at?: string
+          updated_by?: string
         }
         Relationships: []
       }

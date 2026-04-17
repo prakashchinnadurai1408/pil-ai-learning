@@ -27,7 +27,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { candidateId } = await req.json();
+    const { candidateId, diagnostic, source } = await req.json();
     if (!candidateId) {
       return new Response(JSON.stringify({ error: "candidateId required" }), {
         status: 400,
@@ -63,8 +63,21 @@ serve(async (req) => {
 
     const hasActivity = progress.length > 0 || scores.length > 0 || attempts.length > 0 || coding.length > 0;
 
-    // ===== New candidate: default beginner path (no AI call) =====
-    if (!hasActivity) {
+    // Fetch latest diagnostic if any (in case caller didn't pass one but it exists)
+    let diagnosticData: any = diagnostic || null;
+    if (!diagnosticData) {
+      const { data: diagRow } = await sb
+        .from("candidate_diagnostic_results")
+        .select("score, total_questions, correct_answers, topic_breakdown")
+        .eq("candidate_id", candidateId)
+        .order("taken_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      diagnosticData = diagRow || null;
+    }
+
+    // ===== New candidate WITHOUT diagnostic: default beginner path =====
+    if (!hasActivity && !diagnosticData) {
       const path = await createPath(sb, {
         candidateId,
         candidateName: candidate.name,
@@ -110,6 +123,14 @@ serve(async (req) => {
       coding_challenges_solved: coding.length,
       coding_languages_used: codingLanguages,
       tier: candidate.subscription_tier,
+      diagnostic: diagnosticData
+        ? {
+            score_percent: diagnosticData.score,
+            correct: diagnosticData.correct_answers,
+            total: diagnosticData.total_questions,
+            topic_breakdown: diagnosticData.topic_breakdown || {},
+          }
+        : null,
     };
 
     // Get default LLM model
@@ -123,8 +144,9 @@ Rules:
 2. SKIP modules already completed with score >= 70%, but you may include them as "review" if scores are low.
 3. Prioritize modules where the candidate showed weakness (low quiz/assessment scores).
 4. If coding activity is low, include foundational modules. If coding is strong, accelerate to advanced topics.
-5. Provide a concise per-module reason (max 20 words).
-6. Provide an overall rationale explaining your strategy (max 80 words).
+5. If a diagnostic quiz result is provided, use the topic_breakdown to identify weak topics and prioritize related modules first.
+6. Provide a concise per-module reason (max 20 words).
+7. Provide an overall rationale explaining your strategy (max 80 words). If diagnostic was used, mention it.
 
 Respond with ONLY valid JSON in this exact shape:
 {

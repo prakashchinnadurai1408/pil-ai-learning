@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sparkles, Wand2, RefreshCw, Trash2, User, Brain } from "lucide-react";
 import { toast } from "sonner";
+import PathRegenerationSettings from "./PathRegenerationSettings";
 
 const AICandidatePathsManager = () => {
   const { paths, loading, refetch } = useAllCandidatePaths();
@@ -68,6 +69,8 @@ const AICandidatePathsManager = () => {
           <Wand2 className="h-4 w-4" /> Generate for Candidate
         </Button>
       </div>
+
+      <PathRegenerationSettings />
 
       {loading ? (
         <div className="space-y-3 animate-pulse">

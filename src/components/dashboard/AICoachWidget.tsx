@@ -113,7 +113,7 @@ const AICoachWidget = ({ studentId, studentName, onOpenChat }: AICoachWidgetProp
     });
   };
 
-  const askAiraForAdvice = () => {
+  const askPrakashForAdvice = () => {
     if (!stats || !onOpenChat) return;
     const completedCount = stats.moduleProgress.filter(m => m.completed).length;
     const avgQuiz = stats.quizScores.length > 0
@@ -147,8 +147,8 @@ const AICoachWidget = ({ studentId, studentName, onOpenChat }: AICoachWidgetProp
               <RefreshCw className="h-3 w-3" /> Refresh
             </Button>
             {onOpenChat && (
-              <Button size="sm" variant="outline" onClick={askAiraForAdvice} className="text-xs gap-1">
-                <Sparkles className="h-3 w-3" /> Ask Aira for Advice
+              <Button size="sm" variant="outline" onClick={askPrakashForAdvice} className="text-xs gap-1">
+                <Sparkles className="h-3 w-3" /> Ask Prakash for Advice
               </Button>
             )}
           </div>

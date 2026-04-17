@@ -323,6 +323,19 @@ const StudentDashboard = () => {
                   </div>
                 )}
 
+                {studentId && activeTab === "modules" && !selectedModuleId && (
+                  <div className="mb-8">
+                    <ErrorBoundary>
+                      <Suspense fallback={<ContentSkeleton />}>
+                        <MyAILearningPath
+                          candidateId={studentId}
+                          onOpenModule={(id) => setSelectedModuleId(id)}
+                        />
+                      </Suspense>
+                    </ErrorBoundary>
+                  </div>
+                )}
+
                 {pathNames.length > 0 && (
                   <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
                     <BookOpen className="h-4 w-4 text-primary" />

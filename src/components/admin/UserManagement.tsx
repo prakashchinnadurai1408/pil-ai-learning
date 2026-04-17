@@ -77,6 +77,65 @@ const UserManagement = () => {
     window.location.reload();
   };
 
+  const openEditDialog = (u: StudentData) => {
+    setSelectedUser(u);
+    setEditUser({ name: u.name, email: u.email, mobile: u.mobile, college: u.college, location: u.location });
+    setEditDialogOpen(true);
+  };
+
+  const handleEditUser = async () => {
+    if (!selectedUser) return;
+    if (!editUser.name || !editUser.email || !editUser.mobile || !editUser.college || !editUser.location) {
+      toast.error("Please fill all fields");
+      return;
+    }
+    const { error } = await supabase.from("students").update({
+      name: editUser.name.trim(),
+      email: editUser.email.trim(),
+      mobile: editUser.mobile.trim(),
+      college: editUser.college.trim(),
+      location: editUser.location.trim(),
+    }).eq("id", selectedUser.id);
+    if (error) {
+      toast.error("Failed to update user");
+      return;
+    }
+    toast.success(`${editUser.name} updated`);
+    setEditDialogOpen(false);
+    setSelectedUser(null);
+    window.location.reload();
+  };
+
+  const handleResetPassword = async () => {
+    if (!selectedUser) return;
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    const { error } = await supabase.from("students").update({ password: newPassword }).eq("id", selectedUser.id);
+    if (error) {
+      toast.error("Failed to reset password");
+      return;
+    }
+    toast.success(`Password reset for ${selectedUser.name}`);
+    setResetDialogOpen(false);
+    setNewPassword("");
+    setSelectedUser(null);
+  };
+
+  const handleToggleStatus = async (u: StudentData, makeActive: boolean) => {
+    const { error } = await (supabase.from("students") as any)
+      .update({ status: makeActive ? "active" : "inactive" })
+      .eq("id", u.id);
+    if (error) {
+      toast.error("Failed to update status");
+      return;
+    }
+    toast.success(`${u.name} marked ${makeActive ? "active" : "inactive"}`);
+    setRefreshKey((k) => k + 1);
+    window.location.reload();
+  };
+
   const exportCSV = () => {
     const headers = ["Name", "Email", "College", "Location", "Mobile", "Progress %", "Modules Completed", "Avg Score %"];
     const rows = filteredUsers.map(s => [s.name, s.email, s.college, s.location, s.mobile, s.progress, s.modulesCompleted, s.avgScore]);

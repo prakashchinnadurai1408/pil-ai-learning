@@ -898,6 +898,7 @@ export type Database = {
           mobile: string
           name: string
           password: string
+          status: string
           subscription_tier: string
         }
         Insert: {
@@ -911,6 +912,7 @@ export type Database = {
           mobile: string
           name: string
           password?: string
+          status?: string
           subscription_tier?: string
         }
         Update: {
@@ -924,6 +926,7 @@ export type Database = {
           mobile?: string
           name?: string
           password?: string
+          status?: string
           subscription_tier?: string
         }
         Relationships: []

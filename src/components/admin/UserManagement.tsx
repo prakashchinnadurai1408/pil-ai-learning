@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Search, UserPlus, Edit, Trash2, Eye, Download, X,
+  Search, UserPlus, Edit, Trash2, Eye, Download, X, KeyRound,
   Users, GraduationCap, TrendingUp, BarChart3, Ban, CheckCircle
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useTrainerData } from "@/hooks/useTrainerData";
 import type { StudentData } from "@/hooks/useTrainerData";

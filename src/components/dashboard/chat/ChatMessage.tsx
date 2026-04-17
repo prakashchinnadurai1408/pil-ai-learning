@@ -2,7 +2,7 @@ import { User } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import AIFeedback from "@/components/dashboard/AIFeedback";
 import ChatVoiceButton from "./ChatVoiceButton";
-import aiAvatar from "@/assets/ai-avatar.png";
+import prakashAvatar from "@/assets/prakash-avatar.png";
 import type { LanguageCode } from "./ChatLanguageSelector";
 
 type Message = { role: "user" | "assistant"; content: string };
@@ -17,8 +17,8 @@ const ChatMessage = ({ msg, index, lang }: Props) => (
   <div className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
     {msg.role === "assistant" && (
       <img
-        src={aiAvatar}
-        alt="AI Assistant"
+        src={prakashAvatar}
+        alt="Prakash AI Coach"
         className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-2 ring-primary/20"
         width={32}
         height={32}

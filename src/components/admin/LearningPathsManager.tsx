@@ -288,10 +288,10 @@ const LearningPathsManager = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs text-muted-foreground">College</label>
-                  <Select value={assignCollege} onValueChange={setAssignCollege}>
+                  <Select value={assignCollege || "__all__"} onValueChange={(v) => setAssignCollege(v === "__all__" ? "" : v)}>
                     <SelectTrigger><SelectValue placeholder="All colleges" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All colleges</SelectItem>
+                      <SelectItem value="__all__">All colleges</SelectItem>
                       {colleges.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
                   </Select>

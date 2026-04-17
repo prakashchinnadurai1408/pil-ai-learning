@@ -232,8 +232,13 @@ const LearningPathsManager = () => {
           ))}
         </div>
       )}
+        </TabsContent>
 
-      {/* Create/Edit Dialog */}
+        <TabsContent value="ai" className="mt-4">
+          <AICandidatePathsManager />
+        </TabsContent>
+      </Tabs>
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>

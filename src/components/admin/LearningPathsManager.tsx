@@ -12,7 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Route, GraduationCap, Building2, BookOpen, Crown } from "lucide-react";
+import { Plus, Pencil, Trash2, Route, GraduationCap, Building2, BookOpen, Crown, Users, Brain } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import AICandidatePathsManager from "./AICandidatePathsManager";
 
 const LearningPathsManager = () => {
   const { paths, loading, refetch } = useLearningPaths();

@@ -38,7 +38,7 @@ export function StudentDetailModal({ student, open, onOpenChange }: Props) {
             <p className="text-xs text-muted-foreground">Modules Done</p>
           </div>
           <div className="bg-muted rounded-lg p-3 text-center">
-            <p className={`text-2xl font-bold ${candidate.avgScore >= 80 ? "text-success" : candidate.avgScore >= 60 ? "text-warning" : "text-destructive"}`}>
+            <p className={`text-2xl font-bold ${student.avgScore >= 80 ? "text-success" : student.avgScore >= 60 ? "text-warning" : "text-destructive"}`}>
               {student.avgScore}%
             </p>
             <p className="text-xs text-muted-foreground">Avg Score</p>

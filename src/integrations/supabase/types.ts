@@ -436,6 +436,87 @@ export type Database = {
         }
         Relationships: []
       }
+      llm_settings: {
+        Row: {
+          default_model: string
+          default_provider: string
+          enabled_providers: Json
+          id: string
+          provider_models: Json
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          default_model?: string
+          default_provider?: string
+          enabled_providers?: Json
+          id?: string
+          provider_models?: Json
+          updated_at?: string
+          updated_by?: string
+        }
+        Update: {
+          default_model?: string
+          default_provider?: string
+          enabled_providers?: Json
+          id?: string
+          provider_models?: Json
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: []
+      }
+      llm_usage_logs: {
+        Row: {
+          completion_tokens: number
+          created_at: string
+          estimated_cost_usd: number
+          feature: string
+          id: string
+          latency_ms: number
+          model: string
+          prompt_tokens: number
+          provider: string
+          status: string
+          total_tokens: number
+          user_id: string
+          user_name: string
+          user_role: string
+        }
+        Insert: {
+          completion_tokens?: number
+          created_at?: string
+          estimated_cost_usd?: number
+          feature?: string
+          id?: string
+          latency_ms?: number
+          model: string
+          prompt_tokens?: number
+          provider: string
+          status?: string
+          total_tokens?: number
+          user_id?: string
+          user_name?: string
+          user_role?: string
+        }
+        Update: {
+          completion_tokens?: number
+          created_at?: string
+          estimated_cost_usd?: number
+          feature?: string
+          id?: string
+          latency_ms?: number
+          model?: string
+          prompt_tokens?: number
+          provider?: string
+          status?: string
+          total_tokens?: number
+          user_id?: string
+          user_name?: string
+          user_role?: string
+        }
+        Relationships: []
+      }
       locations: {
         Row: {
           created_at: string

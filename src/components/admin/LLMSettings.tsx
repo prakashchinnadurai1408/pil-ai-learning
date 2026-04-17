@@ -159,7 +159,7 @@ const LLMSettings = () => {
             <Brain className="h-5 w-5 text-primary" /> Default model
           </CardTitle>
           <CardDescription>
-            Pick the provider and model used by Aira and the AI Coach when no override is specified.
+            Pick the provider and model used by Prakash and the AI Coach when no override is specified.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid sm:grid-cols-2 gap-4">

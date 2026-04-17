@@ -1,8 +1,35 @@
 import { lazy, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2, LayoutDashboard, ClipboardCheck, BarChart3, Eye, FolderKanban, Route } from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import {
+  Users,
+  BookOpen,
+  CreditCard,
+  LogOut,
+  Shield,
+  Layers,
+  Database,
+  Code2,
+  LayoutDashboard,
+  ClipboardCheck,
+  BarChart3,
+  Eye,
+  FolderKanban,
+  Route,
+} from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
 const UserManagement = lazy(() => import("@/components/admin/UserManagement"));
@@ -21,152 +48,116 @@ const LearningPathsManager = lazy(() => import("@/components/admin/LearningPaths
 const TabSkeleton = () => (
   <div className="space-y-4 animate-pulse">
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {[1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-muted rounded-lg" />)}
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="h-24 bg-muted rounded-lg" />
+      ))}
     </div>
     <div className="h-64 bg-muted rounded-lg" />
   </div>
 );
 
-const AdminDashboard = () => {
+const MENU = [
+  { key: "overview", label: "Overview", icon: LayoutDashboard, component: DashboardOverview },
+  { key: "users", label: "Users", icon: Users, component: UserManagement },
+  { key: "modules", label: "Modules", icon: BookOpen, component: AIModuleCreator },
+  { key: "subscriptions", label: "Subscriptions", icon: CreditCard, component: SubscriptionManagement },
+  { key: "content", label: "Content", icon: Layers, component: ContentManager },
+  { key: "question-bank", label: "Question Bank", icon: Database, component: QuestionBankViewer },
+  { key: "coding", label: "Coding", icon: Code2, component: CodingChallengeManager },
+  { key: "assessments", label: "Assessments", icon: ClipboardCheck, component: AssessmentCreator },
+  { key: "assessment-analytics", label: "Analytics", icon: BarChart3, component: AssessmentAnalytics },
+  { key: "proctoring", label: "Proctoring", icon: Eye, component: ProctoringAnalytics },
+  { key: "projects", label: "Projects", icon: FolderKanban, component: TrainerProjectReview },
+  { key: "learning-paths", label: "Paths", icon: Route, component: LearningPathsManager },
+];
+
+const AdminSidebar = ({
+  active,
+  onChange,
+}: {
+  active: string;
+  onChange: (k: string) => void;
+}) => {
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 glass border-b border-border/50">
-        <div className="container mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={pluginliveLogo} alt="PluginLive" className="h-7" />
-            <div className="flex items-center gap-1.5">
-              <Shield className="h-4 w-4 text-primary" />
-              <span className="font-display font-bold text-gradient-primary">Admin Panel</span>
+    <Sidebar collapsible="icon">
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Admin Menu</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {MENU.map((item) => {
+                const Icon = item.icon;
+                const isActive = active === item.key;
+                return (
+                  <SidebarMenuItem key={item.key}>
+                    <SidebarMenuButton
+                      onClick={() => onChange(item.key)}
+                      className={
+                        isActive
+                          ? "bg-muted text-primary font-medium"
+                          : "hover:bg-muted/50"
+                      }
+                    >
+                      <Icon className="mr-2 h-4 w-4" />
+                      {!collapsed && <span>{item.label}</span>}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
+  );
+};
+
+const AdminDashboard = () => {
+  const [active, setActive] = useState("overview");
+  const ActiveComponent = MENU.find((m) => m.key === active)?.component ?? DashboardOverview;
+
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <AdminSidebar active={active} onChange={setActive} />
+
+        <div className="flex-1 flex flex-col">
+          <header className="sticky top-0 z-50 glass border-b border-border/50">
+            <div className="px-6 h-14 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <SidebarTrigger />
+                <img src={pluginliveLogo} alt="PluginLive" className="h-7" />
+                <div className="flex items-center gap-1.5">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <span className="font-display font-bold text-gradient-primary">Admin Panel</span>
+                </div>
+              </div>
+              <Link to="/admin-login" onClick={() => sessionStorage.clear()}>
+                <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
+                  <LogOut className="h-4 w-4" /> Logout
+                </Button>
+              </Link>
             </div>
-          </div>
-          <Link to="/admin-login" onClick={() => sessionStorage.clear()}>
-            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
-              <LogOut className="h-4 w-4" /> Logout
-            </Button>
-          </Link>
+          </header>
+
+          <main className="flex-1 px-6 py-8">
+            <div className="mb-6">
+              <h1 className="text-2xl font-display font-bold text-foreground">Admin Dashboard</h1>
+              <p className="text-sm text-muted-foreground">
+                Manage users, modules, and subscriptions
+              </p>
+            </div>
+
+            <Suspense fallback={<TabSkeleton />}>
+              <ActiveComponent />
+            </Suspense>
+          </main>
         </div>
-      </header>
-
-      <div className="container mx-auto px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-display font-bold text-foreground">Admin Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Manage users, modules, and subscriptions</p>
-        </div>
-
-        <Tabs defaultValue="overview">
-          <TabsList className="mb-8 bg-muted p-1 flex-wrap">
-            <TabsTrigger value="overview" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <LayoutDashboard className="h-4 w-4" /> Overview
-            </TabsTrigger>
-            <TabsTrigger value="users" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <Users className="h-4 w-4" /> Users
-            </TabsTrigger>
-            <TabsTrigger value="modules" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <BookOpen className="h-4 w-4" /> Modules
-            </TabsTrigger>
-            <TabsTrigger value="subscriptions" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <CreditCard className="h-4 w-4" /> Subscriptions
-            </TabsTrigger>
-            <TabsTrigger value="content" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <Layers className="h-4 w-4" /> Content
-            </TabsTrigger>
-            <TabsTrigger value="question-bank" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <Database className="h-4 w-4" /> Question Bank
-            </TabsTrigger>
-            <TabsTrigger value="coding" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <Code2 className="h-4 w-4" /> Coding
-            </TabsTrigger>
-            <TabsTrigger value="assessments" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <ClipboardCheck className="h-4 w-4" /> Assessments
-            </TabsTrigger>
-            <TabsTrigger value="assessment-analytics" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <BarChart3 className="h-4 w-4" /> Analytics
-            </TabsTrigger>
-            <TabsTrigger value="proctoring" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <Eye className="h-4 w-4" /> Proctoring
-            </TabsTrigger>
-            <TabsTrigger value="projects" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <FolderKanban className="h-4 w-4" /> Projects
-            </TabsTrigger>
-            <TabsTrigger value="learning-paths" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <Route className="h-4 w-4" /> Paths
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview">
-            <Suspense fallback={<TabSkeleton />}>
-              <DashboardOverview />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="users">
-            <Suspense fallback={<TabSkeleton />}>
-              <UserManagement />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="modules">
-            <Suspense fallback={<TabSkeleton />}>
-              <AIModuleCreator />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="subscriptions">
-            <Suspense fallback={<TabSkeleton />}>
-              <SubscriptionManagement />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="content">
-            <Suspense fallback={<TabSkeleton />}>
-              <ContentManager />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="question-bank">
-            <Suspense fallback={<TabSkeleton />}>
-              <QuestionBankViewer />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="coding">
-            <Suspense fallback={<TabSkeleton />}>
-              <CodingChallengeManager />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="assessments">
-            <Suspense fallback={<TabSkeleton />}>
-              <AssessmentCreator />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="assessment-analytics">
-            <Suspense fallback={<TabSkeleton />}>
-              <AssessmentAnalytics />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="proctoring">
-            <Suspense fallback={<TabSkeleton />}>
-              <ProctoringAnalytics />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="projects">
-            <Suspense fallback={<TabSkeleton />}>
-              <TrainerProjectReview />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="learning-paths">
-            <Suspense fallback={<TabSkeleton />}>
-              <LearningPathsManager />
-            </Suspense>
-          </TabsContent>
-        </Tabs>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 

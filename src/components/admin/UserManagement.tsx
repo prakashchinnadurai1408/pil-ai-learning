@@ -296,11 +296,28 @@ const UserManagement = () => {
                     </span>
                   </td>
                   <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={(statusMap[u.id] ?? "active") === "active"}
+                        onCheckedChange={(checked) => handleToggleStatus(u, checked)}
+                      />
+                      <span className={`text-xs font-medium ${(statusMap[u.id] ?? "active") === "active" ? "text-success" : "text-muted-foreground"}`}>
+                        {(statusMap[u.id] ?? "active") === "active" ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-4">
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-primary" onClick={() => { setSelectedUser(u); setDetailOpen(true); }}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-primary" title="View" onClick={() => { setSelectedUser(u); setDetailOpen(true); }}>
                         <Eye className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => { setSelectedUser(u); setDeleteDialogOpen(true); }}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-accent" title="Edit" onClick={() => openEditDialog(u)}>
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-warning" title="Reset password" onClick={() => { setSelectedUser(u); setNewPassword(""); setResetDialogOpen(true); }}>
+                        <KeyRound className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" title="Delete" onClick={() => { setSelectedUser(u); setDeleteDialogOpen(true); }}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>

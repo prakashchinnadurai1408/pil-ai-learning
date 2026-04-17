@@ -32,7 +32,7 @@ const AIPlayground = () => {
     ...adminChatItems.map(item => item.content?.prompt).filter(Boolean),
   ];
   const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "👋 Hi! I'm **Aira**, your AI learning assistant. Ask me anything about AI concepts, tools, or prompt engineering — in English or any Indian language! Try the suggestions below to get started." },
+    { role: "assistant", content: "👋 Hi! I'm **Prakash**, your AI Coach. Ask me anything about AI concepts, tools, or prompt engineering — in English or any Indian language! Try the suggestions below to get started." },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -151,8 +151,8 @@ const AIPlayground = () => {
             <Sparkles className="h-4 w-4 text-primary-foreground" aria-hidden="true" />
           </div>
           <div>
-            <h3 className="font-display font-semibold text-card-foreground">Aira — AI Chat</h3>
-            <p className="text-xs text-muted-foreground">Multilingual AI assistant with voice — remembers your conversation</p>
+            <h3 className="font-display font-semibold text-card-foreground">Prakash — AI Coach</h3>
+            <p className="text-xs text-muted-foreground">Multilingual AI coach with voice — remembers your conversation</p>
           </div>
         </div>
         <ChatLanguageSelector value={lang} onChange={setLang} />
@@ -173,7 +173,7 @@ const AIPlayground = () => {
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
               </span>
-              <span className="ml-1">Aira is thinking...</span>
+              <span className="ml-1">Prakash is thinking...</span>
             </div>
           </div>
         )}

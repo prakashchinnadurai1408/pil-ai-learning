@@ -27,9 +27,13 @@ const UserManagement = () => {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<StudentData | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [newUser, setNewUser] = useState({ name: "", email: "", mobile: "", college: "", location: "", role: "student" });
+  const [editUser, setEditUser] = useState({ name: "", email: "", mobile: "", college: "", location: "" });
+  const [newPassword, setNewPassword] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const filteredUsers = useMemo(() => {
     return students.filter(s => {

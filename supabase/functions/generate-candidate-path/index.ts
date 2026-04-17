@@ -144,8 +144,9 @@ Rules:
 2. SKIP modules already completed with score >= 70%, but you may include them as "review" if scores are low.
 3. Prioritize modules where the candidate showed weakness (low quiz/assessment scores).
 4. If coding activity is low, include foundational modules. If coding is strong, accelerate to advanced topics.
-5. Provide a concise per-module reason (max 20 words).
-6. Provide an overall rationale explaining your strategy (max 80 words).
+5. If a diagnostic quiz result is provided, use the topic_breakdown to identify weak topics and prioritize related modules first.
+6. Provide a concise per-module reason (max 20 words).
+7. Provide an overall rationale explaining your strategy (max 80 words). If diagnostic was used, mention it.
 
 Respond with ONLY valid JSON in this exact shape:
 {

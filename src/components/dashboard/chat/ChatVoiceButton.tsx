@@ -15,6 +15,31 @@ const ChatVoiceButton = ({ text, lang }: Props) => {
     return () => speechSynthesis.cancel();
   }, []);
 
+  const pickIndianVoice = useCallback((targetLang: string) => {
+    const voices = speechSynthesis.getVoices();
+    if (!voices.length) return null;
+
+    const baseLang = targetLang.split("-")[0];
+    const indianExact = voices.filter((v) => v.lang === targetLang);
+    const indianBase = voices.filter(
+      (v) => v.lang.toLowerCase().endsWith("-in") && v.lang.startsWith(baseLang)
+    );
+
+    // Prefer male-sounding Indian voices to match Prakash persona
+    const maleKeywords = ["ravi", "prabhat", "hemant", "kabir", "rishi", "male"];
+    const pickMale = (list: SpeechSynthesisVoice[]) =>
+      list.find((v) => maleKeywords.some((kw) => v.name.toLowerCase().includes(kw)));
+
+    return (
+      pickMale(indianExact) ||
+      pickMale(indianBase) ||
+      indianExact[0] ||
+      indianBase[0] ||
+      voices.find((v) => v.lang.startsWith(baseLang)) ||
+      null
+    );
+  }, []);
+
   const toggle = useCallback(() => {
     if (speaking) {
       speechSynthesis.cancel();
@@ -22,26 +47,33 @@ const ChatVoiceButton = ({ text, lang }: Props) => {
       return;
     }
 
-    // Strip markdown for cleaner speech
     const clean = text
       .replace(/```[\s\S]*?```/g, "code block")
       .replace(/[*_#>`~\[\]()]/g, "")
       .replace(/\n+/g, ". ");
 
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.lang = lang;
-    utterance.rate = 0.95;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
+    const speak = () => {
+      const utterance = new SpeechSynthesisUtterance(clean);
+      // Force Indian English locale for any en-* selection so Prakash sounds Indian
+      utterance.lang = lang.startsWith("en") ? "en-IN" : lang;
+      utterance.rate = 0.95;
+      utterance.pitch = 0.95; // slightly lower for male tone
+      utterance.onend = () => setSpeaking(false);
+      utterance.onerror = () => setSpeaking(false);
 
-    // Try to find a matching voice
-    const voices = speechSynthesis.getVoices();
-    const match = voices.find((v) => v.lang === lang) || voices.find((v) => v.lang.startsWith(lang.split("-")[0]));
-    if (match) utterance.voice = match;
+      const match = pickIndianVoice(utterance.lang);
+      if (match) utterance.voice = match;
 
-    speechSynthesis.speak(utterance);
-    setSpeaking(true);
-  }, [text, lang, speaking]);
+      speechSynthesis.speak(utterance);
+      setSpeaking(true);
+    };
+
+    if (!speechSynthesis.getVoices().length) {
+      speechSynthesis.addEventListener("voiceschanged", speak, { once: true });
+    } else {
+      speak();
+    }
+  }, [text, lang, speaking, pickIndianVoice]);
 
   return (
     <Button

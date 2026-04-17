@@ -34,6 +34,7 @@ const ProgrammingModule = lazy(() => import("@/components/dashboard/ProgrammingM
 const PromptEngineeringLab = lazy(() => import("@/components/dashboard/PromptEngineeringLab"));
 const StudentProfilePage = lazy(() => import("@/components/dashboard/StudentProfilePage"));
 const AICoachWidget = lazy(() => import("@/components/dashboard/AICoachWidget"));
+const MyAILearningPath = lazy(() => import("@/components/dashboard/MyAILearningPath"));
 
 type TabKey = keyof MenuAccessConfig;
 

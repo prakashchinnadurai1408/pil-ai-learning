@@ -71,6 +71,7 @@ const StudentLogin = () => {
     if (!signinForm.mobile || !signinForm.password) { toast.error("Please fill all fields"); return; }
     const { data, error } = await supabase.from("students").select("*").eq("mobile", signinForm.mobile).eq("password", signinForm.password).maybeSingle();
     if (error || !data) { toast.error("Invalid mobile number or password"); return; }
+    if (((data as any).status ?? "active") === "inactive") { toast.error("Your account is inactive. Please contact admin."); return; }
     sessionStorage.setItem("studentName", data.name);
     sessionStorage.setItem("studentMobile", data.mobile);
     sessionStorage.setItem("studentCollege", data.college);

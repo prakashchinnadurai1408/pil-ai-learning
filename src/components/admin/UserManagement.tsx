@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Search, UserPlus, Edit, Trash2, Eye, Download, X,
+  Search, UserPlus, Edit, Trash2, Eye, Download, X, KeyRound,
   Users, GraduationCap, TrendingUp, BarChart3, Ban, CheckCircle
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useTrainerData } from "@/hooks/useTrainerData";
 import type { StudentData } from "@/hooks/useTrainerData";
@@ -26,9 +27,25 @@ const UserManagement = () => {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<StudentData | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [newUser, setNewUser] = useState({ name: "", email: "", mobile: "", college: "", location: "", role: "student" });
+  const [editUser, setEditUser] = useState({ name: "", email: "", mobile: "", college: "", location: "" });
+  const [newPassword, setNewPassword] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [statusMap, setStatusMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase.from("students") as any).select("id, status");
+      if (data) {
+        const map: Record<string, string> = {};
+        data.forEach((s: any) => { map[s.id] = s.status || "active"; });
+        setStatusMap(map);
+      }
+    })();
+  }, [refreshKey, students.length]);
 
   const filteredUsers = useMemo(() => {
     return students.filter(s => {
@@ -69,6 +86,65 @@ const UserManagement = () => {
     toast.success(`${selectedUser.name} deleted`);
     setDeleteDialogOpen(false);
     setSelectedUser(null);
+    window.location.reload();
+  };
+
+  const openEditDialog = (u: StudentData) => {
+    setSelectedUser(u);
+    setEditUser({ name: u.name, email: u.email, mobile: u.mobile, college: u.college, location: u.location });
+    setEditDialogOpen(true);
+  };
+
+  const handleEditUser = async () => {
+    if (!selectedUser) return;
+    if (!editUser.name || !editUser.email || !editUser.mobile || !editUser.college || !editUser.location) {
+      toast.error("Please fill all fields");
+      return;
+    }
+    const { error } = await supabase.from("students").update({
+      name: editUser.name.trim(),
+      email: editUser.email.trim(),
+      mobile: editUser.mobile.trim(),
+      college: editUser.college.trim(),
+      location: editUser.location.trim(),
+    }).eq("id", selectedUser.id);
+    if (error) {
+      toast.error("Failed to update user");
+      return;
+    }
+    toast.success(`${editUser.name} updated`);
+    setEditDialogOpen(false);
+    setSelectedUser(null);
+    window.location.reload();
+  };
+
+  const handleResetPassword = async () => {
+    if (!selectedUser) return;
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    const { error } = await supabase.from("students").update({ password: newPassword }).eq("id", selectedUser.id);
+    if (error) {
+      toast.error("Failed to reset password");
+      return;
+    }
+    toast.success(`Password reset for ${selectedUser.name}`);
+    setResetDialogOpen(false);
+    setNewPassword("");
+    setSelectedUser(null);
+  };
+
+  const handleToggleStatus = async (u: StudentData, makeActive: boolean) => {
+    const { error } = await (supabase.from("students") as any)
+      .update({ status: makeActive ? "active" : "inactive" })
+      .eq("id", u.id);
+    if (error) {
+      toast.error("Failed to update status");
+      return;
+    }
+    toast.success(`${u.name} marked ${makeActive ? "active" : "inactive"}`);
+    setRefreshKey((k) => k + 1);
     window.location.reload();
   };
 
@@ -185,12 +261,13 @@ const UserManagement = () => {
                 <th className="p-4 font-medium">Location</th>
                 <th className="p-4 font-medium">Progress</th>
                 <th className="p-4 font-medium">Score</th>
+                <th className="p-4 font-medium">Status</th>
                 <th className="p-4 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filteredUsers.length === 0 ? (
-                <tr><td colSpan={6} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
+                <tr><td colSpan={7} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
               ) : null}
               {filteredUsers.map((u) => (
                 <tr key={u.id} className="hover:bg-muted/30 transition-colors">
@@ -219,11 +296,28 @@ const UserManagement = () => {
                     </span>
                   </td>
                   <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={(statusMap[u.id] ?? "active") === "active"}
+                        onCheckedChange={(checked) => handleToggleStatus(u, checked)}
+                      />
+                      <span className={`text-xs font-medium ${(statusMap[u.id] ?? "active") === "active" ? "text-success" : "text-muted-foreground"}`}>
+                        {(statusMap[u.id] ?? "active") === "active" ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-4">
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-primary" onClick={() => { setSelectedUser(u); setDetailOpen(true); }}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-primary" title="View" onClick={() => { setSelectedUser(u); setDetailOpen(true); }}>
                         <Eye className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => { setSelectedUser(u); setDeleteDialogOpen(true); }}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-accent" title="Edit" onClick={() => openEditDialog(u)}>
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-warning" title="Reset password" onClick={() => { setSelectedUser(u); setNewPassword(""); setResetDialogOpen(true); }}>
+                        <KeyRound className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" title="Delete" onClick={() => { setSelectedUser(u); setDeleteDialogOpen(true); }}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -245,6 +339,44 @@ const UserManagement = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDeleteUser}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Full Name</Label><Input value={editUser.name} onChange={(e) => setEditUser({ ...editUser, name: e.target.value })} /></div>
+            <div><Label>Email</Label><Input type="email" value={editUser.email} onChange={(e) => setEditUser({ ...editUser, email: e.target.value })} /></div>
+            <div><Label>Mobile</Label><Input maxLength={10} value={editUser.mobile} onChange={(e) => setEditUser({ ...editUser, mobile: e.target.value.replace(/\D/g, "") })} /></div>
+            <div><Label>Institute</Label><Input value={editUser.college} onChange={(e) => setEditUser({ ...editUser, college: e.target.value })} /></div>
+            <div><Label>Location</Label><Input value={editUser.location} onChange={(e) => setEditUser({ ...editUser, location: e.target.value })} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+            <Button className="bg-gradient-primary border-0 text-primary-foreground" onClick={handleEditUser}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password */}
+      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Set a new password for <strong>{selectedUser?.name}</strong>. They will use this on next login.</p>
+          <div className="space-y-2">
+            <Label>New Password</Label>
+            <Input type="text" placeholder="Enter new password (min 6 chars)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetDialogOpen(false)}>Cancel</Button>
+            <Button className="bg-gradient-primary border-0 text-primary-foreground" onClick={handleResetPassword}>Reset Password</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

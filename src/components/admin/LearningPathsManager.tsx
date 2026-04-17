@@ -12,7 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Route, GraduationCap, Building2, BookOpen, Crown } from "lucide-react";
+import { Plus, Pencil, Trash2, Route, GraduationCap, Building2, BookOpen, Crown, Users, Brain } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import AICandidatePathsManager from "./AICandidatePathsManager";
 
 const LearningPathsManager = () => {
   const { paths, loading, refetch } = useLearningPaths();
@@ -138,17 +140,25 @@ const LearningPathsManager = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-2">
-            <Route className="h-5 w-5 text-primary" /> Learning Paths
-          </h2>
-          <p className="text-sm text-muted-foreground">Group modules into cohort-based learning paths with access controls</p>
-        </div>
-        <Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" /> Create Path</Button>
+      <div>
+        <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-2">
+          <Route className="h-5 w-5 text-primary" /> Learning Paths
+        </h2>
+        <p className="text-sm text-muted-foreground">Cohort-based paths and AI-personalized paths per candidate</p>
       </div>
 
-      {loading ? (
+      <Tabs defaultValue="cohort" className="w-full">
+        <TabsList>
+          <TabsTrigger value="cohort" className="gap-2"><Users className="h-4 w-4" /> Cohort Paths</TabsTrigger>
+          <TabsTrigger value="ai" className="gap-2"><Brain className="h-4 w-4" /> AI Candidate Paths</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="cohort" className="space-y-4 mt-4">
+          <div className="flex justify-end">
+            <Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" /> Create Cohort Path</Button>
+          </div>
+
+          {loading ? (
         <div className="space-y-3 animate-pulse">
           {[1, 2].map(i => <div key={i} className="h-32 bg-muted rounded-lg" />)}
         </div>
@@ -222,8 +232,13 @@ const LearningPathsManager = () => {
           ))}
         </div>
       )}
+        </TabsContent>
 
-      {/* Create/Edit Dialog */}
+        <TabsContent value="ai" className="mt-4">
+          <AICandidatePathsManager />
+        </TabsContent>
+      </Tabs>
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -273,10 +288,10 @@ const LearningPathsManager = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs text-muted-foreground">College</label>
-                  <Select value={assignCollege} onValueChange={setAssignCollege}>
+                  <Select value={assignCollege || "__all__"} onValueChange={(v) => setAssignCollege(v === "__all__" ? "" : v)}>
                     <SelectTrigger><SelectValue placeholder="All colleges" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All colleges</SelectItem>
+                      <SelectItem value="__all__">All colleges</SelectItem>
                       {colleges.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
                   </Select>

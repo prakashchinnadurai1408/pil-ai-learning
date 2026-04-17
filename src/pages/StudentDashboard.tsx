@@ -34,6 +34,7 @@ const ProgrammingModule = lazy(() => import("@/components/dashboard/ProgrammingM
 const PromptEngineeringLab = lazy(() => import("@/components/dashboard/PromptEngineeringLab"));
 const StudentProfilePage = lazy(() => import("@/components/dashboard/StudentProfilePage"));
 const AICoachWidget = lazy(() => import("@/components/dashboard/AICoachWidget"));
+const MyAILearningPath = lazy(() => import("@/components/dashboard/MyAILearningPath"));
 
 type TabKey = keyof MenuAccessConfig;
 
@@ -316,6 +317,19 @@ const StudentDashboard = () => {
                           studentId={studentId}
                           studentName={studentName}
                           onOpenChat={() => setActiveTab("playground")}
+                        />
+                      </Suspense>
+                    </ErrorBoundary>
+                  </div>
+                )}
+
+                {studentId && activeTab === "modules" && !selectedModuleId && (
+                  <div className="mb-8">
+                    <ErrorBoundary>
+                      <Suspense fallback={<ContentSkeleton />}>
+                        <MyAILearningPath
+                          candidateId={studentId}
+                          onOpenModule={(id) => setSelectedModuleId(id)}
                         />
                       </Suspense>
                     </ErrorBoundary>

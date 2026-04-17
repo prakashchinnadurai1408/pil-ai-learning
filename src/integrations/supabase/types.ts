@@ -285,6 +285,86 @@ export type Database = {
           },
         ]
       }
+      candidate_learning_path_modules: {
+        Row: {
+          created_at: string
+          id: string
+          module_id: number
+          module_title: string
+          path_id: string
+          reason: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          module_id: number
+          module_title?: string
+          path_id: string
+          reason?: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          module_id?: number
+          module_title?: string
+          path_id?: string
+          reason?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_learning_path_modules_path_id_fkey"
+            columns: ["path_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_learning_paths"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_learning_paths: {
+        Row: {
+          candidate_id: string
+          candidate_name: string
+          generated_at: string
+          id: string
+          is_beginner_default: boolean
+          model_used: string
+          rationale: string
+          source: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_id: string
+          candidate_name?: string
+          generated_at?: string
+          id?: string
+          is_beginner_default?: boolean
+          model_used?: string
+          rationale?: string
+          source?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          candidate_name?: string
+          generated_at?: string
+          id?: string
+          is_beginner_default?: boolean
+          model_used?: string
+          rationale?: string
+          source?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       coding_challenges: {
         Row: {
           category: string

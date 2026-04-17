@@ -63,7 +63,7 @@ export function useCandidateLearningPath(candidateId: string | null) {
     fetchPath();
   }, [fetchPath]);
 
-  const generate = useCallback(async () => {
+  const generate = useCallback(async (diagnostic?: any) => {
     if (!candidateId) return null;
     setGenerating(true);
     try {
@@ -74,7 +74,7 @@ export function useCandidateLearningPath(candidateId: string | null) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ candidateId }),
+        body: JSON.stringify({ candidateId, diagnostic }),
       });
       const json = await resp.json();
       if (!resp.ok) throw new Error(json.error || "Generation failed");

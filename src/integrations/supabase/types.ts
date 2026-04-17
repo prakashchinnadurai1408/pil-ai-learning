@@ -677,29 +677,41 @@ export type Database = {
       }
       path_regeneration_settings: {
         Row: {
+          day_of_month: number
+          day_of_week: number
           enabled: boolean
           frequency: string
+          hour_utc: number
           id: string
           last_run_at: string | null
           last_run_count: number
+          minute_utc: number
           updated_at: string
           updated_by: string
         }
         Insert: {
+          day_of_month?: number
+          day_of_week?: number
           enabled?: boolean
           frequency?: string
+          hour_utc?: number
           id?: string
           last_run_at?: string | null
           last_run_count?: number
+          minute_utc?: number
           updated_at?: string
           updated_by?: string
         }
         Update: {
+          day_of_month?: number
+          day_of_week?: number
           enabled?: boolean
           frequency?: string
+          hour_utc?: number
           id?: string
           last_run_at?: string | null
           last_run_count?: number
+          minute_utc?: number
           updated_at?: string
           updated_by?: string
         }

@@ -15,20 +15,9 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
-  Users,
-  BookOpen,
-  CreditCard,
-  LogOut,
-  Shield,
-  Layers,
-  Database,
-  Code2,
-  LayoutDashboard,
-  ClipboardCheck,
-  BarChart3,
-  Eye,
-  FolderKanban,
-  Route,
+  Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2,
+  LayoutDashboard, ClipboardCheck, BarChart3, Eye, FolderKanban, Route,
+  Brain, Activity,
 } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
@@ -44,6 +33,8 @@ const AssessmentAnalytics = lazy(() => import("@/components/admin/AssessmentAnal
 const ProctoringAnalytics = lazy(() => import("@/components/admin/ProctoringAnalytics"));
 const TrainerProjectReview = lazy(() => import("@/components/trainer/TrainerProjectReview"));
 const LearningPathsManager = lazy(() => import("@/components/admin/LearningPathsManager"));
+const LLMSettings = lazy(() => import("@/components/admin/LLMSettings"));
+const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytics"));
 
 const TabSkeleton = () => (
   <div className="space-y-4 animate-pulse">
@@ -56,60 +47,83 @@ const TabSkeleton = () => (
   </div>
 );
 
-const MENU = [
-  { key: "overview", label: "Overview", icon: LayoutDashboard, component: DashboardOverview },
-  { key: "users", label: "Users", icon: Users, component: UserManagement },
-  { key: "modules", label: "Modules", icon: BookOpen, component: AIModuleCreator },
-  { key: "subscriptions", label: "Subscriptions", icon: CreditCard, component: SubscriptionManagement },
-  { key: "content", label: "Content", icon: Layers, component: ContentManager },
-  { key: "question-bank", label: "Question Bank", icon: Database, component: QuestionBankViewer },
-  { key: "coding", label: "Coding", icon: Code2, component: CodingChallengeManager },
-  { key: "assessments", label: "Assessments", icon: ClipboardCheck, component: AssessmentCreator },
-  { key: "assessment-analytics", label: "Analytics", icon: BarChart3, component: AssessmentAnalytics },
-  { key: "proctoring", label: "Proctoring", icon: Eye, component: ProctoringAnalytics },
-  { key: "projects", label: "Projects", icon: FolderKanban, component: TrainerProjectReview },
-  { key: "learning-paths", label: "Paths", icon: Route, component: LearningPathsManager },
+type MenuItem = { key: string; label: string; icon: typeof Users; component: React.ComponentType };
+
+const SECTIONS: { label: string; items: MenuItem[] }[] = [
+  {
+    label: "Overview",
+    items: [
+      { key: "overview", label: "Overview", icon: LayoutDashboard, component: DashboardOverview },
+    ],
+  },
+  {
+    label: "Manage",
+    items: [
+      { key: "users", label: "Users", icon: Users, component: UserManagement },
+      { key: "subscriptions", label: "Subscriptions", icon: CreditCard, component: SubscriptionManagement },
+      { key: "learning-paths", label: "Learning Paths", icon: Route, component: LearningPathsManager },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
+      { key: "modules", label: "Modules", icon: BookOpen, component: AIModuleCreator },
+      { key: "content", label: "Section Content", icon: Layers, component: ContentManager },
+      { key: "question-bank", label: "Question Bank", icon: Database, component: QuestionBankViewer },
+      { key: "coding", label: "Coding Challenges", icon: Code2, component: CodingChallengeManager },
+      { key: "assessments", label: "Assessments", icon: ClipboardCheck, component: AssessmentCreator },
+    ],
+  },
+  {
+    label: "Analytics",
+    items: [
+      { key: "assessment-analytics", label: "Assessments", icon: BarChart3, component: AssessmentAnalytics },
+      { key: "proctoring", label: "Proctoring", icon: Eye, component: ProctoringAnalytics },
+      { key: "projects", label: "Projects", icon: FolderKanban, component: TrainerProjectReview },
+      { key: "llm-usage", label: "LLM Usage", icon: Activity, component: LLMUsageAnalytics },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { key: "llm-settings", label: "LLM Settings", icon: Brain, component: LLMSettings },
+    ],
+  },
 ];
 
-const AdminSidebar = ({
-  active,
-  onChange,
-}: {
-  active: string;
-  onChange: (k: string) => void;
-}) => {
+const ALL_ITEMS: MenuItem[] = SECTIONS.flatMap((s) => s.items);
+
+const AdminSidebar = ({ active, onChange }: { active: string; onChange: (k: string) => void }) => {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Admin Menu</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {MENU.map((item) => {
-                const Icon = item.icon;
-                const isActive = active === item.key;
-                return (
-                  <SidebarMenuItem key={item.key}>
-                    <SidebarMenuButton
-                      onClick={() => onChange(item.key)}
-                      className={
-                        isActive
-                          ? "bg-muted text-primary font-medium"
-                          : "hover:bg-muted/50"
-                      }
-                    >
-                      <Icon className="mr-2 h-4 w-4" />
-                      {!collapsed && <span>{item.label}</span>}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {SECTIONS.map((section) => (
+          <SidebarGroup key={section.label}>
+            <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = active === item.key;
+                  return (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton
+                        onClick={() => onChange(item.key)}
+                        className={isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"}
+                      >
+                        <Icon className="mr-2 h-4 w-4" />
+                        {!collapsed && <span>{item.label}</span>}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
     </Sidebar>
   );
@@ -117,7 +131,7 @@ const AdminSidebar = ({
 
 const AdminDashboard = () => {
   const [active, setActive] = useState("overview");
-  const ActiveComponent = MENU.find((m) => m.key === active)?.component ?? DashboardOverview;
+  const ActiveComponent = ALL_ITEMS.find((m) => m.key === active)?.component ?? DashboardOverview;
 
   return (
     <SidebarProvider>
@@ -147,7 +161,7 @@ const AdminDashboard = () => {
             <div className="mb-6">
               <h1 className="text-2xl font-display font-bold text-foreground">Admin Dashboard</h1>
               <p className="text-sm text-muted-foreground">
-                Manage users, modules, and subscriptions
+                Manage users, content, analytics, and AI configuration
               </p>
             </div>
 

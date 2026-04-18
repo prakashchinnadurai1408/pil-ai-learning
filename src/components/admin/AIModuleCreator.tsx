@@ -43,6 +43,7 @@ const AIModuleCreator = () => {
   const [expandedModuleId, setExpandedModuleId] = useState<number | null>(null);
   const [trainers, setTrainers] = useState<Array<{ id: string; name: string }>>([]);
   const [scopeBusyId, setScopeBusyId] = useState<number | null>(null);
+  const [scopeFilter, setScopeFilter] = useState<string>("all"); // "all" | "global" | "any-trainer" | <trainerId>
 
   const isAdmin = typeof window !== "undefined" && !!sessionStorage.getItem("adminEmail");
 

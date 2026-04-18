@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Activity, Coins, Cpu, Zap } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -24,11 +25,33 @@ interface UsageRow {
   feature: string;
 }
 
-const COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))"];
+const COLORS = [
+  "hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--success))",
+  "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--muted-foreground))",
+  "hsl(217 91% 60%)", "hsl(280 70% 60%)",
+];
+
+type Period = "day" | "week" | "month" | "quarter" | "year";
+
+const periodKey = (d: Date, period: Period): string => {
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  const day = d.getUTCDate();
+  if (period === "day") return `${y}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  if (period === "month") return `${y}-${String(m + 1).padStart(2, "0")}`;
+  if (period === "year") return `${y}`;
+  if (period === "quarter") return `${y}-Q${Math.floor(m / 3) + 1}`;
+  // week (ISO-ish): use Monday-anchored week start
+  const tmp = new Date(Date.UTC(y, m, day));
+  const dow = tmp.getUTCDay() || 7;
+  tmp.setUTCDate(tmp.getUTCDate() - (dow - 1));
+  return `${tmp.getUTCFullYear()}-W${String(tmp.getUTCMonth() + 1).padStart(2, "0")}-${String(tmp.getUTCDate()).padStart(2, "0")}`;
+};
 
 const LLMUsageAnalytics = () => {
   const [rows, setRows] = useState<UsageRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<Period>("day");
 
   useEffect(() => {
     (async () => {
@@ -36,7 +59,7 @@ const LLMUsageAnalytics = () => {
         .from("llm_usage_logs")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(500);
+        .limit(5000);
       setRows((data as UsageRow[]) || []);
       setLoading(false);
     })();
@@ -53,11 +76,12 @@ const LLMUsageAnalytics = () => {
   }, [rows]);
 
   const byModel = useMemo(() => {
-    const map = new Map<string, { name: string; calls: number; tokens: number }>();
+    const map = new Map<string, { name: string; calls: number; tokens: number; cost: number }>();
     rows.forEach((r) => {
-      const cur = map.get(r.model) || { name: r.model, calls: 0, tokens: 0 };
+      const cur = map.get(r.model) || { name: r.model, calls: 0, tokens: 0, cost: 0 };
       cur.calls += 1;
       cur.tokens += r.total_tokens || 0;
+      cur.cost += Number(r.estimated_cost_usd || 0);
       map.set(r.model, cur);
     });
     return Array.from(map.values()).sort((a, b) => b.calls - a.calls).slice(0, 8);
@@ -68,6 +92,29 @@ const LLMUsageAnalytics = () => {
     rows.forEach((r) => map.set(r.provider, (map.get(r.provider) || 0) + 1));
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
   }, [rows]);
+
+  // Top models for stacked time-series legend (cap to 6)
+  const topModels = useMemo(() => byModel.slice(0, 6).map((m) => m.name), [byModel]);
+
+  const timeSeries = useMemo(() => {
+    const map = new Map<string, Record<string, number | string>>();
+    rows.forEach((r) => {
+      const key = periodKey(new Date(r.created_at), period);
+      const bucket = (map.get(key) as any) || { period: key };
+      const modelKey = topModels.includes(r.model) ? r.model : "other";
+      bucket[modelKey] = (bucket[modelKey] || 0) + 1;
+      map.set(key, bucket);
+    });
+    return Array.from(map.values()).sort((a: any, b: any) => String(a.period).localeCompare(String(b.period)));
+  }, [rows, period, topModels]);
+
+  const seriesKeys = useMemo(() => {
+    const keys = new Set<string>(topModels);
+    timeSeries.forEach((row: any) => {
+      Object.keys(row).forEach((k) => { if (k !== "period") keys.add(k); });
+    });
+    return Array.from(keys);
+  }, [timeSeries, topModels]);
 
   if (loading) {
     return (
@@ -101,6 +148,40 @@ const LLMUsageAnalytics = () => {
         })}
       </div>
 
+      {/* Time-series usage by model */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+          <CardTitle className="text-base">Usage by model — over time</CardTitle>
+          <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
+            <TabsList>
+              <TabsTrigger value="day">Daily</TabsTrigger>
+              <TabsTrigger value="week">Weekly</TabsTrigger>
+              <TabsTrigger value="month">Monthly</TabsTrigger>
+              <TabsTrigger value="quarter">Quarterly</TabsTrigger>
+              <TabsTrigger value="year">Annual</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </CardHeader>
+        <CardContent>
+          {timeSeries.length === 0 ? (
+            <div className="text-center text-sm text-muted-foreground py-12">No usage data in this range.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={timeSeries} margin={{ top: 5, right: 20, left: 0, bottom: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="period" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} angle={-30} textAnchor="end" height={70} />
+                <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                {seriesKeys.map((key, i) => (
+                  <Bar key={key} dataKey={key} stackId="usage" fill={COLORS[i % COLORS.length]} radius={i === seriesKeys.length - 1 ? [4, 4, 0, 0] : 0} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader><CardTitle className="text-base">Calls by model (top 8)</CardTitle></CardHeader>
@@ -132,6 +213,36 @@ const LLMUsageAnalytics = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Per-model totals table */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Model totals</CardTitle></CardHeader>
+        <CardContent className="overflow-x-auto p-0">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-xs text-muted-foreground">
+              <tr>
+                <th className="p-3 text-left font-medium">Model</th>
+                <th className="p-3 text-right font-medium">Calls</th>
+                <th className="p-3 text-right font-medium">Tokens</th>
+                <th className="p-3 text-right font-medium">Cost (USD)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {byModel.map((m) => (
+                <tr key={m.name} className="hover:bg-muted/30">
+                  <td className="p-3 text-xs font-mono">{m.name}</td>
+                  <td className="p-3 text-xs text-right">{m.calls.toLocaleString()}</td>
+                  <td className="p-3 text-xs text-right">{m.tokens.toLocaleString()}</td>
+                  <td className="p-3 text-xs text-right">${m.cost.toFixed(5)}</td>
+                </tr>
+              ))}
+              {byModel.length === 0 && (
+                <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">No usage recorded yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-base">Recent calls (last 50)</CardTitle></CardHeader>

@@ -320,9 +320,35 @@ Return ONLY valid JSON in this exact format, no other text:
       <div>
         <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
           <h3 className="font-display font-semibold text-card-foreground">
-            All Modules ({loading ? "..." : adminModules.length})
+            All Modules ({loading ? "..." : (() => {
+              const c = adminModules.filter(m => {
+                if (scopeFilter === "all") return true;
+                if (scopeFilter === "global") return !m.trainer_id;
+                if (scopeFilter === "any-trainer") return !!m.trainer_id;
+                return m.trainer_id === scopeFilter;
+              }).length;
+              return c;
+            })()})
           </h3>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {isAdmin && (
+              <>
+                <Label className="text-xs text-muted-foreground">Scope:</Label>
+                <select
+                  value={scopeFilter}
+                  onChange={(e) => setScopeFilter(e.target.value)}
+                  className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                >
+                  <option value="all">All scopes</option>
+                  <option value="global">🌐 Global only</option>
+                  <option value="any-trainer">👤 Any trainer-scoped</option>
+                  {trainers.length > 0 && <option disabled>──────────</option>}
+                  {trainers.map(t => (
+                    <option key={t.id} value={t.id}>👤 {t.name}</option>
+                  ))}
+                </select>
+              </>
+            )}
             <Label className="text-xs text-muted-foreground">Sort by date:</Label>
             <select
               value={sortOrder}
@@ -343,6 +369,12 @@ Return ONLY valid JSON in this exact format, no other text:
         ) : (
           <div className="grid gap-3">
             {[...adminModules]
+              .filter(m => {
+                if (scopeFilter === "all") return true;
+                if (scopeFilter === "global") return !m.trainer_id;
+                if (scopeFilter === "any-trainer") return !!m.trainer_id;
+                return m.trainer_id === scopeFilter;
+              })
               .sort((a, b) =>
                 sortOrder === "newest"
                   ? new Date(b.created_at).getTime() - new Date(a.created_at).getTime()

@@ -40,7 +40,9 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
   const { items, loading, refetch } = useAdminSectionContent(activeSection);
   const { adminModules } = useAdminModules();
   const [topic, setTopic] = useState("");
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [selectedModuleId, setSelectedModuleId] = useState<string>("");
+  const [generatingEmpty, setGeneratingEmpty] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<any[] | null>(null);
   const [saving, setSaving] = useState(false);
@@ -149,6 +151,7 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
 
     const rows = generatedContent.map((item, i) => ({
       module_id: Number(selectedModuleId),
+      topic_id: selectedTopicId,
       section_type: activeSection,
       title: item.title || item.prompt || item.question || `${topic} - Item ${i + 1}`,
       content: item,
@@ -196,6 +199,7 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
     toast.success(`${rows.length} items saved as draft — review before publishing!`);
     setGeneratedContent(null);
     setTopic("");
+    setSelectedTopicId(null);
     setSaving(false);
     refetch();
   };
@@ -220,6 +224,7 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
 
           const rows = data.content.map((item: any, i: number) => ({
             module_id: mod.id,
+            topic_id: topicItem.id,
             section_type: targetSection,
             title: item.title || item.prompt || item.question || `${topicItem.title} - ${i + 1}`,
             content: item,

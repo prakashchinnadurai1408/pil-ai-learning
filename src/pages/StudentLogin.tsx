@@ -14,7 +14,7 @@ type Step = "register" | "signin" | "otp" | "forgot" | "reset-otp" | "new-passwo
 const StudentLogin = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>("signin");
-  const [form, setForm] = useState({ name: "", email: "", mobile: "", college: "", location: "", password: "", degree: "", department: "" });
+  const [form, setForm] = useState({ name: "", email: "", mobile: "", college: "", location: "", password: "", degree: "", department: "", age_group: "" });
   const [signinForm, setSigninForm] = useState({ mobile: "", password: "" });
   const [otp, setOtp] = useState("");
   const [forgotMobile, setForgotMobile] = useState("");

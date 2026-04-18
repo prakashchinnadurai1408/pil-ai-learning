@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, Search, Users, UserCheck } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Search, Users, UserCheck, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Trainer { id: string; name: string; email: string; college: string; }
@@ -20,6 +21,7 @@ const TrainerAssignments = () => {
   const [activeTrainer, setActiveTrainer] = useState<Trainer | null>(null);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState<Set<string>>(new Set());
+  const [bulkCollege, setBulkCollege] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
@@ -46,7 +48,25 @@ const TrainerAssignments = () => {
     setActiveTrainer(t);
     setDraft(new Set(assignments[t.id] || []));
     setSearch("");
+    setBulkCollege("");
     setOpen(true);
+  };
+
+  const colleges = useMemo(
+    () => Array.from(new Set(students.map(s => s.college).filter(Boolean))).sort(),
+    [students]
+  );
+
+  const addCollegeStudents = () => {
+    if (!bulkCollege) return;
+    const ids = students.filter(s => s.college === bulkCollege).map(s => s.id);
+    if (ids.length === 0) { toast.info("No students from that college"); return; }
+    setDraft(prev => {
+      const next = new Set(prev);
+      ids.forEach(id => next.add(id));
+      return next;
+    });
+    toast.success(`Added ${ids.length} students from ${bulkCollege}`);
   };
 
   const filteredStudents = useMemo(() => {

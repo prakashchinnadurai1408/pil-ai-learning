@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search, UserPlus, Edit, Trash2, Eye, Download, X, KeyRound,
-  Users, GraduationCap, TrendingUp, BarChart3, Ban, CheckCircle, UserCog
+  Users, GraduationCap, TrendingUp, BarChart3, Ban, CheckCircle, UserCog, Sparkles, Loader2
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,6 +45,16 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
   const [reassignDraft, setReassignDraft] = useState<Set<string>>(new Set());
   const [savingReassign, setSavingReassign] = useState(false);
 
+  // Bulk AI Path generation
+  const [collegeFilter, setCollegeFilter] = useState<string>("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [degreeFilter, setDegreeFilter] = useState<string>("all");
+  const [extraMeta, setExtraMeta] = useState<Record<string, { department: string; degree: string }>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
+  const [bulkRunning, setBulkRunning] = useState(false);
+
   useEffect(() => {
     (async () => {
       const { data } = await (supabase.from("students") as any).select("id, status");
@@ -63,12 +73,13 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
     }
   }, [initialSearch]);
 
-  // Load trainer assignments + trainer list
+  // Load trainer assignments + trainer list + extra student meta (department, degree)
   useEffect(() => {
     (async () => {
-      const [{ data: ts }, { data: tr }] = await Promise.all([
+      const [{ data: ts }, { data: tr }, { data: stu }] = await Promise.all([
         (supabase as any).from("trainer_students").select("trainer_id, student_id"),
         supabase.from("trainers").select("id, name, college").order("name"),
+        supabase.from("students").select("id, department, degree"),
       ]);
       const map: Record<string, Set<string>> = {};
       (ts || []).forEach((row: any) => {
@@ -77,6 +88,9 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       });
       setTrainerMap(map);
       setTrainersList(tr || []);
+      const meta: Record<string, { department: string; degree: string }> = {};
+      (stu || []).forEach((s: any) => { meta[s.id] = { department: s.department || "", degree: s.degree || "" }; });
+      setExtraMeta(meta);
     })();
   }, [refreshKey]);
 
@@ -119,10 +133,72 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
 
   const filteredUsers = useMemo(() => {
     return students.filter(s => {
+      if (collegeFilter !== "all" && s.college !== collegeFilter) return false;
+      const meta = extraMeta[s.id];
+      if (departmentFilter !== "all" && (meta?.department || "") !== departmentFilter) return false;
+      if (degreeFilter !== "all" && (meta?.degree || "") !== degreeFilter) return false;
       if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase()) && !s.email.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
-  }, [students, searchQuery]);
+  }, [students, searchQuery, collegeFilter, departmentFilter, degreeFilter, extraMeta]);
+
+  // Distinct dropdown options
+  const collegeOptions = useMemo(
+    () => Array.from(new Set(students.map(s => s.college).filter(Boolean))).sort(),
+    [students]
+  );
+  const departmentOptions = useMemo(
+    () => Array.from(new Set(Object.values(extraMeta).map(m => m.department).filter(Boolean))).sort(),
+    [extraMeta]
+  );
+  const degreeOptions = useMemo(
+    () => Array.from(new Set(Object.values(extraMeta).map(m => m.degree).filter(Boolean))).sort(),
+    [extraMeta]
+  );
+
+  // Selection helpers
+  const allFilteredSelected = filteredUsers.length > 0 && filteredUsers.every(u => selectedIds.has(u.id));
+  const someFilteredSelected = filteredUsers.some(u => selectedIds.has(u.id));
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filteredUsers.forEach(u => next.delete(u.id));
+      } else {
+        filteredUsers.forEach(u => next.add(u.id));
+      }
+      return next;
+    });
+  };
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const runBulkGenerate = async () => {
+    if (selectedIds.size === 0) {
+      toast.error("Select at least one candidate");
+      return;
+    }
+    setBulkRunning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("bulk-generate-candidate-paths", {
+        body: { candidateIds: Array.from(selectedIds), overwrite: overwriteExisting },
+      });
+      if (error) throw error;
+      toast.success(data?.message || `Started generating paths for ${selectedIds.size} candidate(s)`);
+      setBulkOpen(false);
+      clearSelection();
+    } catch (e: any) {
+      toast.error(`Failed to start: ${e.message || "Unknown error"}`);
+    } finally {
+      setBulkRunning(false);
+    }
+  };
 
   const handleAddUser = async () => {
     if (!newUser.name || !newUser.email || !newUser.mobile || !newUser.college || !newUser.location) {
@@ -311,42 +387,98 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              <Button
+                size="sm"
+                className="gap-1 bg-gradient-to-r from-accent to-primary border-0 text-primary-foreground"
+                onClick={() => setBulkOpen(true)}
+                disabled={selectedIds.size === 0}
+                title={selectedIds.size === 0 ? "Select at least one candidate" : `Generate AI paths for ${selectedIds.size} candidate(s)`}
+              >
+                <Sparkles className="h-3 w-3" /> Generate AI Path
+                {selectedIds.size > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{selectedIds.size}</Badge>
+                )}
+              </Button>
               <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={exportCSV}>
                 <Download className="h-3 w-3" /> Export
               </Button>
             </div>
           </div>
-          <div className="mt-3 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search users by name or email..." 
-              className="pl-9 h-9" 
-              value={searchQuery} 
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                if (!e.target.value && onClearSearch) onClearSearch();
-              }} 
-            />
-            {initialSearch && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-7 text-xs"
-                onClick={() => {
-                  setSearchQuery("");
-                  onClearSearch?.();
+
+          {/* Filters Row */}
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-2">
+            <Select value={collegeFilter} onValueChange={(v) => { setCollegeFilter(v); clearSelection(); }}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="All colleges" /></SelectTrigger>
+              <SelectContent className="bg-popover z-50 max-h-72">
+                <SelectItem value="all">All colleges</SelectItem>
+                {collegeOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={departmentFilter} onValueChange={(v) => { setDepartmentFilter(v); clearSelection(); }}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="All departments" /></SelectTrigger>
+              <SelectContent className="bg-popover z-50 max-h-72">
+                <SelectItem value="all">All departments</SelectItem>
+                {departmentOptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={degreeFilter} onValueChange={(v) => { setDegreeFilter(v); clearSelection(); }}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="All degrees" /></SelectTrigger>
+              <SelectContent className="bg-popover z-50 max-h-72">
+                <SelectItem value="all">All degrees</SelectItem>
+                {degreeOptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or email..."
+                className="pl-9 h-9 text-xs"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (!e.target.value && onClearSearch) onClearSearch();
                 }}
-              >
-                Clear
-              </Button>
-            )}
+              />
+              {initialSearch && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 text-xs"
+                  onClick={() => { setSearchQuery(""); onClearSearch?.(); }}
+                >Clear</Button>
+              )}
+            </div>
           </div>
+
+          {/* Selection summary */}
+          {(selectedIds.size > 0 || collegeFilter !== "all" || departmentFilter !== "all" || degreeFilter !== "all") && (
+            <div className="mt-3 flex items-center justify-between flex-wrap gap-2 text-xs">
+              <div className="text-muted-foreground">
+                Showing <span className="font-medium text-foreground">{filteredUsers.length}</span> candidate(s)
+                {selectedIds.size > 0 && (
+                  <> · <span className="font-medium text-primary">{selectedIds.size}</span> selected</>
+                )}
+              </div>
+              {selectedIds.size > 0 && (
+                <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={clearSelection}>
+                  <X className="h-3 w-3" /> Clear selection
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-muted/50">
               <tr className="text-left text-xs text-muted-foreground">
+                <th className="p-4 font-medium w-10">
+                  <Checkbox
+                    checked={allFilteredSelected ? true : someFilteredSelected ? "indeterminate" : false}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all visible"
+                  />
+                </th>
                 <th className="p-4 font-medium">User</th>
                 <th className="p-4 font-medium">Institute</th>
                 <th className="p-4 font-medium">Location</th>
@@ -359,10 +491,17 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
             </thead>
             <tbody className="divide-y divide-border">
               {filteredUsers.length === 0 ? (
-                <tr><td colSpan={8} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
+                <tr><td colSpan={9} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
               ) : null}
               {filteredUsers.map((u) => (
-                <tr key={u.id} className="hover:bg-muted/30 transition-colors">
+                <tr key={u.id} className={`hover:bg-muted/30 transition-colors ${selectedIds.has(u.id) ? "bg-primary/5" : ""}`}>
+                  <td className="p-4">
+                    <Checkbox
+                      checked={selectedIds.has(u.id)}
+                      onCheckedChange={() => toggleSelectOne(u.id)}
+                      aria-label={`Select ${u.name}`}
+                    />
+                  </td>
                   <td className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
@@ -568,6 +707,52 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
             <Button variant="outline" onClick={() => setReassignOpen(false)} disabled={savingReassign}>Cancel</Button>
             <Button className="bg-gradient-primary border-0 text-primary-foreground" onClick={saveReassign} disabled={savingReassign}>
               {savingReassign ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Generate AI Path */}
+      <Dialog open={bulkOpen} onOpenChange={(o) => !bulkRunning && setBulkOpen(o)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" /> Generate AI Learning Paths
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground">
+              You're about to generate personalized AI learning paths for{" "}
+              <span className="font-semibold text-foreground">{selectedIds.size}</span> candidate(s).
+            </p>
+            <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2 text-xs">
+              <div className="flex justify-between"><span className="text-muted-foreground">College filter:</span><span className="font-medium">{collegeFilter === "all" ? "All" : collegeFilter}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Department filter:</span><span className="font-medium">{departmentFilter === "all" ? "All" : departmentFilter}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Degree filter:</span><span className="font-medium">{degreeFilter === "all" ? "All" : degreeFilter}</span></div>
+            </div>
+            <label className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/40 cursor-pointer">
+              <Checkbox checked={overwriteExisting} onCheckedChange={(c) => setOverwriteExisting(!!c)} />
+              <div>
+                <p className="font-medium text-foreground">Regenerate existing paths</p>
+                <p className="text-xs text-muted-foreground">If unchecked, candidates who already have an active path will be skipped.</p>
+              </div>
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Generation runs in the background. You can close this dialog and continue working — paths will appear in each candidate's dashboard as they finish.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkOpen(false)} disabled={bulkRunning}>Cancel</Button>
+            <Button
+              className="bg-gradient-to-r from-accent to-primary border-0 text-primary-foreground gap-1"
+              onClick={runBulkGenerate}
+              disabled={bulkRunning}
+            >
+              {bulkRunning ? (
+                <><Loader2 className="h-3 w-3 animate-spin" /> Starting...</>
+              ) : (
+                <><Sparkles className="h-3 w-3" /> Start Generation</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

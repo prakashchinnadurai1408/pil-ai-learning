@@ -347,12 +347,12 @@ const AssessmentCreator = () => {
               <Switch checked={proctoringEnabled} onCheckedChange={setProctoringEnabled} />
             </div>
 
-            {/* College assignment with search */}
+            {/* Institute assignment with search */}
             <div>
-              <Label>Assign to Colleges</Label>
+              <Label>Assign to Institutes</Label>
               <div className="relative mt-2">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input placeholder="Search colleges..." className="pl-9 mb-2" value={collegeSearch} onChange={e => setCollegeSearch(e.target.value)} />
+                <Input placeholder="Search institutes..." className="pl-9 mb-2" value={collegeSearch} onChange={e => setCollegeSearch(e.target.value)} />
               </div>
               {assignedColleges.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-2">
@@ -373,7 +373,7 @@ const AssessmentCreator = () => {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {assignedColleges.length === 0 ? "No colleges selected = visible to all students" : `Assigned to ${assignedColleges.length} college(s)`}
+                {assignedColleges.length === 0 ? "No institutes selected = visible to all students" : `Assigned to ${assignedColleges.length} institute(s)`}
               </p>
             </div>
           </CardContent>

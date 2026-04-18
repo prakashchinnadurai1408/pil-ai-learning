@@ -156,7 +156,7 @@ const ModuleGroupsManager = ({ ownerRole, ownerId, ownerName, scopedStudents = [
           </h2>
           <p className="text-sm text-muted-foreground">
             {ownerRole === "admin"
-              ? "Group modules into themed bundles (e.g. 'Semester 1', 'GenAI Track') and assign to colleges/departments."
+              ? "Group modules into themed bundles (e.g. 'Semester 1', 'GenAI Track') and assign to institutes/departments."
               : "Organize modules into bundles for your assigned candidates."}
           </p>
         </div>
@@ -259,11 +259,11 @@ const ModuleGroupsManager = ({ ownerRole, ownerId, ownerName, scopedStudents = [
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs text-muted-foreground">College</label>
+                    <label className="text-xs text-muted-foreground">Institute</label>
                     <Select value={scopeCollege || "__all__"} onValueChange={(v) => setScopeCollege(v === "__all__" ? "" : v)}>
-                      <SelectTrigger><SelectValue placeholder="All colleges" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="All institutes" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__all__">All colleges</SelectItem>
+                        <SelectItem value="__all__">All institutes</SelectItem>
                         {colleges.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                       </SelectContent>
                     </Select>

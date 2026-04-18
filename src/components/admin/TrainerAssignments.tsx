@@ -60,7 +60,7 @@ const TrainerAssignments = () => {
   const addCollegeStudents = () => {
     if (!bulkCollege) return;
     const ids = students.filter(s => s.college === bulkCollege).map(s => s.id);
-    if (ids.length === 0) { toast.info("No students from that college"); return; }
+    if (ids.length === 0) { toast.info("No students from that institute"); return; }
     setDraft(prev => {
       const next = new Set(prev);
       ids.forEach(id => next.add(id));
@@ -205,9 +205,9 @@ const TrainerAssignments = () => {
 
           <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30 border border-border">
             <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Bulk add by college:</span>
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Bulk add by institute:</span>
             <Select value={bulkCollege} onValueChange={setBulkCollege}>
-              <SelectTrigger className="h-8 flex-1 text-xs"><SelectValue placeholder="Select a college..." /></SelectTrigger>
+              <SelectTrigger className="h-8 flex-1 text-xs"><SelectValue placeholder="Select an institute..." /></SelectTrigger>
               <SelectContent>
                 {colleges.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>

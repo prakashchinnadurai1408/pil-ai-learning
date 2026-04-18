@@ -395,7 +395,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
   };
 
   const exportCSV = () => {
-    const headers = ["Name", "Email", "College", "Location", "Mobile", "Progress %", "Modules Completed", "Avg Score %"];
+    const headers = ["Name", "Email", "Institute", "Location", "Mobile", "Progress %", "Modules Completed", "Avg Score %"];
     const rows = filteredUsers.map(s => [s.name, s.email, s.college, s.location, s.mobile, s.progress, s.modulesCompleted, s.avgScore]);
     const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -521,9 +521,9 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
           {/* Filters Row */}
           <div className="mt-3 grid grid-cols-1 md:grid-cols-5 gap-2">
             <Select value={collegeFilter} onValueChange={(v) => { setCollegeFilter(v); clearSelection(); }}>
-              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="All colleges" /></SelectTrigger>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="All institutes" /></SelectTrigger>
               <SelectContent className="bg-popover z-50 max-h-72">
-                <SelectItem value="all">All colleges</SelectItem>
+                <SelectItem value="all">All institutes</SelectItem>
                 {collegeOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>

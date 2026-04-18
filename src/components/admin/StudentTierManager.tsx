@@ -93,7 +93,7 @@ const StudentTierManager = () => {
         <div className="flex flex-wrap gap-3">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search by name, email, or college..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder="Search by name, email, or institute..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
           </div>
           <Select value={filterTier} onValueChange={setFilterTier}>
             <SelectTrigger className="w-[140px]">
@@ -120,7 +120,7 @@ const StudentTierManager = () => {
               <tr className="text-left text-xs text-muted-foreground border-b border-border bg-muted/50">
                 <th className="p-3 font-medium">Name</th>
                 <th className="p-3 font-medium">Email</th>
-                <th className="p-3 font-medium">College</th>
+                <th className="p-3 font-medium">Institute</th>
                 <th className="p-3 font-medium text-center">Tier</th>
                 <th className="p-3 font-medium text-center">Action</th>
               </tr>

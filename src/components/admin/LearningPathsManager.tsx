@@ -287,11 +287,11 @@ const LearningPathsManager = () => {
               <p className="text-xs text-muted-foreground mb-3">Leave empty to make available to all students</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs text-muted-foreground">College</label>
+                  <label className="text-xs text-muted-foreground">Institute</label>
                   <Select value={assignCollege || "__all__"} onValueChange={(v) => setAssignCollege(v === "__all__" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="All colleges" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="All institutes" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__all__">All colleges</SelectItem>
+                      <SelectItem value="__all__">All institutes</SelectItem>
                       {colleges.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
                   </Select>

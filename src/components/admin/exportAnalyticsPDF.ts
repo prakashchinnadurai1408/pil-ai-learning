@@ -149,7 +149,7 @@ export function exportAnalyticsPDF(data: ExportData) {
     addHeader("Candidate Rankings");
     autoTable(doc, {
       startY: y,
-      head: [["Rank", "Candidate", "College", "Best Score", "Avg Score", "Attempts"]],
+      head: [["Rank", "Candidate", "Institute", "Best Score", "Avg Score", "Attempts"]],
       body: data.rankings.map((r, i) => [
         String(i + 1),
         r.name,

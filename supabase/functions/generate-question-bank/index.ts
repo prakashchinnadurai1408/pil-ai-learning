@@ -86,16 +86,63 @@ Respond ONLY with a valid JSON array, no markdown, no code fences:
 
     const data = await response.json();
     let content = data.choices?.[0]?.message?.content || "";
-    content = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+    content = content.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
 
-    let parsed: any[] = [];
-    try {
-      parsed = JSON.parse(content);
-    } catch {
-      // try to extract JSON array
-      const m = content.match(/\[[\s\S]*\]/);
-      if (m) parsed = JSON.parse(m[0]);
-    }
+    const cleanJson = (s: string): string => {
+      // Extract array bounds if present
+      const start = s.indexOf("[");
+      const end = s.lastIndexOf("]");
+      let str = start !== -1 && end !== -1 && end > start ? s.slice(start, end + 1) : s;
+      // Remove control chars (except \n \r \t which we'll handle inside strings)
+      str = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+      // Escape raw newlines/tabs inside string literals
+      let out = "";
+      let inStr = false;
+      let escape = false;
+      for (let i = 0; i < str.length; i++) {
+        const ch = str[i];
+        if (escape) { out += ch; escape = false; continue; }
+        if (ch === "\\") { out += ch; escape = true; continue; }
+        if (ch === '"') { inStr = !inStr; out += ch; continue; }
+        if (inStr) {
+          if (ch === "\n") { out += "\\n"; continue; }
+          if (ch === "\r") { out += "\\r"; continue; }
+          if (ch === "\t") { out += "\\t"; continue; }
+        }
+        out += ch;
+      }
+      // Remove trailing commas
+      out = out.replace(/,\s*([}\]])/g, "$1");
+      return out;
+    };
+
+    const tryParseArray = (raw: string): any[] => {
+      try { const p = JSON.parse(raw); return Array.isArray(p) ? p : []; } catch {}
+      try { const p = JSON.parse(cleanJson(raw)); return Array.isArray(p) ? p : []; } catch {}
+      // Last resort: extract individual {...} objects
+      const objs: any[] = [];
+      const cleaned = cleanJson(raw);
+      let depth = 0, startIdx = -1, inStr = false, esc = false;
+      for (let i = 0; i < cleaned.length; i++) {
+        const ch = cleaned[i];
+        if (esc) { esc = false; continue; }
+        if (ch === "\\") { esc = true; continue; }
+        if (ch === '"') { inStr = !inStr; continue; }
+        if (inStr) continue;
+        if (ch === "{") { if (depth === 0) startIdx = i; depth++; }
+        else if (ch === "}") {
+          depth--;
+          if (depth === 0 && startIdx !== -1) {
+            const chunk = cleaned.slice(startIdx, i + 1);
+            try { objs.push(JSON.parse(chunk)); } catch {}
+            startIdx = -1;
+          }
+        }
+      }
+      return objs;
+    };
+
+    let parsed: any[] = tryParseArray(content);
 
     if (!Array.isArray(parsed) || parsed.length === 0) {
       return new Response(JSON.stringify({ error: "AI returned no usable questions" }), {

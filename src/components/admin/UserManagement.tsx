@@ -488,6 +488,35 @@ const UserManagement = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Quick Reassign Trainers */}
+      <Dialog open={reassignOpen} onOpenChange={setReassignOpen}>
+        <DialogContent className="max-w-md max-h-[70vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Assign Trainers — {selectedUser?.name}</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">{reassignDraft.size} trainer(s) selected</p>
+          <div className="flex-1 overflow-y-auto border border-border rounded-md divide-y divide-border">
+            {trainersList.length === 0 ? (
+              <p className="p-4 text-sm text-muted-foreground text-center">No trainers registered.</p>
+            ) : trainersList.map(t => (
+              <label key={t.id} className="flex items-center gap-3 p-3 hover:bg-muted/40 cursor-pointer">
+                <Checkbox checked={reassignDraft.has(t.id)} onCheckedChange={() => toggleReassign(t.id)} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-card-foreground truncate">{t.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{t.college}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReassignOpen(false)} disabled={savingReassign}>Cancel</Button>
+            <Button className="bg-gradient-primary border-0 text-primary-foreground" onClick={saveReassign} disabled={savingReassign}>
+              {savingReassign ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

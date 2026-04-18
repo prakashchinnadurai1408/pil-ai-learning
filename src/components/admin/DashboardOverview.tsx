@@ -154,6 +154,47 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
         })}
       </div>
 
+      {/* Age Group Breakdown */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <GraduationCap className="h-5 w-5 text-primary" />
+            Candidates by Age Group
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(() => {
+            const total = Object.values(ageGroups).reduce((a, b) => a + b, 0);
+            const unspecified = Math.max(0, studentCount - total);
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {AGE_BUCKETS.map(b => {
+                  const count = ageGroups[b.key] || 0;
+                  const pct = studentCount > 0 ? Math.round((count / studentCount) * 100) : 0;
+                  return (
+                    <div key={b.key} className="rounded-lg border border-border bg-card p-3">
+                      <p className="text-xs text-muted-foreground">{b.label}</p>
+                      <p className="text-2xl font-bold text-foreground">{count}</p>
+                      <div className="mt-2 h-1.5 bg-muted rounded overflow-hidden">
+                        <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{pct}%</p>
+                    </div>
+                  );
+                })}
+                <div className="rounded-lg border border-dashed border-border bg-muted/20 p-3">
+                  <p className="text-xs text-muted-foreground">Unspecified</p>
+                  <p className="text-2xl font-bold text-foreground">{unspecified}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {studentCount > 0 ? Math.round((unspecified / studentCount) * 100) : 0}%
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
+
       {/* Trainer-scoped Assigned Students */}
       <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
         <CardHeader className="pb-3">

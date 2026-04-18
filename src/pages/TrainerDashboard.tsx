@@ -11,6 +11,7 @@ import {
 import {
   Users, BarChart3, ClipboardCheck, LogOut, TrendingUp, Eye, Loader2,
   Search, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FolderKanban, Code2, Sparkles,
+  BookOpen, Layers, Database, Route, Activity,
 } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { moduleNames, mcqBank } from "@/data/videoContent";
@@ -27,8 +28,19 @@ import {
 const TrainerCodingAnalytics = lazy(() => import("@/components/trainer/TrainerCodingAnalytics"));
 const AssessmentCreator = lazy(() => import("@/components/admin/AssessmentCreator"));
 const AssessmentAnalytics = lazy(() => import("@/components/admin/AssessmentAnalytics"));
+const AIModuleCreator = lazy(() => import("@/components/admin/AIModuleCreator"));
+const ContentManager = lazy(() => import("@/components/admin/ContentManager"));
+const QuestionBankViewer = lazy(() => import("@/components/admin/QuestionBankViewer"));
+const CodingChallengeManager = lazy(() => import("@/components/admin/CodingChallengeManager"));
+const LearningPathsManager = lazy(() => import("@/components/admin/LearningPathsManager"));
+const ProctoringAnalytics = lazy(() => import("@/components/admin/ProctoringAnalytics"));
+const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytics"));
 
-type TabKey = "students" | "assessments" | "create-assessment" | "assessment-analytics" | "analytics" | "projects" | "coding";
+type TabKey =
+  | "students" | "assessments" | "create-assessment" | "assessment-analytics"
+  | "analytics" | "projects" | "coding"
+  | "modules" | "content" | "question-bank" | "coding-bank" | "learning-paths"
+  | "proctoring" | "llm-usage";
 
 const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: typeof Users }[] }[] = [
   {
@@ -38,10 +50,25 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
     ],
   },
   {
+    label: "Manage",
+    items: [
+      { key: "learning-paths", label: "Learning Paths", icon: Route },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
+      { key: "modules", label: "Modules", icon: BookOpen },
+      { key: "content", label: "Section Content", icon: Layers },
+      { key: "question-bank", label: "Question Bank", icon: Database },
+      { key: "coding-bank", label: "Coding Challenges", icon: Code2 },
+      { key: "create-assessment", label: "Create Assessment", icon: Sparkles },
+    ],
+  },
+  {
     label: "Assessments",
     items: [
       { key: "assessments", label: "Overview", icon: ClipboardCheck },
-      { key: "create-assessment", label: "Create", icon: Sparkles },
     ],
   },
   {
@@ -50,6 +77,8 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
       { key: "assessment-analytics", label: "Assessments", icon: BarChart3 },
       { key: "analytics", label: "Modules", icon: BarChart3 },
       { key: "coding", label: "Coding", icon: Code2 },
+      { key: "proctoring", label: "Proctoring", icon: Eye },
+      { key: "llm-usage", label: "LLM Usage", icon: Activity },
     ],
   },
   {

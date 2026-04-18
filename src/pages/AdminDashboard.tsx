@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
+// Pass-through wrapper that accepts forwarded props for deep-linking
 const UserManagement = lazy(() => import("@/components/admin/UserManagement"));
 const AIModuleCreator = lazy(() => import("@/components/admin/AIModuleCreator"));
 const SubscriptionManagement = lazy(() => import("@/components/admin/SubscriptionManagement"));
@@ -48,7 +49,7 @@ const TabSkeleton = () => (
   </div>
 );
 
-type MenuItem = { key: string; label: string; icon: typeof Users; component: React.ComponentType };
+type MenuItem = { key: string; label: string; icon: typeof Users; component: React.ComponentType<any> };
 
 const SECTIONS: { label: string; items: MenuItem[] }[] = [
   {
@@ -133,12 +134,35 @@ const AdminSidebar = ({ active, onChange }: { active: string; onChange: (k: stri
 
 const AdminDashboard = () => {
   const [active, setActive] = useState("overview");
+  const [userSearch, setUserSearch] = useState<string | undefined>(undefined);
   const ActiveComponent = ALL_ITEMS.find((m) => m.key === active)?.component ?? DashboardOverview;
+
+  // Wrap DashboardOverview to pass the deep-link callback
+  const OverviewWithNav = () => (
+    <DashboardOverview
+      onStudentClick={(studentName: string) => {
+        setUserSearch(studentName);
+        setActive("users");
+      }}
+    />
+  );
+
+  // Wrap UserManagement to receive initial search
+  const UsersWithSearch = () => (
+    <UserManagement initialSearch={userSearch} onClearSearch={() => setUserSearch(undefined)} />
+  );
+
+  // Pick the right component based on active tab
+  const ActiveComponentWithProps = (() => {
+    if (active === "overview") return OverviewWithNav;
+    if (active === "users") return UsersWithSearch;
+    return ActiveComponent;
+  })();
 
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        <AdminSidebar active={active} onChange={setActive} />
+        <AdminSidebar active={active} onChange={(k) => { setActive(k); setUserSearch(undefined); }} />
 
         <div className="flex-1 flex flex-col">
           <header className="sticky top-0 z-50 glass border-b border-border/50">
@@ -168,7 +192,7 @@ const AdminDashboard = () => {
             </div>
 
             <Suspense fallback={<TabSkeleton />}>
-              <ActiveComponent />
+              <ActiveComponentWithProps />
             </Suspense>
           </main>
         </div>

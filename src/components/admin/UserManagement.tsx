@@ -809,6 +809,19 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
             <div><Label>Mobile</Label><Input maxLength={10} value={editUser.mobile} onChange={(e) => setEditUser({ ...editUser, mobile: e.target.value.replace(/\D/g, "") })} /></div>
             <div><Label>Institute</Label><Input value={editUser.college} onChange={(e) => setEditUser({ ...editUser, college: e.target.value })} /></div>
             <div><Label>Location</Label><Input value={editUser.location} onChange={(e) => setEditUser({ ...editUser, location: e.target.value })} /></div>
+            <div>
+              <Label>Age Group</Label>
+              <Select value={editUser.age_group || "none"} onValueChange={(v) => setEditUser({ ...editUser, age_group: v === "none" ? "" : v })}>
+                <SelectTrigger><SelectValue placeholder="Select age group" /></SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  <SelectItem value="none">Unspecified</SelectItem>
+                  <SelectItem value="10-14">10–14 years</SelectItem>
+                  <SelectItem value="15-18">15–18 years</SelectItem>
+                  <SelectItem value="19-22">19–22 years</SelectItem>
+                  <SelectItem value="23+">23+ years</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>

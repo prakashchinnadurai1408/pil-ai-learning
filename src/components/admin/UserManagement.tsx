@@ -651,6 +651,13 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                   </td>
                   <td className="p-4 text-sm text-muted-foreground">{u.college}</td>
                   <td className="p-4 text-sm text-muted-foreground">{u.location}</td>
+                  <td className="p-4 text-sm">
+                    {extraMeta[u.id]?.age_group ? (
+                      <Badge variant="outline" className="text-xs">{extraMeta[u.id].age_group} yrs</Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
                       <Progress value={u.progress} className="h-1.5 w-20" />

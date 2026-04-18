@@ -323,13 +323,14 @@ const UserManagement = () => {
                 <th className="p-4 font-medium">Location</th>
                 <th className="p-4 font-medium">Progress</th>
                 <th className="p-4 font-medium">Score</th>
+                <th className="p-4 font-medium">Trainers</th>
                 <th className="p-4 font-medium">Status</th>
                 <th className="p-4 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filteredUsers.length === 0 ? (
-                <tr><td colSpan={7} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
+                <tr><td colSpan={8} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
               ) : null}
               {filteredUsers.map((u) => (
                 <tr key={u.id} className="hover:bg-muted/30 transition-colors">
@@ -356,6 +357,18 @@ const UserManagement = () => {
                     <span className={`text-sm font-medium ${u.avgScore >= 80 ? "text-success" : u.avgScore >= 60 ? "text-warning" : "text-destructive"}`}>
                       {u.avgScore}%
                     </span>
+                  </td>
+                  <td className="p-4">
+                    <button
+                      onClick={() => openReassign(u)}
+                      className="inline-flex items-center gap-1 group"
+                      title="Reassign trainers"
+                    >
+                      <Badge variant={(trainerMap[u.id]?.size ?? 0) > 0 ? "secondary" : "outline"} className="gap-1">
+                        <UserCog className="h-3 w-3" /> {trainerMap[u.id]?.size ?? 0}
+                      </Badge>
+                      <span className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">Edit</span>
+                    </button>
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">

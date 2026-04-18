@@ -361,7 +361,24 @@ Return ONLY valid JSON in this exact format, no other text:
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                      <Badge variant="outline" className={m.trainer_id ? "border-warning/40 text-warning" : "border-primary/40 text-primary"}>
+                        {m.trainer_id ? `Trainer: ${trainerNameById(m.trainer_id)}` : "Global"}
+                      </Badge>
+                      {isAdmin && (
+                        <select
+                          disabled={scopeBusyId === m.id}
+                          value={m.trainer_id || ""}
+                          onChange={(e) => handleChangeScope(m.id, e.target.value || null)}
+                          className="h-7 rounded-md border border-input bg-background px-1.5 text-xs"
+                          title="Change module scope"
+                        >
+                          <option value="">🌐 Global (all students)</option>
+                          {trainers.map(t => (
+                            <option key={t.id} value={t.id}>👤 {t.name}</option>
+                          ))}
+                        </select>
+                      )}
                       {m.topics.length > 0 && (
                         <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setExpandedModuleId(expandedModuleId === m.id ? null : m.id)}>
                           {expandedModuleId === m.id ? "Hide topics" : "Show topics"}

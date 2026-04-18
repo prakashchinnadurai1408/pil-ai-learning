@@ -235,8 +235,13 @@ When the student asks for help, adapt your explanations to their level. If they 
       // If usage object wasn't sent, estimate completion tokens from char count (~4 chars/token).
       if (completionTokens === 0 && charCount > 0) completionTokens = Math.ceil(charCount / 4);
       if (promptTokens === 0) {
-        const promptChars = validMessages.reduce((s: number, m: { content: string }) => s + (m.content?.length || 0), 0)
-          + systemPrompt.length;
+        const promptChars = validMessages.reduce((s: number, m: { content: unknown }) => {
+          if (typeof m.content === "string") return s + m.content.length;
+          if (Array.isArray(m.content)) {
+            return s + m.content.reduce((ss: number, p: any) => ss + (typeof p?.text === "string" ? p.text.length : 0), 0);
+          }
+          return s;
+        }, 0) + systemPrompt.length;
         promptTokens = Math.ceil(promptChars / 4);
       }
       await logUsage({

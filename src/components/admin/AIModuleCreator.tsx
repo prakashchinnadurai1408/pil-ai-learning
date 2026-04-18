@@ -30,6 +30,7 @@ interface GeneratedTopic {
 }
 
 const AIModuleCreator = () => {
+  const { adminModules, loading, refetch } = useAdminModules();
   const { items: allSectionContent } = useAdminSectionContent();
   const [moduleTitle, setModuleTitle] = useState("");
   const [moduleDescription, setModuleDescription] = useState("");

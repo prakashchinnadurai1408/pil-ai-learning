@@ -45,7 +45,9 @@ const AIModuleCreator = () => {
   const [scopeBusyId, setScopeBusyId] = useState<number | null>(null);
   const [scopeFilter, setScopeFilter] = useState<string>("all"); // "all" | "global" | "any-trainer" | <trainerId>
 
-  const isAdmin = typeof window !== "undefined" && !!sessionStorage.getItem("adminEmail");
+  const isAdmin = typeof window !== "undefined"
+    && !sessionStorage.getItem("trainerId")
+    && !sessionStorage.getItem("studentId");
 
   useEffect(() => {
     if (!isAdmin) return;

@@ -34,9 +34,6 @@ export interface AdminModuleTopic {
 async function getVisibleTrainerIds(): Promise<{ mode: "all" | "filter"; allowedTrainerIds: string[] }> {
   if (typeof window === "undefined") return { mode: "all", allowedTrainerIds: [] };
 
-  const adminEmail = sessionStorage.getItem("adminEmail");
-  if (adminEmail) return { mode: "all", allowedTrainerIds: [] };
-
   const trainerId = sessionStorage.getItem("trainerId");
   if (trainerId) return { mode: "filter", allowedTrainerIds: [trainerId] };
 
@@ -50,8 +47,8 @@ async function getVisibleTrainerIds(): Promise<{ mode: "all" | "filter"; allowed
     return { mode: "filter", allowedTrainerIds: ids };
   }
 
-  // Anonymous / unknown viewer → only admin modules (no trainer-scoped ones)
-  return { mode: "filter", allowedTrainerIds: [] };
+  // No trainer/student session → treat as admin/global viewer
+  return { mode: "all", allowedTrainerIds: [] };
 }
 
 export function useAdminModules() {

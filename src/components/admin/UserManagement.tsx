@@ -13,6 +13,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useTrainerData } from "@/hooks/useTrainerData";
 import type { StudentData } from "@/hooks/useTrainerData";
@@ -359,16 +360,42 @@ const UserManagement = () => {
                     </span>
                   </td>
                   <td className="p-4">
-                    <button
-                      onClick={() => openReassign(u)}
-                      className="inline-flex items-center gap-1 group"
-                      title="Reassign trainers"
-                    >
-                      <Badge variant={(trainerMap[u.id]?.size ?? 0) > 0 ? "secondary" : "outline"} className="gap-1">
-                        <UserCog className="h-3 w-3" /> {trainerMap[u.id]?.size ?? 0}
-                      </Badge>
-                      <span className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">Edit</span>
-                    </button>
+                    {(() => {
+                      const assignedIds = Array.from(trainerMap[u.id] ?? []);
+                      const assignedNames = assignedIds
+                        .map(id => trainersList.find(t => t.id === id)?.name)
+                        .filter(Boolean) as string[];
+                      return (
+                        <TooltipProvider delayDuration={150}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => openReassign(u)}
+                                className="inline-flex items-center gap-1 group"
+                              >
+                                <Badge variant={assignedIds.length > 0 ? "secondary" : "outline"} className="gap-1">
+                                  <UserCog className="h-3 w-3" /> {assignedIds.length}
+                                </Badge>
+                                <span className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">Edit</span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              {assignedNames.length === 0 ? (
+                                <p className="text-xs">No trainers assigned. Click to assign.</p>
+                              ) : (
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold">Assigned trainers:</p>
+                                  <ul className="text-xs space-y-0.5">
+                                    {assignedNames.map(n => <li key={n}>• {n}</li>)}
+                                  </ul>
+                                  <p className="text-[10px] text-muted-foreground pt-1">Click to reassign</p>
+                                </div>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      );
+                    })()}
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">

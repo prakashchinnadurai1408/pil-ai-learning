@@ -4,7 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Plus, Trash2, GripVertical, Video, Loader2, Check, Edit, Save, AlertTriangle } from "lucide-react";
+import { Sparkles, Plus, Trash2, GripVertical, Video, Loader2, Check, Edit, Save, AlertTriangle, FileQuestion, FolderKanban } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useAdminSectionContent } from "@/hooks/useAdminSectionContent";
 import {
   AlertDialog,
   AlertDialogAction,

@@ -412,6 +412,124 @@ const ModuleGroupsManager = ({ ownerRole, ownerId, ownerName, scopedStudents = [
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AI Auto-Group Dialog */}
+      <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" /> AI Auto-Group Modules
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              The AI agent will analyze all {allModules.length} modules and propose themed bundles.
+              Review and accept the ones you want to create.
+            </p>
+            <div>
+              <label className="text-sm font-medium">Optional hint (audience, focus, semester structure...)</label>
+              <Textarea value={aiHint} onChange={(e) => setAiHint(e.target.value)} rows={2}
+                placeholder="e.g. Group by difficulty for B.Tech CSE 1st-year students" />
+            </div>
+            {aiSuggestions.length === 0 ? (
+              <Button onClick={runAISuggest} disabled={aiLoading} className="w-full gap-2">
+                {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {aiLoading ? "Analyzing..." : "Generate Suggestions"}
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">{aiSuggestions.length} group(s) suggested. Uncheck any you want to skip.</p>
+                {aiSuggestions.map((sug, i) => (
+                  <Card key={i} className={aiAccept.has(i) ? "border-primary/40" : "opacity-60"}>
+                    <CardContent className="p-3">
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          checked={aiAccept.has(i)}
+                          onCheckedChange={(v) => {
+                            const next = new Set(aiAccept);
+                            if (v) next.add(i); else next.delete(i);
+                            setAiAccept(next);
+                          }}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{sug.name}</p>
+                          {sug.description && <p className="text-xs text-muted-foreground mb-1">{sug.description}</p>}
+                          <div className="flex flex-wrap gap-1">
+                            {sug.module_ids.map((mid) => {
+                              const mod = allModules.find((m) => m.id === mid);
+                              return <Badge key={mid} variant="secondary" className="text-[10px]">{mod?.title || `#${mid}`}</Badge>;
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setAiOpen(false); setAiSuggestions([]); }}>Cancel</Button>
+            {aiSuggestions.length > 0 && (
+              <>
+                <Button variant="outline" onClick={runAISuggest} disabled={aiLoading}>Regenerate</Button>
+                <Button onClick={applyAISuggestions} disabled={aiLoading}>
+                  {aiLoading ? "Creating..." : `Create ${aiAccept.size} Group(s)`}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move Module Dialog */}
+      <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-5 w-5" /> Move Module Between Groups
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">From Group</label>
+              <Select value={moveSrcGroupId} onValueChange={(v) => { setMoveSrcGroupId(v); setMoveModuleId(""); }}>
+                <SelectTrigger><SelectValue placeholder="Source group" /></SelectTrigger>
+                <SelectContent>
+                  {groups.map((g) => <SelectItem key={g.id} value={g.id}>{g.name} ({g.items.length})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Module</label>
+              <Select value={moveModuleId} onValueChange={setMoveModuleId} disabled={!moveSrcGroupId}>
+                <SelectTrigger><SelectValue placeholder="Pick module" /></SelectTrigger>
+                <SelectContent>
+                  {groups.find((g) => g.id === moveSrcGroupId)?.items.map((it) => (
+                    <SelectItem key={it.id} value={String(it.module_id)}>{it.module_title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">To Group</label>
+              <Select value={moveDstGroupId} onValueChange={setMoveDstGroupId}>
+                <SelectTrigger><SelectValue placeholder="Destination group" /></SelectTrigger>
+                <SelectContent>
+                  {groups.filter((g) => g.id !== moveSrcGroupId).map((g) => (
+                    <SelectItem key={g.id} value={g.id}>{g.name} ({g.items.length})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMoveOpen(false)}>Cancel</Button>
+            <Button onClick={performMove}>Move</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

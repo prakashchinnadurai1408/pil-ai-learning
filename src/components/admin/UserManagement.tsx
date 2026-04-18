@@ -539,7 +539,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       </div>
 
       {/* User Table */}
-      <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
+      <div id="users-table" className="bg-card rounded-lg border border-border shadow-card overflow-hidden scroll-mt-20">
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h3 className="font-display font-semibold text-card-foreground">All Users</h3>

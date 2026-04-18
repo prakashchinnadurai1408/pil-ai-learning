@@ -630,8 +630,43 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                     })()}
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <Switch
+                    {(() => {
+                      const p = pathMap[u.id];
+                      if (!p) {
+                        return (
+                          <Badge variant="outline" className="text-xs text-muted-foreground">None</Badge>
+                        );
+                      }
+                      const date = new Date(p.generated_at);
+                      const dateStr = date.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "2-digit" });
+                      return (
+                        <TooltipProvider delayDuration={150}>
+                          <UITooltip>
+                            <TooltipTrigger asChild>
+                              <div className="inline-flex flex-col items-start gap-0.5">
+                                <Badge
+                                  variant={p.is_beginner_default ? "outline" : "secondary"}
+                                  className="gap-1 text-xs"
+                                >
+                                  <Sparkles className="h-3 w-3 text-primary" />
+                                  {p.is_beginner_default ? "Beginner" : "Active"}
+                                </Badge>
+                                <span className="text-[10px] text-muted-foreground">{dateStr}</span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p className="text-xs">
+                                {p.is_beginner_default ? "Beginner default path" : "AI-personalized path"}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                Generated {date.toLocaleString()}
+                              </p>
+                            </TooltipContent>
+                          </UITooltip>
+                        </TooltipProvider>
+                      );
+                    })()}
+                  </td>
                         checked={(statusMap[u.id] ?? "active") === "active"}
                         onCheckedChange={(checked) => handleToggleStatus(u, checked)}
                       />

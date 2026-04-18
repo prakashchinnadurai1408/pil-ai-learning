@@ -45,6 +45,9 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
   const [reassignDraft, setReassignDraft] = useState<Set<string>>(new Set());
   const [savingReassign, setSavingReassign] = useState(false);
 
+  // AI path status per candidate: candidate_id -> { generated_at, is_beginner_default, status }
+  const [pathMap, setPathMap] = useState<Record<string, { generated_at: string; is_beginner_default: boolean; status: string }>>({});
+
   // Bulk AI Path generation
   const [collegeFilter, setCollegeFilter] = useState<string>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
@@ -73,13 +76,17 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
     }
   }, [initialSearch]);
 
-  // Load trainer assignments + trainer list + extra student meta (department, degree)
+  // Load trainer assignments + trainer list + extra student meta (department, degree) + AI path status
   useEffect(() => {
     (async () => {
-      const [{ data: ts }, { data: tr }, { data: stu }] = await Promise.all([
+      const [{ data: ts }, { data: tr }, { data: stu }, { data: paths }] = await Promise.all([
         (supabase as any).from("trainer_students").select("trainer_id, student_id"),
         supabase.from("trainers").select("id, name, college").order("name"),
         supabase.from("students").select("id, department, degree"),
+        (supabase as any).from("candidate_learning_paths")
+          .select("candidate_id, generated_at, is_beginner_default, status")
+          .eq("status", "active")
+          .order("generated_at", { ascending: false }),
       ]);
       const map: Record<string, Set<string>> = {};
       (ts || []).forEach((row: any) => {
@@ -91,6 +98,17 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       const meta: Record<string, { department: string; degree: string }> = {};
       (stu || []).forEach((s: any) => { meta[s.id] = { department: s.department || "", degree: s.degree || "" }; });
       setExtraMeta(meta);
+      const pmap: Record<string, { generated_at: string; is_beginner_default: boolean; status: string }> = {};
+      (paths || []).forEach((p: any) => {
+        if (!pmap[p.candidate_id]) {
+          pmap[p.candidate_id] = {
+            generated_at: p.generated_at,
+            is_beginner_default: !!p.is_beginner_default,
+            status: p.status,
+          };
+        }
+      });
+      setPathMap(pmap);
     })();
   }, [refreshKey]);
 
@@ -197,6 +215,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
         if (done >= expectedTotal) {
           window.clearInterval(interval);
           toast.success(`AI paths generated: ${done}/${expectedTotal} completed`, { id: toastId });
+          setRefreshKey((k) => k + 1);
           return;
         }
         if (Date.now() - startMs > MAX_MS) {
@@ -530,13 +549,14 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                 <th className="p-4 font-medium">Progress</th>
                 <th className="p-4 font-medium">Score</th>
                 <th className="p-4 font-medium">Trainers</th>
+                <th className="p-4 font-medium">AI Path</th>
                 <th className="p-4 font-medium">Status</th>
                 <th className="p-4 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filteredUsers.length === 0 ? (
-                <tr><td colSpan={9} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
+                <tr><td colSpan={10} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
               ) : null}
               {filteredUsers.map((u) => (
                 <tr key={u.id} className={`hover:bg-muted/30 transition-colors ${selectedIds.has(u.id) ? "bg-primary/5" : ""}`}>
@@ -603,6 +623,44 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                                   <p className="text-[10px] text-muted-foreground pt-1">Click to reassign</p>
                                 </div>
                               )}
+                            </TooltipContent>
+                          </UITooltip>
+                        </TooltipProvider>
+                      );
+                    })()}
+                  </td>
+                  <td className="p-4">
+                    {(() => {
+                      const p = pathMap[u.id];
+                      if (!p) {
+                        return (
+                          <Badge variant="outline" className="text-xs text-muted-foreground">None</Badge>
+                        );
+                      }
+                      const date = new Date(p.generated_at);
+                      const dateStr = date.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "2-digit" });
+                      return (
+                        <TooltipProvider delayDuration={150}>
+                          <UITooltip>
+                            <TooltipTrigger asChild>
+                              <div className="inline-flex flex-col items-start gap-0.5">
+                                <Badge
+                                  variant={p.is_beginner_default ? "outline" : "secondary"}
+                                  className="gap-1 text-xs"
+                                >
+                                  <Sparkles className="h-3 w-3 text-primary" />
+                                  {p.is_beginner_default ? "Beginner" : "Active"}
+                                </Badge>
+                                <span className="text-[10px] text-muted-foreground">{dateStr}</span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p className="text-xs">
+                                {p.is_beginner_default ? "Beginner default path" : "AI-personalized path"}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                Generated {date.toLocaleString()}
+                              </p>
                             </TooltipContent>
                           </UITooltip>
                         </TooltipProvider>

@@ -479,6 +479,65 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
         </ResponsiveContainer>
       </div>
 
+      {/* Age Group Distribution */}
+      <div className="bg-card rounded-lg p-6 border border-border shadow-card">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h3 className="font-display font-semibold text-card-foreground">Candidates by Age Group</h3>
+          <p className="text-xs text-muted-foreground">Click a slice to filter the table below</p>
+        </div>
+        {ageGroupData.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">No candidate data yet.</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <PieChart>
+              <Pie
+                data={ageGroupData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={90}
+                label={(e: any) => `${e.name} (${e.value})`}
+                onClick={(e: any) => {
+                  const k = e?.payload?.key ?? e?.key;
+                  if (k === undefined) return;
+                  setAgeGroupFilter(k === "" ? "all" : k);
+                  clearSelection();
+                  document.querySelector("#users-table")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                {ageGroupData.map((entry) => (
+                  <Cell
+                    key={entry.key}
+                    fill={entry.color}
+                    style={{ cursor: "pointer" }}
+                    stroke={(ageGroupFilter === "all" && entry.key === "") || ageGroupFilter === entry.key ? "hsl(var(--foreground))" : "transparent"}
+                    strokeWidth={ageGroupFilter !== "all" && ageGroupFilter === entry.key ? 3 : 1}
+                  />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }}
+                formatter={(value: any, _name: any, item: any) => {
+                  const total = ageGroupData.reduce((a, b) => a + b.value, 0);
+                  const pct = total > 0 ? Math.round((Number(value) / total) * 100) : 0;
+                  return [`${value} (${pct}%)`, item?.payload?.name];
+                }}
+              />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        )}
+        {ageGroupFilter !== "all" && (
+          <div className="mt-3 flex items-center gap-2 text-xs">
+            <Badge variant="secondary">Filtering by age group: {ageGroupFilter} yrs</Badge>
+            <Button size="sm" variant="ghost" className="h-6 text-xs gap-1" onClick={() => setAgeGroupFilter("all")}>
+              <X className="h-3 w-3" /> Clear
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* User Table */}
       <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
         <div className="p-4 border-b border-border">

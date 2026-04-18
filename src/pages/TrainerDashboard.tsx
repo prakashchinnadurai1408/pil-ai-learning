@@ -1,8 +1,10 @@
-import { useState, useMemo, lazy, Suspense } from "react";
+import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -11,8 +13,10 @@ import {
 import {
   Users, BarChart3, ClipboardCheck, LogOut, TrendingUp, Eye, Loader2,
   Search, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FolderKanban, Code2, Sparkles,
-  BookOpen, Layers, Database, Route, Activity,
+  BookOpen, Layers, Database, Route, Activity, Lock, Crown,
 } from "lucide-react";
+import { getMenuAccess, isAllowed, TIER_META, TIERS, type MenuAccessConfig, type Tier } from "@/hooks/useMenuAccessControls";
+import { toast } from "sonner";
 import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 import { moduleNames, mcqBank } from "@/data/videoContent";
 import { useTrainerData } from "@/hooks/useTrainerData";

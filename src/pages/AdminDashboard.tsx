@@ -34,6 +34,7 @@ const AssessmentCreator = lazy(() => import("@/components/admin/AssessmentCreato
 const AssessmentAnalytics = lazy(() => import("@/components/admin/AssessmentAnalytics"));
 const ProctoringAnalytics = lazy(() => import("@/components/admin/ProctoringAnalytics"));
 const TrainerProjectReview = lazy(() => import("@/components/trainer/TrainerProjectReview"));
+const ProjectsAnalytics = lazy(() => import("@/components/admin/ProjectsAnalytics"));
 const LearningPathsManager = lazy(() => import("@/components/admin/LearningPathsManager"));
 const LLMSettings = lazy(() => import("@/components/admin/LLMSettings"));
 const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytics"));
@@ -87,7 +88,8 @@ const SECTIONS: { label: string; items: MenuItem[] }[] = [
     items: [
       { key: "assessment-analytics", label: "Assessments", icon: BarChart3, component: AssessmentAnalytics },
       { key: "proctoring", label: "Proctoring", icon: Eye, component: ProctoringAnalytics },
-      { key: "projects", label: "Projects", icon: FolderKanban, component: TrainerProjectReview },
+      { key: "projects", label: "Projects", icon: FolderKanban, component: ProjectsAnalytics },
+      { key: "projects-review", label: "Project Reviews", icon: FolderKanban, component: TrainerProjectReview },
       { key: "llm-usage", label: "LLM Usage", icon: Activity, component: LLMUsageAnalytics },
     ],
   },

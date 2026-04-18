@@ -7,10 +7,33 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Save, Loader2, Brain, KeyRound, Youtube, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Sparkles, Save, Loader2, Brain, KeyRound, Youtube, RefreshCw, CheckCircle2, Sliders } from "lucide-react";
 import { toast } from "sonner";
 
 type ProviderKey = "lovable" | "openai" | "anthropic" | "deepseek" | "xai";
+type Difficulty = "easy" | "medium" | "hard";
+type AgeKey = "10-14" | "15-18" | "19-22" | "23+";
+
+const AGE_GROUPS: { key: AgeKey; label: string }[] = [
+  { key: "10-14", label: "10–14 years" },
+  { key: "15-18", label: "15–18 years" },
+  { key: "19-22", label: "19–22 years" },
+  { key: "23+",   label: "23+ years" },
+];
+
+const DIFFICULTY_RANK: Record<Difficulty, number> = { easy: 0, medium: 1, hard: 2 };
+const DIFFICULTY_OPTIONS: { value: Difficulty; label: string }[] = [
+  { value: "easy", label: "Easy" },
+  { value: "medium", label: "Medium" },
+  { value: "hard", label: "Hard" },
+];
+
+const DEFAULT_OVERRIDES: Record<AgeKey, { floor: Difficulty; ceiling: Difficulty }> = {
+  "10-14": { floor: "easy", ceiling: "easy" },
+  "15-18": { floor: "easy", ceiling: "medium" },
+  "19-22": { floor: "easy", ceiling: "hard" },
+  "23+":   { floor: "easy", ceiling: "hard" },
+};
 
 const PROVIDERS: {
   key: ProviderKey;
@@ -86,6 +109,7 @@ interface LLMRow {
   default_model: string;
   enabled_providers: Record<string, boolean>;
   provider_models: Record<string, string>;
+  age_group_difficulty_overrides: Record<AgeKey, { floor: Difficulty; ceiling: Difficulty }>;
 }
 
 const LLMSettings = () => {
@@ -123,12 +147,18 @@ const LLMSettings = () => {
     (async () => {
       const { data } = await supabase.from("llm_settings").select("*").limit(1).maybeSingle();
       if (data) {
+        const overridesRaw = (data as any).age_group_difficulty_overrides as
+          | Record<AgeKey, { floor: Difficulty; ceiling: Difficulty }>
+          | null;
         setRow({
           id: data.id,
           default_provider: data.default_provider,
           default_model: data.default_model,
           enabled_providers: (data.enabled_providers as Record<string, boolean>) || {},
           provider_models: (data.provider_models as Record<string, string>) || {},
+          age_group_difficulty_overrides: overridesRaw && Object.keys(overridesRaw).length
+            ? overridesRaw
+            : DEFAULT_OVERRIDES,
         });
       }
       setLoading(false);
@@ -153,9 +183,10 @@ const LLMSettings = () => {
       default_model: row.default_model,
       enabled_providers: row.enabled_providers,
       provider_models: row.provider_models,
+      age_group_difficulty_overrides: row.age_group_difficulty_overrides as any,
       updated_at: new Date().toISOString(),
       updated_by: sessionStorage.getItem("adminEmail") || "admin",
-    }).eq("id", row.id);
+    } as any).eq("id", row.id);
     setSaving(false);
     if (error) {
       toast.error("Failed to save: " + error.message);

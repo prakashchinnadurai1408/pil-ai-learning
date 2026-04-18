@@ -207,6 +207,35 @@ const TrainerDashboard = () => {
     switch (active) {
       case "students":
         return (
+          <div className="space-y-4">
+            <div className="bg-gradient-primary rounded-lg p-5 text-primary-foreground shadow-card">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wider opacity-80">My Assigned Students</p>
+                  <p className="text-3xl font-display font-bold">{totalStudents}</p>
+                  <p className="text-xs opacity-80 mt-1">
+                    Avg progress {avgProgress}% • Avg score {avgOverallScore}%
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 max-w-[60%] justify-end">
+                  {students.slice(0, 6).map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => { setSearchQuery(s.name); }}
+                      className="px-2.5 py-1 rounded-full bg-primary-foreground/15 hover:bg-primary-foreground/25 text-xs font-medium transition-colors"
+                      title={`Filter analytics by ${s.name}`}
+                    >
+                      {s.name}
+                    </button>
+                  ))}
+                  {students.length > 6 && (
+                    <span className="px-2.5 py-1 rounded-full bg-primary-foreground/10 text-xs">
+                      +{students.length - 6} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
           <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
             <div className="p-4 border-b border-border space-y-3">
               <div className="flex items-center justify-between">
@@ -313,6 +342,7 @@ const TrainerDashboard = () => {
                 </tbody>
               </table>
             </div>
+          </div>
           </div>
         );
       case "assessments":

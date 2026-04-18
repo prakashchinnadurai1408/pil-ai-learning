@@ -76,13 +76,17 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
     }
   }, [initialSearch]);
 
-  // Load trainer assignments + trainer list + extra student meta (department, degree)
+  // Load trainer assignments + trainer list + extra student meta (department, degree) + AI path status
   useEffect(() => {
     (async () => {
-      const [{ data: ts }, { data: tr }, { data: stu }] = await Promise.all([
+      const [{ data: ts }, { data: tr }, { data: stu }, { data: paths }] = await Promise.all([
         (supabase as any).from("trainer_students").select("trainer_id, student_id"),
         supabase.from("trainers").select("id, name, college").order("name"),
         supabase.from("students").select("id, department, degree"),
+        (supabase as any).from("candidate_learning_paths")
+          .select("candidate_id, generated_at, is_beginner_default, status")
+          .eq("status", "active")
+          .order("generated_at", { ascending: false }),
       ]);
       const map: Record<string, Set<string>> = {};
       (ts || []).forEach((row: any) => {
@@ -94,6 +98,17 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       const meta: Record<string, { department: string; degree: string }> = {};
       (stu || []).forEach((s: any) => { meta[s.id] = { department: s.department || "", degree: s.degree || "" }; });
       setExtraMeta(meta);
+      const pmap: Record<string, { generated_at: string; is_beginner_default: boolean; status: string }> = {};
+      (paths || []).forEach((p: any) => {
+        if (!pmap[p.candidate_id]) {
+          pmap[p.candidate_id] = {
+            generated_at: p.generated_at,
+            is_beginner_default: !!p.is_beginner_default,
+            status: p.status,
+          };
+        }
+      });
+      setPathMap(pmap);
     })();
   }, [refreshKey]);
 

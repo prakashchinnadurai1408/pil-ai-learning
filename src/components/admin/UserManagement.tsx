@@ -215,6 +215,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
         if (done >= expectedTotal) {
           window.clearInterval(interval);
           toast.success(`AI paths generated: ${done}/${expectedTotal} completed`, { id: toastId });
+          setRefreshKey((k) => k + 1);
           return;
         }
         if (Date.now() - startMs > MAX_MS) {

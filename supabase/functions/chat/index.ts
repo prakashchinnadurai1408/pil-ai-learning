@@ -67,7 +67,7 @@ serve(async (req) => {
   const startedAt = Date.now();
 
   try {
-    const { messages, tool, studentContext, userMeta } = await req.json();
+    const { messages, tool, studentContext, userMeta, modelOverride } = await req.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: "No messages provided" }), {
@@ -105,6 +105,23 @@ serve(async (req) => {
         if (data?.default_provider) provider = data.default_provider;
       }
     } catch (_) { /* fall back to defaults */ }
+
+    // Allow per-request model override (used by "Compare 2 models" feature).
+    const ALLOWED_OVERRIDES = new Set([
+      "google/gemini-2.5-flash",
+      "google/gemini-2.5-flash-lite",
+      "google/gemini-2.5-pro",
+      "google/gemini-3-flash-preview",
+      "google/gemini-3.1-pro-preview",
+      "openai/gpt-5-nano",
+      "openai/gpt-5-mini",
+      "openai/gpt-5",
+      "openai/gpt-5.2",
+    ]);
+    if (typeof modelOverride === "string" && ALLOWED_OVERRIDES.has(modelOverride)) {
+      model = modelOverride;
+      provider = modelOverride.startsWith("openai/") ? "openai" : "google";
+    }
 
     let systemPrompt = "You are Prakash, an AI learning assistant for the PluginLive AI LearnHub platform. You help UG/PG students learn about AI concepts, prompt engineering, LLMs, RAG, AI agents, and more. Keep answers clear, educational, and practical. Use markdown formatting with headers, bullet points, and code blocks where appropriate. IMPORTANT: You have access to the full conversation history. Always reference and build upon earlier messages when relevant. If the student asks a follow-up question, connect it to your prior answers.";
 

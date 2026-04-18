@@ -1303,6 +1303,7 @@ export type Database = {
       }
       students: {
         Row: {
+          age_group: string
           college: string
           created_at: string
           degree: string
@@ -1317,6 +1318,7 @@ export type Database = {
           subscription_tier: string
         }
         Insert: {
+          age_group?: string
           college: string
           created_at?: string
           degree?: string
@@ -1331,6 +1333,7 @@ export type Database = {
           subscription_tier?: string
         }
         Update: {
+          age_group?: string
           college?: string
           created_at?: string
           degree?: string

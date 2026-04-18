@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, GraduationCap, Phone, Shield, Mail, Lock, KeyRound } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,15 +15,15 @@ type Step = "register" | "signin" | "otp" | "forgot" | "reset-otp" | "new-passwo
 const StudentLogin = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>("signin");
-  const [form, setForm] = useState({ name: "", email: "", mobile: "", college: "", location: "", password: "", degree: "", department: "" });
+  const [form, setForm] = useState({ name: "", email: "", mobile: "", college: "", location: "", password: "", degree: "", department: "", age_group: "" });
   const [signinForm, setSigninForm] = useState({ mobile: "", password: "" });
   const [otp, setOtp] = useState("");
   const [forgotMobile, setForgotMobile] = useState("");
   const [newPassword, setNewPassword] = useState({ password: "", confirm: "" });
 
   const handleRegisterSendOTP = async () => {
-    if (!form.name || !form.email || !form.mobile || !form.college || !form.location || !form.password) {
-      toast.error("Please fill all fields");
+    if (!form.name || !form.email || !form.mobile || !form.college || !form.location || !form.password || !form.age_group) {
+      toast.error("Please fill all fields including your age group");
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
@@ -55,7 +56,7 @@ const StudentLogin = () => {
     const { error } = await supabase.from("students").insert({
       name: form.name.trim(), email: form.email.trim(), mobile: form.mobile.trim(),
       college: form.college.trim(), location: form.location.trim(), password: form.password,
-      degree: form.degree.trim(), department: form.department.trim(),
+      degree: form.degree.trim(), department: form.department.trim(), age_group: form.age_group,
     } as any);
     if (error) { console.error("Candidate insert error:", error); toast.error("Registration failed"); return; }
     sessionStorage.setItem("studentName", form.name);
@@ -212,6 +213,18 @@ const StudentLogin = () => {
                   <Label htmlFor="department">Department</Label>
                   <Input id="department" placeholder="e.g., CSE, ECE" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
                 </div>
+              </div>
+              <div>
+                <Label htmlFor="age_group">Your Age Group</Label>
+                <Select value={form.age_group} onValueChange={(v) => setForm({ ...form, age_group: v })}>
+                  <SelectTrigger id="age_group"><SelectValue placeholder="Select your age group" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10-14">10–14 years</SelectItem>
+                    <SelectItem value="15-18">15–18 years</SelectItem>
+                    <SelectItem value="19-22">19–22 years</SelectItem>
+                    <SelectItem value="23+">23+ years</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="password">Password</Label>

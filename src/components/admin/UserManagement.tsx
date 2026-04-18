@@ -711,6 +711,52 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Generate AI Path */}
+      <Dialog open={bulkOpen} onOpenChange={(o) => !bulkRunning && setBulkOpen(o)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" /> Generate AI Learning Paths
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground">
+              You're about to generate personalized AI learning paths for{" "}
+              <span className="font-semibold text-foreground">{selectedIds.size}</span> candidate(s).
+            </p>
+            <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2 text-xs">
+              <div className="flex justify-between"><span className="text-muted-foreground">College filter:</span><span className="font-medium">{collegeFilter === "all" ? "All" : collegeFilter}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Department filter:</span><span className="font-medium">{departmentFilter === "all" ? "All" : departmentFilter}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Degree filter:</span><span className="font-medium">{degreeFilter === "all" ? "All" : degreeFilter}</span></div>
+            </div>
+            <label className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/40 cursor-pointer">
+              <Checkbox checked={overwriteExisting} onCheckedChange={(c) => setOverwriteExisting(!!c)} />
+              <div>
+                <p className="font-medium text-foreground">Regenerate existing paths</p>
+                <p className="text-xs text-muted-foreground">If unchecked, candidates who already have an active path will be skipped.</p>
+              </div>
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Generation runs in the background. You can close this dialog and continue working — paths will appear in each candidate's dashboard as they finish.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkOpen(false)} disabled={bulkRunning}>Cancel</Button>
+            <Button
+              className="bg-gradient-to-r from-accent to-primary border-0 text-primary-foreground gap-1"
+              onClick={runBulkGenerate}
+              disabled={bulkRunning}
+            >
+              {bulkRunning ? (
+                <><Loader2 className="h-3 w-3 animate-spin" /> Starting...</>
+              ) : (
+                <><Sparkles className="h-3 w-3" /> Start Generation</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

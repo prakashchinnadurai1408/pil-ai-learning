@@ -186,6 +186,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       const meta = extraMeta[s.id];
       if (departmentFilter !== "all" && (meta?.department || "") !== departmentFilter) return false;
       if (degreeFilter !== "all" && (meta?.degree || "") !== degreeFilter) return false;
+      if (ageGroupFilter !== "all" && (meta?.age_group || "") !== ageGroupFilter) return false;
       if (pathFilter !== "all") {
         const p = pathMap[s.id];
         if (pathFilter === "has" && !p) return false;
@@ -195,7 +196,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase()) && !s.email.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
-  }, [students, searchQuery, collegeFilter, departmentFilter, degreeFilter, extraMeta, pathFilter, pathMap]);
+  }, [students, searchQuery, collegeFilter, departmentFilter, degreeFilter, ageGroupFilter, extraMeta, pathFilter, pathMap]);
 
   // Distinct dropdown options
   const collegeOptions = useMemo(

@@ -30,7 +30,7 @@ interface GeneratedTopic {
 }
 
 const AIModuleCreator = () => {
-  const { adminModules, loading, refetch } = useAdminModules();
+  const { items: allSectionContent } = useAdminSectionContent();
   const [moduleTitle, setModuleTitle] = useState("");
   const [moduleDescription, setModuleDescription] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -39,6 +39,10 @@ const AIModuleCreator = () => {
   const [saving, setSaving] = useState(false);
   const [publishConfirmId, setPublishConfirmId] = useState<number | null>(null);
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [expandedModuleId, setExpandedModuleId] = useState<number | null>(null);
+
+  const countByTopic = (topicId: string, sectionType: string) =>
+    allSectionContent.filter(c => c.topic_id === topicId && c.section_type === sectionType && c.status === "published").length;
 
   const handleGenerate = async () => {
     if (!moduleTitle.trim()) {

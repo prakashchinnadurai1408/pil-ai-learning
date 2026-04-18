@@ -25,6 +25,39 @@ export function useQuizQuestions(moduleId: number, moduleName: string) {
   const [attemptCount, setAttemptCount] = useState(0);
   const [usedQuestionHashes, setUsedQuestionHashes] = useState<Set<string>>(new Set());
 
+  // Pull adaptive context for the AI Agent: age group + recent score → difficulty
+  const ageGroup = (typeof window !== "undefined" && sessionStorage.getItem("studentAgeGroup")) || "";
+  const studentId = (typeof window !== "undefined" && sessionStorage.getItem("studentId")) || "";
+
+  const computeAdaptiveDifficulty = async (): Promise<"easy" | "medium" | "hard"> => {
+    const defaultByAge: Record<string, "easy" | "medium" | "hard"> = {
+      "10-14": "easy",
+      "15-18": "easy",
+      "19-22": "medium",
+      "23+": "medium",
+    };
+    const base = defaultByAge[ageGroup] || "easy";
+    if (!studentId) return base;
+    try {
+      const { data } = await supabase
+        .from("student_assessment_scores")
+        .select("score")
+        .eq("student_id", studentId)
+        .order("attempted_at", { ascending: false })
+        .limit(3);
+      const scores = (data || []).map((r: any) => r.score || 0);
+      if (scores.length === 0) return base;
+      const avg = scores.reduce((s, x) => s + x, 0) / scores.length;
+      // Younger learners cap at medium even when scores are great
+      const cap: "easy" | "medium" | "hard" = ageGroup === "10-14" ? "medium" : "hard";
+      if (avg >= 85) return cap;
+      if (avg >= 70) return "medium";
+      return base;
+    } catch {
+      return base;
+    }
+  };
+
   const hashQuestion = (q: QuizQuestion) => q.question.trim().toLowerCase().slice(0, 80);
 
   const shuffle = <T,>(arr: T[]): T[] => {

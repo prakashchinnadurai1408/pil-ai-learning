@@ -303,7 +303,7 @@ Format the response in clean markdown with headers and bullet points.`
         </Select>
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search candidate or college..." className="pl-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+          <Input placeholder="Search candidate or institute..." className="pl-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
         </div>
         <Button variant="outline" size="sm" className="gap-1" onClick={exportCSV}><Download className="h-3 w-3" /> CSV</Button>
         <Button variant="outline" size="sm" className="gap-1" onClick={handleExportPDF} disabled={exportingPDF || rankings.length === 0}>
@@ -341,7 +341,7 @@ Format the response in clean markdown with headers and bullet points.`
       <Tabs value={analyticsView} onValueChange={setAnalyticsView}>
         <TabsList>
           <TabsTrigger value="overall" className="gap-1 text-xs"><BarChart3 className="h-3 w-3" /> Overall</TabsTrigger>
-          <TabsTrigger value="college" className="gap-1 text-xs"><Building2 className="h-3 w-3" /> College-wise</TabsTrigger>
+          <TabsTrigger value="college" className="gap-1 text-xs"><Building2 className="h-3 w-3" /> Institute-wise</TabsTrigger>
           <TabsTrigger value="degree" className="gap-1 text-xs"><GraduationCap className="h-3 w-3" /> Degree-wise</TabsTrigger>
           <TabsTrigger value="department" className="gap-1 text-xs"><Users className="h-3 w-3" /> Dept-wise</TabsTrigger>
           <TabsTrigger value="candidate" className="gap-1 text-xs"><User className="h-3 w-3" /> Candidate-wise</TabsTrigger>
@@ -379,7 +379,7 @@ Format the response in clean markdown with headers and bullet points.`
         </TabsContent>
 
         <TabsContent value="college" className="mt-4">
-          <GroupTable data={collegeStats} groupKey="college" groupLabel="College" icon={Building2} />
+          <GroupTable data={collegeStats} groupKey="college" groupLabel="Institute" icon={Building2} />
         </TabsContent>
 
         <TabsContent value="degree" className="mt-4">
@@ -404,7 +404,7 @@ Format the response in clean markdown with headers and bullet points.`
                   <tr className="text-left text-xs text-muted-foreground">
                     <th className="p-3 font-medium w-16">Rank</th>
                     <th className="p-3 font-medium">Candidate</th>
-                    <th className="p-3 font-medium">College</th>
+                    <th className="p-3 font-medium">Institute</th>
                     <th className="p-3 font-medium">Degree</th>
                     <th className="p-3 font-medium">Department</th>
                     <th className="p-3 font-medium">Best Score</th>

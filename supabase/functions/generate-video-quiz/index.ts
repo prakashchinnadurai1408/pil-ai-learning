@@ -106,3 +106,50 @@ Respond ONLY with valid JSON in this exact format, no markdown:
     });
   }
 });
+
+// ============= Age + difficulty adaptive helpers =============
+function getAgeQuizGuide(ageGroup: string) {
+  const g = (ageGroup || "").trim();
+  if (g === "10-14") return {
+    label: "10–14 years",
+    readingLevel: "grade 5-7 — short, simple sentences with very common words",
+    toneAndExamples: "friendly and encouraging; use everyday examples (games, school, mobile apps, cartoons); avoid jargon",
+    defaultDifficulty: "easy",
+  };
+  if (g === "15-18") return {
+    label: "15–18 years",
+    readingLevel: "grade 8-10 — clear conversational English",
+    toneAndExamples: "relatable to high-schoolers (school projects, social media, smartphones, basic coding)",
+    defaultDifficulty: "easy",
+  };
+  if (g === "19-22") return {
+    label: "19–22 years",
+    readingLevel: "college-level English; technical terms allowed when defined",
+    toneAndExamples: "college-oriented (internships, real APIs, projects, startup scenarios)",
+    defaultDifficulty: "medium",
+  };
+  if (g === "23+") return {
+    label: "23+ years",
+    readingLevel: "professional / postgraduate English",
+    toneAndExamples: "professional (workplace automation, business outcomes, ROI, real-world deployments)",
+    defaultDifficulty: "medium",
+  };
+  return {
+    label: "general adult learner",
+    readingLevel: "clear standard English",
+    toneAndExamples: "broad real-world examples",
+    defaultDifficulty: "easy",
+  };
+}
+
+function getDifficultyGuide(diff: string) {
+  switch ((diff || "").toLowerCase()) {
+    case "hard":
+      return "Hard: multi-step reasoning, nuanced distractors, advanced applications. Distractors should be plausible.";
+    case "medium":
+      return "Medium: requires understanding beyond memorization, one-step reasoning, moderate distractors.";
+    case "easy":
+    default:
+      return "Easy: tests core definitions and basic recognition. Avoid trick questions.";
+  }
+}

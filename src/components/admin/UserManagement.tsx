@@ -339,7 +339,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
 
   const openEditDialog = (u: StudentData) => {
     setSelectedUser(u);
-    setEditUser({ name: u.name, email: u.email, mobile: u.mobile, college: u.college, location: u.location });
+    setEditUser({ name: u.name, email: u.email, mobile: u.mobile, college: u.college, location: u.location, age_group: extraMeta[u.id]?.age_group || "" });
     setEditDialogOpen(true);
   };
 

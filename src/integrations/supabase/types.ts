@@ -98,6 +98,7 @@ export type Database = {
           sort_order: number
           status: string
           title: string
+          topic_id: string | null
         }
         Insert: {
           content?: Json
@@ -108,6 +109,7 @@ export type Database = {
           sort_order?: number
           status?: string
           title: string
+          topic_id?: string | null
         }
         Update: {
           content?: Json
@@ -118,6 +120,7 @@ export type Database = {
           sort_order?: number
           status?: string
           title?: string
+          topic_id?: string | null
         }
         Relationships: [
           {
@@ -125,6 +128,13 @@ export type Database = {
             columns: ["module_id"]
             isOneToOne: false
             referencedRelation: "admin_modules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_section_content_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "admin_module_topics"
             referencedColumns: ["id"]
           },
         ]

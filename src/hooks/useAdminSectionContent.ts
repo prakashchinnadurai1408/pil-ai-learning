@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface AdminSectionContent {
   id: string;
   module_id: number | null;
+  topic_id: string | null;
   section_type: string;
   title: string;
   content: any;

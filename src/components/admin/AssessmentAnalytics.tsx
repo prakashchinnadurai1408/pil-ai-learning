@@ -221,7 +221,7 @@ Format the response in clean markdown with headers and bullet points.`
   };
 
   const exportCSV = () => {
-    const headers = ["Rank", "Candidate", "College", "Degree", "Department", "Best Score", "Avg Score", "Attempts"];
+    const headers = ["Rank", "Candidate", "Institute", "Degree", "Department", "Best Score", "Avg Score", "Attempts"];
     const rows = rankings.map((r, i) => [i + 1, r.name, r.college, r.degree, r.department, r.bestScore, r.avgScore, r.attempts]);
     const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });

@@ -478,6 +478,8 @@ const TrainerDashboard = () => {
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><ProctoringAnalytics key={`pa-${pinnedStudent}`} initialSearch={pinnedStudent} /></Suspense>;
       case "llm-usage":
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><LLMUsageAnalytics /></Suspense>;
+      case "assigned-projects":
+        return <TrainerAssignedProjects trainerId={trainerId} />;
       case "module-groups":
         return (
           <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>

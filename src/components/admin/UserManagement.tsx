@@ -549,13 +549,14 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                 <th className="p-4 font-medium">Progress</th>
                 <th className="p-4 font-medium">Score</th>
                 <th className="p-4 font-medium">Trainers</th>
+                <th className="p-4 font-medium">AI Path</th>
                 <th className="p-4 font-medium">Status</th>
                 <th className="p-4 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filteredUsers.length === 0 ? (
-                <tr><td colSpan={9} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
+                <tr><td colSpan={10} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
               ) : null}
               {filteredUsers.map((u) => (
                 <tr key={u.id} className={`hover:bg-muted/30 transition-colors ${selectedIds.has(u.id) ? "bg-primary/5" : ""}`}>

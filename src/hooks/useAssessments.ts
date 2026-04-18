@@ -262,6 +262,9 @@ export async function updateAssessment(assessmentId: string, assessment: {
     return false;
   }
 
+  // Mirror to module-wise question bank
+  await mirrorToQuestionBank(assessmentData.module_id, questions);
+
   toast.success(`Assessment "${assessment.title}" updated with ${questions.length} questions!`);
   return true;
 }

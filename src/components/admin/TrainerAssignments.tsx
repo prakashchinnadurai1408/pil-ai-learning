@@ -8,9 +8,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Search, Users, UserCheck, Building2 } from "lucide-react";
 import { toast } from "sonner";
+import { TIERS, TIER_META, type Tier } from "@/hooks/useMenuAccessControls";
 
-interface Trainer { id: string; name: string; email: string; college: string; }
+interface Trainer { id: string; name: string; email: string; college: string; subscription_tier?: string; }
 interface Student { id: string; name: string; email: string; college: string; }
+
+const normalizeTier = (raw: any): Tier => {
+  const v = String(raw || "free").toLowerCase();
+  if (v === "premium" || v === "pro") return "advanced";
+  if ((TIERS as string[]).includes(v)) return v as Tier;
+  return "free";
+};
 
 const TrainerAssignments = () => {
   const [trainers, setTrainers] = useState<Trainer[]>([]);
@@ -27,11 +35,11 @@ const TrainerAssignments = () => {
   const load = async () => {
     setLoading(true);
     const [{ data: t }, { data: s }, { data: a }] = await Promise.all([
-      supabase.from("trainers").select("id, name, email, college"),
+      supabase.from("trainers").select("id, name, email, college, subscription_tier"),
       supabase.from("students").select("id, name, email, college"),
       (supabase as any).from("trainer_students").select("trainer_id, student_id"),
     ]);
-    setTrainers(t || []);
+    setTrainers((t || []) as any);
     setStudents(s || []);
     const map: Record<string, Set<string>> = {};
     (a || []).forEach((row: any) => {

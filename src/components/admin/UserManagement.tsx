@@ -906,6 +906,89 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AI Path Detail Side Panel */}
+      <Sheet open={pathSheetOpen} onOpenChange={setPathSheetOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              AI Learning Path
+            </SheetTitle>
+            {pathSheetCandidate && (
+              <SheetDescription>
+                {pathSheetCandidate.name} · {pathSheetCandidate.email}
+              </SheetDescription>
+            )}
+          </SheetHeader>
+
+          {pathSheetCandidate && (() => {
+            const p = pathMap[pathSheetCandidate.id];
+            if (!p) {
+              return <p className="text-sm text-muted-foreground mt-6">No active path.</p>;
+            }
+            return (
+              <div className="space-y-5 mt-5">
+                <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant={p.is_beginner_default ? "outline" : "secondary"} className="gap-1">
+                      <Sparkles className="h-3 w-3 text-primary" />
+                      {p.is_beginner_default ? "Beginner default" : "AI personalized"}
+                    </Badge>
+                    {p.model_used && (
+                      <Badge variant="outline" className="text-[10px]">{p.model_used}</Badge>
+                    )}
+                  </div>
+                  <p className="text-sm font-medium text-card-foreground">{p.title || "My Personalized Learning Path"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Generated {new Date(p.generated_at).toLocaleString()}
+                  </p>
+                </div>
+
+                {p.rationale && (
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide mb-2">Rationale</h4>
+                    <p className="text-sm text-card-foreground whitespace-pre-wrap leading-relaxed">{p.rationale}</p>
+                  </div>
+                )}
+
+                <div>
+                  <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide mb-2">
+                    Modules ({pathSheetModules.length})
+                  </h4>
+                  {pathSheetLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="h-14 rounded-md bg-muted animate-pulse" />
+                      ))}
+                    </div>
+                  ) : pathSheetModules.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No modules in this path.</p>
+                  ) : (
+                    <ol className="space-y-2">
+                      {pathSheetModules.map((m, idx) => (
+                        <li key={m.id} className="rounded-md border border-border p-3 bg-card">
+                          <div className="flex items-start gap-3">
+                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
+                              {idx + 1}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-card-foreground">{m.module_title}</p>
+                              {m.reason && (
+                                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{m.reason}</p>
+                              )}
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

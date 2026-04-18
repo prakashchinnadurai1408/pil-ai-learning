@@ -19,6 +19,7 @@ import { useTrainerData } from "@/hooks/useTrainerData";
 import { StudentDetailModal } from "@/components/trainer/StudentDetailModal";
 import ComposeMessageDialog from "@/components/trainer/ComposeMessageDialog";
 import TrainerProjectReview from "@/components/trainer/TrainerProjectReview";
+import TrainerAssignedProjects from "@/components/trainer/TrainerAssignedProjects";
 import type { StudentData } from "@/hooks/useTrainerData";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -40,7 +41,7 @@ import AssignProjectDialog from "@/components/shared/AssignProjectDialog";
 
 type TabKey =
   | "students" | "assessments" | "create-assessment" | "assessment-analytics"
-  | "analytics" | "projects" | "coding"
+  | "analytics" | "projects" | "assigned-projects" | "coding"
   | "modules" | "content" | "question-bank" | "coding-bank" | "learning-paths"
   | "module-groups"
   | "proctoring" | "llm-usage";
@@ -89,6 +90,7 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
     label: "Reviews",
     items: [
       { key: "projects", label: "Projects", icon: FolderKanban },
+      { key: "assigned-projects", label: "Assigned Projects", icon: FolderKanban },
     ],
   },
 ];
@@ -476,6 +478,8 @@ const TrainerDashboard = () => {
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><ProctoringAnalytics key={`pa-${pinnedStudent}`} initialSearch={pinnedStudent} /></Suspense>;
       case "llm-usage":
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><LLMUsageAnalytics /></Suspense>;
+      case "assigned-projects":
+        return <TrainerAssignedProjects trainerId={trainerId} />;
       case "module-groups":
         return (
           <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>

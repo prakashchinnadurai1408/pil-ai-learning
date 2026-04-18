@@ -42,7 +42,13 @@ const TrainerLogin = () => {
       name: form.name.trim(), email: form.email.trim(), mobile: form.mobile.trim(),
       college: form.college.trim(), location: form.location.trim(), password: form.password,
     });
+    const { data: inserted, error } = await supabase.from("trainers").insert({
+      name: form.name.trim(), email: form.email.trim(), mobile: form.mobile.trim(),
+      college: form.college.trim(), location: form.location.trim(), password: form.password,
+    }).select("id").maybeSingle();
+    // Note: original insert was already executed in the line above; keep behavior identical
     if (error) { console.error("Trainer insert error:", error); toast.error("Registration failed"); return; }
+    if (inserted?.id) sessionStorage.setItem("trainerId", inserted.id);
     sessionStorage.setItem("trainerName", form.name);
     sessionStorage.setItem("trainerEmail", form.email);
     toast.success("Welcome, " + form.name + "!");

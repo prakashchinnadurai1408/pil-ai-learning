@@ -191,7 +191,7 @@ const TrainerDashboard = () => {
   const clearFilters = () => { setSearchQuery(""); setCollegeFilter("all"); setScoreFilter("all"); setProgressFilter("all"); };
 
   const exportCSV = () => {
-    const headers = ["Name", "Email", "College", "Location", "Mobile", "Progress %", "Modules Completed", "Avg Score %"];
+    const headers = ["Name", "Email", "Institute", "Location", "Mobile", "Progress %", "Modules Completed", "Avg Score %"];
     const rows = filteredStudents.map((s) => [s.name, s.email, s.college, s.location, s.mobile, s.progress, s.modulesCompleted, s.avgScore]);
     const csv = [headers, ...rows].map((r) => r.map((v) => `"${v}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -296,9 +296,9 @@ const TrainerDashboard = () => {
                   <Input placeholder="Search by name or email..." className="pl-9 h-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
                 <Select value={collegeFilter} onValueChange={setCollegeFilter}>
-                  <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="College" /></SelectTrigger>
+                  <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="Institute" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Colleges</SelectItem>
+                    <SelectItem value="all">All Institutes</SelectItem>
                     {colleges.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -331,7 +331,7 @@ const TrainerDashboard = () => {
                       <span className="inline-flex items-center">Candidate <SortIcon col="name" /></span>
                     </th>
                     <th className="p-4 font-medium cursor-pointer select-none hover:text-foreground" onClick={() => handleSort("college")}>
-                      <span className="inline-flex items-center">College <SortIcon col="college" /></span>
+                      <span className="inline-flex items-center">Institute <SortIcon col="college" /></span>
                     </th>
                     <th className="p-4 font-medium cursor-pointer select-none hover:text-foreground" onClick={() => handleSort("progress")}>
                       <span className="inline-flex items-center">Progress <SortIcon col="progress" /></span>

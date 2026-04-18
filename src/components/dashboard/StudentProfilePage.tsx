@@ -255,7 +255,7 @@ const StudentProfilePage = ({ onBack }: { onBack: () => void }) => {
                 { icon: User, label: "Name", value: profile.name },
                 { icon: Mail, label: "Email", value: profile.email },
                 { icon: Phone, label: "Mobile", value: profile.mobile },
-                { icon: Building2, label: "College", value: profile.college },
+                { icon: Building2, label: "Institute", value: profile.college },
                 { icon: MapPin, label: "Location", value: profile.location },
                 { icon: GraduationCap, label: "Degree", value: profile.degree || "—" },
                 { icon: BookOpen, label: "Department", value: profile.department || "—" },

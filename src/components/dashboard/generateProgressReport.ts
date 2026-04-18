@@ -68,7 +68,7 @@ export const generateProgressReport = (
     ["Name", profile.name],
     ["Email", profile.email],
     ["Mobile", profile.mobile],
-    ["College", profile.college],
+    ["Institute", profile.college],
     ["Location", profile.location],
     ["Degree", profile.degree || "—"],
     ["Department", profile.department || "—"],

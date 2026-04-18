@@ -76,9 +76,11 @@ serve(async (req) => {
       });
     }
 
-    const validMessages = messages.filter(
-      (m: { content?: string }) => m.content && m.content.trim().length > 0
-    );
+    const validMessages = messages.filter((m: { content?: unknown }) => {
+      if (typeof m.content === "string") return m.content.trim().length > 0;
+      if (Array.isArray(m.content)) return m.content.length > 0;
+      return false;
+    });
 
     if (validMessages.length === 0) {
       return new Response(JSON.stringify({ error: "All messages are empty" }), {

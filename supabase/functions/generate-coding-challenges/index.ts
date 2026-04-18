@@ -108,3 +108,38 @@ Return ONLY the JSON array, no markdown, no explanation.`;
     });
   }
 });
+
+// ============= Age-aware coding challenge helper =============
+function getAgeChallengeGuide(ageGroup: string) {
+  const g = (ageGroup || "").trim();
+  if (g === "10-14") return {
+    label: "10–14 years",
+    readingLevel: "very simple English, short sentences",
+    style: "fun, playful problem statements (games, animals, school) — print/format/basic loops only",
+    defaultDifficulty: "Easy",
+  };
+  if (g === "15-18") return {
+    label: "15–18 years",
+    readingLevel: "clear conversational English",
+    style: "high-school relatable scenarios (marks, music playlists, simple text processing)",
+    defaultDifficulty: "Easy",
+  };
+  if (g === "19-22") return {
+    label: "19–22 years",
+    readingLevel: "college-level English; technical terms allowed",
+    style: "college/internship style problems (data parsing, algorithms, mini real-world tasks)",
+    defaultDifficulty: "Medium",
+  };
+  if (g === "23+") return {
+    label: "23+ years",
+    readingLevel: "professional / postgraduate English",
+    style: "professional engineering scenarios (data pipelines, transformations, optimization)",
+    defaultDifficulty: "Medium",
+  };
+  return {
+    label: "general adult learner",
+    readingLevel: "clear standard English",
+    style: "broad real-world scenarios",
+    defaultDifficulty: "Easy",
+  };
+}

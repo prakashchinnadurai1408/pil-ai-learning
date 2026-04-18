@@ -55,7 +55,7 @@ const StudentLogin = () => {
     const { error } = await supabase.from("students").insert({
       name: form.name.trim(), email: form.email.trim(), mobile: form.mobile.trim(),
       college: form.college.trim(), location: form.location.trim(), password: form.password,
-      degree: form.degree.trim(), department: form.department.trim(),
+      degree: form.degree.trim(), department: form.department.trim(), age_group: form.age_group,
     } as any);
     if (error) { console.error("Candidate insert error:", error); toast.error("Registration failed"); return; }
     sessionStorage.setItem("studentName", form.name);

@@ -10,12 +10,14 @@ export async function streamChat({
   messages,
   tool,
   studentContext,
+  modelOverride,
   onDelta,
   onDone,
 }: {
   messages: Msg[];
   tool?: string;
   studentContext?: Record<string, any>;
+  modelOverride?: string;
   onDelta: (deltaText: string) => void;
   onDone: () => void;
 }) {
@@ -25,7 +27,7 @@ export async function streamChat({
       "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages, tool, studentContext }),
+    body: JSON.stringify({ messages, tool, studentContext, modelOverride }),
   });
 
   if (!resp.ok || !resp.body) {

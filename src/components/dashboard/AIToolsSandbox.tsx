@@ -2,10 +2,11 @@ import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
-  FlaskConical, FileText, Code, Brain, HelpCircle, Loader2, Copy, CheckCircle, Sparkles,
+  FlaskConical, FileText, Code, Brain, Loader2, Copy, CheckCircle, Sparkles,
   Type, Image as ImageIcon, BarChart3, Search, Bug, Languages, SpellCheck, MessageCircle,
-  Eye, ScanText, FileQuestion, Mic, Database, Upload, X, Download,
+  Eye, ScanText, FileQuestion, Mic, Database, Upload, X, Download, GitCompare,
 } from "lucide-react";
 import { streamChat } from "@/lib/streamChat";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,9 +14,10 @@ import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import AIFeedback from "@/components/dashboard/AIFeedback";
 import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
+import { extractPdfText, parseCsvFile, fileToDataUrl } from "@/lib/sandboxFiles";
 
 type Category = "Generation" | "Analysis" | "Code" | "Language" | "Vision" | "Multimodal";
-type ToolKind = "text" | "image-gen" | "image-input" | "paste-context";
+type ToolKind = "text" | "image-gen" | "image-input" | "paste-context" | "pdf-input" | "audio-input" | "csv-input";
 
 interface Tool {
   id: string;
@@ -81,27 +83,24 @@ const TOOLS: Tool[] = [
     icon: ScanText, placeholder: "Optional instructions...", buttonText: "Extract Text", color: "from-violet-500 to-purple-500", kind: "image-input",
     samples: ["Read the text in this receipt photo", "Extract text from this screenshot"] },
 
-  // Multimodal
-  { id: "doc-qa", category: "Multimodal", title: "Document Q&A", description: "Paste document content and ask questions — AI answers from the text.",
-    icon: FileQuestion, placeholder: "Your question...", buttonText: "Ask Document", color: "from-orange-500 to-amber-500", kind: "paste-context",
-    contextLabel: "Paste document content here", samples: ["What are the key findings in this report?", "Summarize chapter 3 of this PDF"] },
-  { id: "transcribe", category: "Multimodal", title: "Speech-to-Text Cleanup", description: "Paste a rough transcript — AI cleans it into a polished version.",
-    icon: Mic, placeholder: "Optional: cleanup instructions...", buttonText: "Clean Transcript", color: "from-pink-500 to-rose-500", kind: "paste-context",
-    contextLabel: "Paste rough transcript here", samples: ["Transcribe this voice note", "Turn this audio file into meeting notes"] },
-  { id: "data-analysis", category: "Multimodal", title: "Data Analysis", description: "Paste a CSV/dataset — AI finds trends and explains insights.",
-    icon: Database, placeholder: "Optional: analysis question...", buttonText: "Analyze Data", color: "from-cyan-500 to-blue-500", kind: "paste-context",
-    contextLabel: "Paste CSV / table data here", samples: ["What trend do you see in this CSV?", "Create a chart from this sales data"] },
+  // Multimodal — now with REAL file uploads
+  { id: "doc-qa", category: "Multimodal", title: "Document Q&A (PDF)", description: "Upload a PDF and ask questions — AI answers from the document text.",
+    icon: FileQuestion, placeholder: "Your question about the document...", buttonText: "Ask Document", color: "from-orange-500 to-amber-500", kind: "pdf-input",
+    contextLabel: "Upload a PDF (or paste text)", samples: ["What are the key findings in this report?", "Summarize chapter 3", "List the main recommendations"] },
+  { id: "transcribe", category: "Multimodal", title: "Speech-to-Text", description: "Upload an audio file (or paste a rough transcript) and get a clean transcription.",
+    icon: Mic, placeholder: "Optional: cleanup or formatting instructions...", buttonText: "Transcribe", color: "from-pink-500 to-rose-500", kind: "audio-input",
+    contextLabel: "Upload an audio file (or paste transcript)", samples: ["Transcribe this voice note", "Turn this audio into meeting notes", "Add speaker labels"] },
+  { id: "data-analysis", category: "Multimodal", title: "Data Analysis (CSV)", description: "Upload a CSV file — AI finds trends, totals, and explains insights.",
+    icon: Database, placeholder: "Optional: analysis question...", buttonText: "Analyze Data", color: "from-cyan-500 to-blue-500", kind: "csv-input",
+    contextLabel: "Upload a CSV file (or paste table)", samples: ["What trend do you see?", "Top 5 rows by value", "Suggest a chart for this data"] },
 ];
 
 const CATEGORIES: ("All" | Category)[] = ["All", "Generation", "Analysis", "Code", "Language", "Vision", "Multimodal"];
 
-const fileToDataUrl = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result as string);
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
+const COMPARE_MODELS = {
+  a: { id: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  b: { id: "openai/gpt-5-mini", label: "GPT-5 Mini" },
+};
 
 const AIToolsSandbox = () => {
   const { items: adminTools } = usePublishedSectionContent("tools");
@@ -111,10 +110,19 @@ const AIToolsSandbox = () => {
   const [contextText, setContextText] = useState("");
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [imageName, setImageName] = useState<string>("");
+  const [audioDataUrl, setAudioDataUrl] = useState<string | null>(null);
+  const [audioName, setAudioName] = useState<string>("");
+  const [fileName, setFileName] = useState<string>(""); // for PDF / CSV display
   const [output, setOutput] = useState("");
+  const [outputA, setOutputA] = useState("");
+  const [outputB, setOutputB] = useState("");
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingA, setIsLoadingA] = useState(false);
+  const [isLoadingB, setIsLoadingB] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [compareMode, setCompareMode] = useState(false);
+  const [parsing, setParsing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentTool = TOOLS.find((t) => t.id === selectedTool);
@@ -125,7 +133,8 @@ const AIToolsSandbox = () => {
 
   const resetState = () => {
     setInput(""); setContextText(""); setImageDataUrl(null); setImageName("");
-    setOutput(""); setGeneratedImage(null);
+    setAudioDataUrl(null); setAudioName(""); setFileName("");
+    setOutput(""); setOutputA(""); setOutputB(""); setGeneratedImage(null);
   };
 
   const handlePickTool = (id: string) => {
@@ -133,102 +142,154 @@ const AIToolsSandbox = () => {
     resetState();
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file");
-      return;
+    e.target.value = ""; // allow re-selecting same file
+    if (!file || !currentTool) return;
+
+    try {
+      if (currentTool.kind === "image-input") {
+        if (!file.type.startsWith("image/")) { toast.error("Please upload an image file"); return; }
+        if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB"); return; }
+        const dataUrl = await fileToDataUrl(file);
+        setImageDataUrl(dataUrl); setImageName(file.name);
+      } else if (currentTool.kind === "pdf-input") {
+        if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+          toast.error("Please upload a PDF file"); return;
+        }
+        if (file.size > 20 * 1024 * 1024) { toast.error("PDF must be under 20 MB"); return; }
+        setParsing(true);
+        const text = await extractPdfText(file);
+        setContextText(text);
+        setFileName(file.name);
+        toast.success(`Extracted ${text.length.toLocaleString()} characters from PDF`);
+      } else if (currentTool.kind === "audio-input") {
+        if (!file.type.startsWith("audio/")) { toast.error("Please upload an audio file (mp3, wav, m4a...)"); return; }
+        if (file.size > 25 * 1024 * 1024) { toast.error("Audio must be under 25 MB"); return; }
+        const dataUrl = await fileToDataUrl(file);
+        setAudioDataUrl(dataUrl); setAudioName(file.name);
+      } else if (currentTool.kind === "csv-input") {
+        if (!file.name.toLowerCase().endsWith(".csv") && file.type !== "text/csv") {
+          toast.error("Please upload a .csv file"); return;
+        }
+        if (file.size > 10 * 1024 * 1024) { toast.error("CSV must be under 10 MB"); return; }
+        setParsing(true);
+        const summary = await parseCsvFile(file);
+        setContextText(summary.preview);
+        setFileName(file.name);
+        toast.success(`Parsed ${summary.rowCount} rows × ${summary.columnCount} columns`);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Failed to process file");
+    } finally {
+      setParsing(false);
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be under 5 MB");
-      return;
+  };
+
+  const buildUserContent = (): { content: any; tool: string } | null => {
+    if (!currentTool) return null;
+    if (currentTool.kind === "image-input") {
+      if (!imageDataUrl) { toast.error("Please upload an image first"); return null; }
+      return {
+        tool: currentTool.id,
+        content: [
+          { type: "text", text: input.trim() || "Analyze this image as instructed by the system prompt." },
+          { type: "image_url", image_url: { url: imageDataUrl } },
+        ],
+      };
     }
-    const dataUrl = await fileToDataUrl(file);
-    setImageDataUrl(dataUrl);
-    setImageName(file.name);
+    if (currentTool.kind === "pdf-input" || currentTool.kind === "csv-input" || currentTool.kind === "paste-context") {
+      if (!contextText.trim()) {
+        toast.error(`Please upload a file or paste content first`);
+        return null;
+      }
+      const q = input.trim() || "Please process the content below per the system instructions.";
+      return { tool: currentTool.id, content: `${q}\n\n--- CONTENT ---\n${contextText}` };
+    }
+    // text + audio handled outside
+    if (!input.trim()) return null;
+    return { tool: currentTool.id, content: input };
+  };
+
+  const runStream = async (modelOverride: string, setter: (s: string) => void, doneSetter: (b: boolean) => void) => {
+    const built = buildUserContent();
+    if (!built) return;
+    let acc = "";
+    try {
+      await streamChat({
+        messages: [{ role: "user", content: built.content }],
+        tool: built.tool,
+        modelOverride,
+        onDelta: (chunk) => { acc += chunk; setter(acc); },
+        onDone: () => doneSetter(false),
+      });
+    } catch (e) {
+      doneSetter(false);
+      const msg = e instanceof Error ? e.message : "AI service unavailable";
+      setter(`⚠️ ${msg}`);
+      toast.error(msg);
+    }
   };
 
   const handleRun = async () => {
     if (!currentTool) return;
-    setOutput("");
-    setGeneratedImage(null);
+    setOutput(""); setOutputA(""); setOutputB(""); setGeneratedImage(null);
 
+    // Image generation — single-model only
     if (currentTool.kind === "image-gen") {
       if (!input.trim()) return;
       setIsLoading(true);
       try {
-        const { data, error } = await supabase.functions.invoke("generate-image", {
-          body: { prompt: input },
-        });
+        const { data, error } = await supabase.functions.invoke("generate-image", { body: { prompt: input } });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
         if (!data?.imageUrl) throw new Error("No image returned");
         setGeneratedImage(data.imageUrl);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Image generation failed";
-        toast.error(msg);
-        setOutput(`⚠️ ${msg}`);
-      } finally {
-        setIsLoading(false);
-      }
+        toast.error(msg); setOutput(`⚠️ ${msg}`);
+      } finally { setIsLoading(false); }
       return;
     }
 
-    if (currentTool.kind === "image-input") {
-      if (!imageDataUrl) {
-        toast.error("Please upload an image first");
-        return;
-      }
-    } else if (currentTool.kind === "paste-context") {
-      if (!contextText.trim()) {
-        toast.error(`Please paste content into the "${currentTool.contextLabel}" box`);
-        return;
-      }
-    } else {
-      if (!input.trim()) return;
+    // Audio transcription — uses dedicated edge function
+    if (currentTool.kind === "audio-input") {
+      if (!audioDataUrl) { toast.error("Please upload an audio file first"); return; }
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("transcribe-audio", {
+          body: { audioDataUrl, instructions: input.trim() },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        setOutput(data?.text || "(no transcription returned)");
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Transcription failed";
+        toast.error(msg); setOutput(`⚠️ ${msg}`);
+      } finally { setIsLoading(false); }
+      return;
     }
 
+    // Compare mode: run both models in parallel
+    if (compareMode) {
+      setIsLoadingA(true); setIsLoadingB(true);
+      await Promise.all([
+        runStream(COMPARE_MODELS.a.id, setOutputA, setIsLoadingA),
+        runStream(COMPARE_MODELS.b.id, setOutputB, setIsLoadingB),
+      ]);
+      return;
+    }
+
+    // Single-model streaming run
     setIsLoading(true);
-    let resultSoFar = "";
-
-    let userContent: any;
-    if (currentTool.kind === "image-input") {
-      userContent = [
-        { type: "text", text: input.trim() || "Analyze this image as instructed by the system prompt." },
-        { type: "image_url", image_url: { url: imageDataUrl! } },
-      ];
-    } else if (currentTool.kind === "paste-context") {
-      const q = input.trim() || "Please process the content below per the system instructions.";
-      userContent = `${q}\n\n--- CONTENT ---\n${contextText}`;
-    } else {
-      userContent = input;
-    }
-
-    try {
-      await streamChat({
-        messages: [{ role: "user", content: userContent }],
-        tool: currentTool.id,
-        onDelta: (chunk) => {
-          resultSoFar += chunk;
-          setOutput(resultSoFar);
-        },
-        onDone: () => setIsLoading(false),
-      });
-    } catch (e) {
-      setIsLoading(false);
-      const msg = e instanceof Error && e.message.includes("Rate limit")
-        ? "Too many requests — please wait and try again."
-        : e instanceof Error ? e.message : "AI service is temporarily unavailable.";
-      setOutput(`⚠️ ${msg}`);
-      toast.error(msg, { duration: 3000 });
-    }
+    await runStream("", setOutput, setIsLoading); // empty override = use default
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(output);
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
     setCopied(true);
-    toast.success("Copied to clipboard!");
+    toast.success("Copied!");
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -254,9 +315,7 @@ const AIToolsSandbox = () => {
             >
               {cat}
               {cat !== "All" && (
-                <span className="ml-1.5 opacity-60">
-                  {TOOLS.filter(t => t.category === cat).length}
-                </span>
+                <span className="ml-1.5 opacity-60">{TOOLS.filter(t => t.category === cat).length}</span>
               )}
             </button>
           ))}
@@ -275,9 +334,7 @@ const AIToolsSandbox = () => {
                   <div className={`w-11 h-11 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center`}>
                     <Icon className="h-5 w-5 text-primary-foreground" />
                   </div>
-                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
-                    {tool.category}
-                  </Badge>
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider">{tool.category}</Badge>
                 </div>
                 <h4 className="font-display font-semibold text-card-foreground mb-1">{tool.title}</h4>
                 <p className="text-xs text-muted-foreground">{tool.description}</p>
@@ -311,6 +368,125 @@ const AIToolsSandbox = () => {
 
   // ============ TOOL DETAIL VIEW ============
   const Icon = currentTool!.icon;
+  const compareDisabled = currentTool!.kind === "image-gen" || currentTool!.kind === "audio-input";
+
+  const acceptForKind: Record<ToolKind, string> = {
+    "text": "", "image-gen": "", "paste-context": "",
+    "image-input": "image/*",
+    "pdf-input": "application/pdf,.pdf",
+    "audio-input": "audio/*",
+    "csv-input": ".csv,text/csv",
+  };
+
+  const renderUploader = () => {
+    const k = currentTool!.kind;
+    if (k === "text" || k === "image-gen" || k === "paste-context") return null;
+
+    const hasFile =
+      (k === "image-input" && !!imageDataUrl) ||
+      (k === "audio-input" && !!audioDataUrl) ||
+      ((k === "pdf-input" || k === "csv-input") && !!fileName);
+
+    const displayName =
+      k === "image-input" ? imageName :
+      k === "audio-input" ? audioName : fileName;
+
+    const labelMap: Record<string, string> = {
+      "image-input": "Image (PNG, JPG, WEBP — up to 5 MB)",
+      "pdf-input": "PDF document (up to 20 MB, first 50 pages)",
+      "audio-input": "Audio file (MP3, WAV, M4A — up to 25 MB)",
+      "csv-input": "CSV file (up to 10 MB)",
+    };
+
+    return (
+      <div>
+        <label className="text-sm font-medium text-foreground mb-2 block">{currentTool!.contextLabel || "Upload a file"}</label>
+        {hasFile ? (
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            {k === "image-input" && imageDataUrl && (
+              <img src={imageDataUrl} alt={imageName} className="max-h-40 mx-auto rounded mb-2" />
+            )}
+            {k === "audio-input" && audioDataUrl && (
+              <audio src={audioDataUrl} controls className="w-full mb-2" />
+            )}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground truncate max-w-[60%]" title={displayName}>📎 {displayName}</span>
+              <button
+                onClick={() => {
+                  setImageDataUrl(null); setImageName("");
+                  setAudioDataUrl(null); setAudioName("");
+                  setFileName(""); setContextText("");
+                }}
+                className="text-destructive hover:underline flex items-center gap-1"
+              >
+                <X className="h-3 w-3" /> Remove
+              </button>
+            </div>
+            {(k === "pdf-input" || k === "csv-input") && contextText && (
+              <details className="mt-2 text-xs">
+                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Preview extracted content</summary>
+                <pre className="mt-2 max-h-40 overflow-auto bg-background rounded p-2 text-[10px] whitespace-pre-wrap">{contextText.slice(0, 2000)}{contextText.length > 2000 ? "\n…" : ""}</pre>
+              </details>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={parsing}
+            className="w-full border-2 border-dashed border-border rounded-lg p-6 hover:border-primary transition-colors flex flex-col items-center gap-2 text-muted-foreground hover:text-primary disabled:opacity-60"
+          >
+            {parsing ? <Loader2 className="h-6 w-6 animate-spin" /> : <Upload className="h-6 w-6" />}
+            <span className="text-sm">{parsing ? "Processing file..." : "Click to upload a file"}</span>
+            <span className="text-[10px]">{labelMap[k]}</span>
+          </button>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={acceptForKind[k]}
+          className="hidden"
+          onChange={handleFileUpload}
+        />
+        {(k === "pdf-input" || k === "csv-input") && (
+          <details className="mt-2">
+            <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">…or paste content manually</summary>
+            <Textarea
+              value={contextText}
+              onChange={(e) => { setContextText(e.target.value); if (!fileName) setFileName(""); }}
+              placeholder="Paste content here..."
+              className="mt-2 min-h-[120px] resize-none font-mono text-xs"
+            />
+          </details>
+        )}
+      </div>
+    );
+  };
+
+  const renderOutputCard = (label: string, body: string, busy: boolean, modelLabel?: string) => (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-foreground flex items-center gap-2">
+          {label}
+          {modelLabel && <Badge variant="outline" className="text-[10px]">{modelLabel}</Badge>}
+        </label>
+        {body && (
+          <Button variant="ghost" size="sm" onClick={() => handleCopy(body)} className="gap-1 text-xs">
+            {copied ? <CheckCircle className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            {copied ? "Copied" : "Copy"}
+          </Button>
+        )}
+      </div>
+      <div className="min-h-[300px] bg-muted/50 rounded-lg border border-border p-4 overflow-y-auto" role="region" aria-live="polite">
+        {body ? (
+          <div className="prose prose-sm dark:prose-invert max-w-none">
+            <ReactMarkdown>{body}</ReactMarkdown>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">{busy ? "Generating..." : "Output will appear here..."}</p>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -332,6 +508,22 @@ const AIToolsSandbox = () => {
         </Button>
       </div>
 
+      {/* Compare-models toggle */}
+      {!compareDisabled && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <GitCompare className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Compare 2 models</p>
+              <p className="text-[11px] text-muted-foreground">
+                Run the same prompt through <span className="font-medium">{COMPARE_MODELS.a.label}</span> and <span className="font-medium">{COMPARE_MODELS.b.label}</span> side-by-side
+              </p>
+            </div>
+          </div>
+          <Switch checked={compareMode} onCheckedChange={setCompareMode} aria-label="Compare two models" />
+        </div>
+      )}
+
       {/* Sample prompts */}
       <div className="bg-muted/40 rounded-lg border border-border p-3">
         <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-2">Try one of these</p>
@@ -348,61 +540,13 @@ const AIToolsSandbox = () => {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className={`grid gap-4 ${compareMode ? "lg:grid-cols-1" : "lg:grid-cols-2"}`}>
         {/* INPUT COLUMN */}
         <div className="space-y-3">
-          {/* Image upload for vision tools */}
-          {currentTool!.kind === "image-input" && (
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Image</label>
-              {imageDataUrl ? (
-                <div className="relative rounded-lg border border-border bg-muted/30 p-2">
-                  <img src={imageDataUrl} alt={imageName} className="max-h-48 mx-auto rounded" />
-                  <div className="flex items-center justify-between mt-2 text-xs">
-                    <span className="text-muted-foreground truncate max-w-[60%]">{imageName}</span>
-                    <button
-                      onClick={() => { setImageDataUrl(null); setImageName(""); }}
-                      className="text-destructive hover:underline flex items-center gap-1"
-                    >
-                      <X className="h-3 w-3" /> Remove
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full border-2 border-dashed border-border rounded-lg p-6 hover:border-primary transition-colors flex flex-col items-center gap-2 text-muted-foreground hover:text-primary"
-                >
-                  <Upload className="h-6 w-6" />
-                  <span className="text-sm">Click to upload an image</span>
-                  <span className="text-[10px]">PNG, JPG, WEBP — up to 5 MB</span>
-                </button>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageUpload}
-              />
-            </div>
-          )}
-
-          {/* Context textarea for paste-context tools */}
-          {currentTool!.kind === "paste-context" && (
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">{currentTool!.contextLabel}</label>
-              <Textarea
-                value={contextText}
-                onChange={(e) => setContextText(e.target.value)}
-                placeholder={`Paste your ${currentTool!.id === "data-analysis" ? "CSV / table data" : currentTool!.id === "transcribe" ? "rough transcript" : "document content"} here...`}
-                className="min-h-[160px] resize-none font-mono text-xs"
-              />
-            </div>
-          )}
+          {renderUploader()}
 
           <label className="text-sm font-medium text-foreground">
-            {currentTool!.kind === "image-input" || currentTool!.kind === "paste-context" ? "Question / Instructions (optional)" : "Input"}
+            {currentTool!.kind === "text" || currentTool!.kind === "image-gen" ? "Input" : "Question / Instructions (optional)"}
           </label>
           <Textarea
             value={input}
@@ -412,56 +556,60 @@ const AIToolsSandbox = () => {
           />
           <Button
             onClick={handleRun}
-            disabled={isLoading}
+            disabled={isLoading || isLoadingA || isLoadingB || parsing}
             className="w-full bg-gradient-primary border-0 text-primary-foreground gap-2"
           >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
-            {isLoading ? "Processing..." : currentTool!.buttonText}
+            {(isLoading || isLoadingA || isLoadingB) ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
+            {(isLoading || isLoadingA || isLoadingB) ? "Processing..." : (compareMode ? `Compare with ${COMPARE_MODELS.a.label} & ${COMPARE_MODELS.b.label}` : currentTool!.buttonText)}
           </Button>
         </div>
 
-        {/* OUTPUT COLUMN */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-foreground">Output</label>
-            {output && (
-              <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-1 text-xs">
-                {copied ? <CheckCircle className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                {copied ? "Copied" : "Copy"}
-              </Button>
-            )}
-          </div>
-          <div className="min-h-[300px] bg-muted/50 rounded-lg border border-border p-4 overflow-y-auto" role="region" aria-label="AI output" aria-live="polite">
-            {generatedImage ? (
-              <div className="space-y-3">
-                <img src={generatedImage} alt="Generated" className="rounded-lg border border-border w-full" />
-                <a
-                  href={generatedImage}
-                  download="ai-generated-image.png"
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  <Download className="h-3 w-3" /> Download image
-                </a>
-              </div>
-            ) : output ? (
-              <div>
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <ReactMarkdown>{output}</ReactMarkdown>
+        {/* OUTPUT COLUMN(S) */}
+        {!compareMode && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-foreground">Output</label>
+              {output && (
+                <Button variant="ghost" size="sm" onClick={() => handleCopy(output)} className="gap-1 text-xs">
+                  {copied ? <CheckCircle className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                  {copied ? "Copied" : "Copy"}
+                </Button>
+              )}
+            </div>
+            <div className="min-h-[300px] bg-muted/50 rounded-lg border border-border p-4 overflow-y-auto" role="region" aria-label="AI output" aria-live="polite">
+              {generatedImage ? (
+                <div className="space-y-3">
+                  <img src={generatedImage} alt="Generated" className="rounded-lg border border-border w-full" />
+                  <a href={generatedImage} download="ai-generated-image.png" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                    <Download className="h-3 w-3" /> Download image
+                  </a>
                 </div>
-                {!output.startsWith("⚠️") && !isLoading && (
-                  <div className="mt-3 pt-3 border-t border-border">
-                    <AIFeedback messageIndex={0} />
+              ) : output ? (
+                <div>
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown>{output}</ReactMarkdown>
                   </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">
-                {isLoading ? "Generating response..." : "Output will appear here..."}
-              </p>
-            )}
+                  {!output.startsWith("⚠️") && !isLoading && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <AIFeedback messageIndex={0} />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">{isLoading ? "Generating response..." : "Output will appear here..."}</p>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
+
+      {/* COMPARE OUTPUTS — full-width grid below input */}
+      {compareMode && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {renderOutputCard("Model A", outputA, isLoadingA, COMPARE_MODELS.a.label)}
+          {renderOutputCard("Model B", outputB, isLoadingB, COMPARE_MODELS.b.label)}
+        </div>
+      )}
     </div>
   );
 };

@@ -147,6 +147,102 @@ const ModuleGroupsManager = ({ ownerRole, ownerId, ownerName, scopedStudents = [
     setSelectedStudentIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   };
 
+  // ----- AI Auto-Group -----
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiHint, setAiHint] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<{ name: string; description: string; module_ids: number[] }[]>([]);
+  const [aiAccept, setAiAccept] = useState<Set<number>>(new Set());
+
+  const runAISuggest = async () => {
+    setAiLoading(true);
+    try {
+      const { data, error } = await (supabase as any).functions.invoke("ai-group-modules", {
+        body: { modules: allModules, hint: aiHint },
+      });
+      if (error) throw error;
+      const sugs = (data?.groups || []).filter((g: any) => Array.isArray(g.module_ids) && g.module_ids.length);
+      if (sugs.length === 0) { toast.error("AI returned no groups"); return; }
+      setAiSuggestions(sugs);
+      setAiAccept(new Set(sugs.map((_: any, i: number) => i)));
+    } catch (e: any) {
+      toast.error(e.message || "AI grouping failed");
+    } finally { setAiLoading(false); }
+  };
+
+  const applyAISuggestions = async () => {
+    const accepted = aiSuggestions.filter((_, i) => aiAccept.has(i));
+    if (accepted.length === 0) { toast.error("Select at least one group"); return; }
+    setAiLoading(true);
+    try {
+      for (const sug of accepted) {
+        const { data, error } = await (supabase as any).from("module_groups").insert({
+          name: sug.name, description: sug.description || "",
+          owner_role: ownerRole, owner_id: ownerId, owner_name: ownerName, status: "published",
+        }).select("id").single();
+        if (error) throw error;
+        const gid = data.id;
+        const items = sug.module_ids.map((mid, i) => {
+          const mod = allModules.find((m) => m.id === mid);
+          return { group_id: gid, module_id: mid, module_title: mod?.title || `Module ${mid}`, sort_order: i };
+        });
+        await (supabase as any).from("module_group_items").insert(items);
+        // Default cohort = visible to all (admin) — trainer can edit later
+        if (ownerRole === "admin") {
+          await (supabase as any).from("module_group_assignments").insert({ group_id: gid, scope_type: "cohort" });
+        }
+      }
+      toast.success(`Created ${accepted.length} group(s) from AI suggestions`);
+      setAiOpen(false); setAiSuggestions([]); setAiAccept(new Set()); setAiHint("");
+      refetch();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to apply suggestions");
+    } finally { setAiLoading(false); }
+  };
+
+  // ----- Manual Move -----
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [moveSrcGroupId, setMoveSrcGroupId] = useState("");
+  const [moveModuleId, setMoveModuleId] = useState<string>("");
+  const [moveDstGroupId, setMoveDstGroupId] = useState("");
+
+  const openMove = (srcGroupId?: string) => {
+    setMoveSrcGroupId(srcGroupId || "");
+    setMoveModuleId(""); setMoveDstGroupId("");
+    setMoveOpen(true);
+  };
+
+  const performMove = async () => {
+    if (!moveSrcGroupId || !moveModuleId || !moveDstGroupId) {
+      toast.error("Select source group, module, and destination group");
+      return;
+    }
+    if (moveSrcGroupId === moveDstGroupId) { toast.error("Source and destination must differ"); return; }
+    const mid = Number(moveModuleId);
+    const src = groups.find((g) => g.id === moveSrcGroupId);
+    const dst = groups.find((g) => g.id === moveDstGroupId);
+    const item = src?.items.find((i) => i.module_id === mid);
+    if (!item) { toast.error("Module not found in source"); return; }
+    if (dst?.items.some((i) => i.module_id === mid)) {
+      toast.error("Module already exists in destination group");
+      return;
+    }
+    try {
+      // Delete from source, insert into destination
+      await (supabase as any).from("module_group_items").delete().eq("id", item.id);
+      const nextOrder = (dst?.items.length || 0);
+      await (supabase as any).from("module_group_items").insert({
+        group_id: moveDstGroupId, module_id: mid, module_title: item.module_title, sort_order: nextOrder,
+      });
+      toast.success("Module moved");
+      setMoveOpen(false);
+      refetch();
+    } catch (e: any) {
+      toast.error(e.message || "Move failed");
+    }
+  };
+
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">

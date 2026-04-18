@@ -23,7 +23,11 @@ const SECTION_META: Record<string, { label: string; icon: React.ElementType; col
   projects: { label: "Projects", icon: FolderKanban, color: "text-orange-500" },
 };
 
-const DashboardOverview = () => {
+interface DashboardOverviewProps {
+  onStudentClick?: (studentName: string) => void;
+}
+
+const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
   const [contentCounts, setContentCounts] = useState<ContentCount[]>([]);
   const [studentCount, setStudentCount] = useState(0);
   const [trainerCount, setTrainerCount] = useState(0);
@@ -181,8 +185,9 @@ const DashboardOverview = () => {
                   <Badge
                     key={s.id}
                     variant="outline"
-                    className="bg-background/50 border-primary/30"
+                    className={`bg-background/50 border-primary/30 ${onStudentClick ? 'cursor-pointer hover:bg-primary/10 hover:border-primary/50' : ''}`}
                     title={s.college}
+                    onClick={() => onStudentClick?.(s.name)}
                   >
                     {s.name}
                   </Badge>

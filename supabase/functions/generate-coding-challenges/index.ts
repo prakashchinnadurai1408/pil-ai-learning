@@ -10,25 +10,33 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { category, difficulty, count } = await req.json();
+    const { category, difficulty, count, ageGroup = "" } = await req.json();
     const numChallenges = Math.min(count || 5, 20);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const prompt = `Generate exactly ${numChallenges} unique programming challenges for students. 
+    const ageGuide = getAgeChallengeGuide(ageGroup);
+    const effectiveDifficulty = difficulty || ageGuide.defaultDifficulty;
+
+    const prompt = `Generate exactly ${numChallenges} unique programming challenges for Indian students.
+
+LEARNER AGE GROUP: ${ageGuide.label}
+- Reading level: ${ageGuide.readingLevel}
+- Style: ${ageGuide.style}
+
 Category: ${category || "Mixed"}
-Difficulty: ${difficulty || "Mixed"}
+Difficulty: ${effectiveDifficulty}
 
 Return ONLY a JSON array with objects having these exact fields:
-- title (string, short descriptive title)
+- title (string, short descriptive title using age-appropriate wording)
 - difficulty ("Easy", "Medium", or "Hard")
 - category (one of: "Basics", "Loops", "Arrays", "Strings", "Recursion", "Math", "Data Structures")
-- description (string, clear problem statement)
+- description (string, clear problem statement written for the LEARNER AGE GROUP above)
 - sample_input (string or null, example input)
 - sample_output (string, expected output for the sample input)
 
-Make challenges progressively harder. Include clear, testable problems with unambiguous expected outputs.
+Make challenges progressively harder, but never exceed the requested Difficulty. Use examples and scenarios that match the age group's interests. Include clear, testable problems with unambiguous expected outputs.
 Return ONLY the JSON array, no markdown, no explanation.`;
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -100,3 +108,38 @@ Return ONLY the JSON array, no markdown, no explanation.`;
     });
   }
 });
+
+// ============= Age-aware coding challenge helper =============
+function getAgeChallengeGuide(ageGroup: string) {
+  const g = (ageGroup || "").trim();
+  if (g === "10-14") return {
+    label: "10–14 years",
+    readingLevel: "very simple English, short sentences",
+    style: "fun, playful problem statements (games, animals, school) — print/format/basic loops only",
+    defaultDifficulty: "Easy",
+  };
+  if (g === "15-18") return {
+    label: "15–18 years",
+    readingLevel: "clear conversational English",
+    style: "high-school relatable scenarios (marks, music playlists, simple text processing)",
+    defaultDifficulty: "Easy",
+  };
+  if (g === "19-22") return {
+    label: "19–22 years",
+    readingLevel: "college-level English; technical terms allowed",
+    style: "college/internship style problems (data parsing, algorithms, mini real-world tasks)",
+    defaultDifficulty: "Medium",
+  };
+  if (g === "23+") return {
+    label: "23+ years",
+    readingLevel: "professional / postgraduate English",
+    style: "professional engineering scenarios (data pipelines, transformations, optimization)",
+    defaultDifficulty: "Medium",
+  };
+  return {
+    label: "general adult learner",
+    readingLevel: "clear standard English",
+    style: "broad real-world scenarios",
+    defaultDifficulty: "Easy",
+  };
+}

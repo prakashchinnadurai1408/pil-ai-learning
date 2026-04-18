@@ -115,8 +115,9 @@ const VideoLearning = () => {
     setSubmitted(false);
     setShowQuiz(true);
     try {
+      const ageGroup = sessionStorage.getItem("studentAgeGroup") || "";
       const { data, error } = await supabase.functions.invoke("generate-video-quiz", {
-        body: { videoTitle: video.title, moduleName: video.module, questionCount: 5 },
+        body: { videoTitle: video.title, moduleName: video.module, questionCount: 5, ageGroup },
       });
       if (error || !data?.questions) throw new Error("Failed");
       setAiQuizQuestions(data.questions);

@@ -64,6 +64,7 @@ const StudentLogin = () => {
     sessionStorage.setItem("studentCollege", form.college);
     sessionStorage.setItem("studentDegree", form.degree);
     sessionStorage.setItem("studentDepartment", form.department);
+    sessionStorage.setItem("studentAgeGroup", form.age_group || "");
     toast.success("Welcome, " + form.name + "!");
     navigate("/student-dashboard");
   };
@@ -78,6 +79,7 @@ const StudentLogin = () => {
     sessionStorage.setItem("studentCollege", data.college);
     sessionStorage.setItem("studentDegree", (data as any).degree || "");
     sessionStorage.setItem("studentDepartment", (data as any).department || "");
+    sessionStorage.setItem("studentAgeGroup", (data as any).age_group || "");
     sessionStorage.setItem("studentId", data.id);
     toast.success("Welcome back, " + data.name + "!");
     navigate("/student-dashboard");

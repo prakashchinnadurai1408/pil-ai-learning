@@ -40,7 +40,7 @@ serve(async (req) => {
     const sb = createClient(url, key);
 
     // Fetch candidate
-    const { data: candidate } = await sb.from("students").select("id, name, college, department, degree, subscription_tier").eq("id", candidateId).single();
+    const { data: candidate } = await sb.from("students").select("id, name, college, department, degree, subscription_tier, age_group").eq("id", candidateId).single();
     if (!candidate) {
       return new Response(JSON.stringify({ error: "Candidate not found" }), {
         status: 404,
@@ -78,12 +78,15 @@ serve(async (req) => {
 
     // ===== New candidate WITHOUT diagnostic: default beginner path =====
     if (!hasActivity && !diagnosticData) {
+      const ageGroup = (candidate as any).age_group || "";
+      const ageProfile = getAgeProfile(ageGroup);
+      const tone = ageProfile.tone;
       const path = await createPath(sb, {
         candidateId,
         candidateName: candidate.name,
-        title: "Beginner's AI Learning Journey",
+        title: ageProfile.beginnerTitle,
         rationale:
-          "Welcome! You haven't completed any modules or assessments yet, so we've created a beginner-friendly journey. Start with Module 1 to build a solid foundation, then progress through prompt engineering and LLM basics before tackling advanced topics like RAG and fine-tuning.",
+          `${tone.welcome} You haven't completed any modules or assessments yet, so we've created a beginner-friendly journey ${tone.tailoredFor}. Start with Module 1 to build a solid foundation, then progress through prompt engineering and LLM basics before tackling advanced topics like RAG and fine-tuning. The AI Agent will increase difficulty automatically as your scores improve.`,
         modules: DEFAULT_BEGINNER_ORDER.map((id, i) => {
           const m = CORE_MODULES.find((x) => x.id === id)!;
           return {
@@ -92,16 +95,16 @@ serve(async (req) => {
             sort_order: i,
             reason:
               i === 0
-                ? "Start here — foundational AI concepts everyone needs."
+                ? tone.firstStepReason
                 : i < 3
                 ? "Builds directly on the previous module."
                 : "Advance your skills once basics are solid.",
           };
         }),
         isBeginnerDefault: true,
-        modelUsed: "default-beginner",
+        modelUsed: `default-beginner:${ageProfile.key}`,
       });
-      return new Response(JSON.stringify({ success: true, path, beginnerDefault: true }), {
+      return new Response(JSON.stringify({ success: true, path, beginnerDefault: true, ageGroup }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -113,7 +116,12 @@ serve(async (req) => {
     const avgAssessmentScore = attempts.length ? Math.round(attempts.reduce((s: number, x: any) => s + x.score, 0) / attempts.length) : 0;
     const codingLanguages = [...new Set(coding.map((c: any) => c.language))];
 
+    const ageGroup = (candidate as any).age_group || "";
+    const ageProfile = getAgeProfile(ageGroup);
+
     const summary = {
+      age_group: ageGroup || "unspecified",
+      age_profile: ageProfile,
       completed_module_ids: completedModuleIds,
       in_progress_modules: inProgressModules.map((p: any) => ({ module_id: p.module_id, progress: p.progress_percent })),
       module_quiz_avg_score: avgQuizScore,
@@ -137,16 +145,18 @@ serve(async (req) => {
     const { data: llmSettings } = await sb.from("llm_settings").select("default_model").maybeSingle();
     const model = llmSettings?.default_model || "google/gemini-2.5-flash";
 
-    const systemPrompt = `You are an adaptive learning path advisor for an AI training platform. You analyze a candidate's learning data and recommend a personalized, ordered learning path.
+    const systemPrompt = `You are an adaptive learning path advisor for an AI training platform serving Indian students aged 10 to 23+. You analyze a candidate's learning data AND age group to recommend a personalized, age-appropriate, ordered learning path.
 
 Rules:
-1. Recommend modules in optimal order — prerequisites first, then progression based on weak areas.
-2. SKIP modules already completed with score >= 70%, but you may include them as "review" if scores are low.
-3. Prioritize modules where the candidate showed weakness (low quiz/assessment scores).
-4. If coding activity is low, include foundational modules. If coding is strong, accelerate to advanced topics.
-5. If a diagnostic quiz result is provided, use the topic_breakdown to identify weak topics and prioritize related modules first.
-6. Provide a concise per-module reason (max 20 words).
-7. Provide an overall rationale explaining your strategy (max 80 words). If diagnostic was used, mention it.
+1. ALWAYS adapt vocabulary, examples, and pacing to the candidate's age_profile (provided). Younger learners need simpler language and shorter steps; older learners can handle dense content.
+2. Start with EASIER foundational modules and ramp up. Only accelerate to advanced modules when quiz/assessment scores demonstrate readiness (>= 70%).
+3. Recommend modules in optimal order — prerequisites first, then progression based on weak areas.
+4. SKIP modules already completed with score >= 70%, but include as "review" if scores are low.
+5. Prioritize modules where the candidate showed weakness (low quiz/assessment scores).
+6. If coding activity is low, include foundational modules. If coding is strong, accelerate to advanced topics.
+7. If a diagnostic quiz result is provided, use the topic_breakdown to identify weak topics and prioritize related modules first.
+8. Provide a concise per-module reason (max 20 words) using language appropriate to the age group.
+9. Provide an overall rationale (max 90 words) explaining your strategy. EXPLICITLY mention how you tailored it to the candidate's age group and current skill level.
 
 Respond with ONLY valid JSON in this exact shape:
 {
@@ -277,4 +287,87 @@ async function createPath(
   );
 
   return { ...pathRow, modules: opts.modules };
+}
+
+// ============= Age-aware adaptive helpers =============
+function getAgeProfile(ageGroup: string) {
+  const g = (ageGroup || "").trim();
+  if (g === "10-14") {
+    return {
+      key: "10-14",
+      label: "10–14 years",
+      reading_level: "grade 5-7 (very simple words, short sentences)",
+      examples: "everyday school, games, mobile apps, cartoons",
+      tone: {
+        welcome: "Hey there!",
+        tailoredFor: "designed for younger learners with simple words and fun examples",
+        firstStepReason: "Start here — easy AI ideas explained the simple way.",
+      },
+      beginnerTitle: "My First AI Adventure",
+      difficulty_ceiling: "easy",
+      pacing: "small bite-sized steps; lots of encouragement",
+    };
+  }
+  if (g === "15-18") {
+    return {
+      key: "15-18",
+      label: "15–18 years",
+      reading_level: "grade 8-10 (clear, conversational)",
+      examples: "school projects, social media, smartphones, video editing",
+      tone: {
+        welcome: "Welcome!",
+        tailoredFor: "shaped for high-school learners with relatable examples",
+        firstStepReason: "Start here — foundational AI concepts in plain language.",
+      },
+      beginnerTitle: "Your AI Foundations Journey",
+      difficulty_ceiling: "easy-to-medium initially",
+      pacing: "moderate steps; balance theory and hands-on",
+    };
+  }
+  if (g === "19-22") {
+    return {
+      key: "19-22",
+      label: "19–22 years",
+      reading_level: "college-level (technical vocabulary OK)",
+      examples: "college projects, internships, startups, real APIs",
+      tone: {
+        welcome: "Welcome!",
+        tailoredFor: "built for college students aiming at internships and projects",
+        firstStepReason: "Start here — foundational AI concepts every student needs.",
+      },
+      beginnerTitle: "Your College AI Learning Path",
+      difficulty_ceiling: "medium initially, scale to hard with strong scores",
+      pacing: "standard pace; project-oriented",
+    };
+  }
+  if (g === "23+") {
+    return {
+      key: "23+",
+      label: "23+ years",
+      reading_level: "professional / postgraduate",
+      examples: "workplace use cases, automation, business outcomes, ROI",
+      tone: {
+        welcome: "Welcome!",
+        tailoredFor: "tailored for working professionals and postgraduate learners",
+        firstStepReason: "Start here — quick foundational refresher before advanced topics.",
+      },
+      beginnerTitle: "Your Professional AI Roadmap",
+      difficulty_ceiling: "medium-to-hard; accelerate when scores are strong",
+      pacing: "efficient pace; emphasis on applied outcomes",
+    };
+  }
+  return {
+    key: "unspecified",
+    label: "unspecified",
+    reading_level: "general adult learner",
+    examples: "broad real-world examples",
+    tone: {
+      welcome: "Welcome!",
+      tailoredFor: "designed for general learners",
+      firstStepReason: "Start here — foundational AI concepts everyone needs.",
+    },
+    beginnerTitle: "Beginner's AI Learning Journey",
+    difficulty_ceiling: "adaptive based on performance",
+    pacing: "standard pace",
+  };
 }

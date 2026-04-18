@@ -19,7 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAdminSectionContent } from "@/hooks/useAdminSectionContent";
 import { useAdminModules } from "@/hooks/useAdminModules";
 
-const SECTION_TYPES = [
+const ALL_SECTION_TYPES = [
   { id: "videos", label: "Videos", icon: Video },
   { id: "ai_chat", label: "AI Chat", icon: MessageSquare },
   { id: "tools", label: "Tools", icon: FlaskConical },
@@ -27,8 +27,16 @@ const SECTION_TYPES = [
   { id: "projects", label: "Projects", icon: FolderKanban },
 ];
 
-const ContentManager = () => {
-  const [activeSection, setActiveSection] = useState("videos");
+interface ContentManagerProps {
+  initialSection?: string;
+  sectionsOverride?: string[];
+}
+
+const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProps = {}) => {
+  const SECTION_TYPES = sectionsOverride
+    ? ALL_SECTION_TYPES.filter((s) => sectionsOverride.includes(s.id))
+    : ALL_SECTION_TYPES;
+  const [activeSection, setActiveSection] = useState(initialSection || SECTION_TYPES[0]?.id || "videos");
   const { items, loading, refetch } = useAdminSectionContent(activeSection);
   const { adminModules } = useAdminModules();
   const [topic, setTopic] = useState("");

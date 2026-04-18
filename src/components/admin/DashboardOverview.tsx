@@ -42,6 +42,7 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
   const [challengeCount, setChallengeCount] = useState(0);
   const [questionCount, setQuestionCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [ageGroups, setAgeGroups] = useState<Record<string, number>>({});
 
   // Trainer-scoped panel state
   const [trainers, setTrainers] = useState<Trainer[]>([]);

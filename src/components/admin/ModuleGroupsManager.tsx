@@ -292,6 +292,9 @@ const ModuleGroupsManager = ({ ownerRole, ownerId, ownerName, scopedStudents = [
                     {g.description && <p className="text-xs text-muted-foreground mt-1">{g.description}</p>}
                   </div>
                   <div className="flex gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => openMove(g.id)} title="Move a module to another group">
+                      <ArrowRightLeft className="h-4 w-4" />
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => openEdit(g)}><Pencil className="h-4 w-4" /></Button>
                     <Button size="sm" variant="ghost" className="text-destructive" onClick={() => remove(g.id)}>
                       <Trash2 className="h-4 w-4" />

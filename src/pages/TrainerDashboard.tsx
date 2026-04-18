@@ -35,11 +35,14 @@ const CodingChallengeManager = lazy(() => import("@/components/admin/CodingChall
 const LearningPathsManager = lazy(() => import("@/components/admin/LearningPathsManager"));
 const ProctoringAnalytics = lazy(() => import("@/components/admin/ProctoringAnalytics"));
 const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytics"));
+const ModuleGroupsManager = lazy(() => import("@/components/admin/ModuleGroupsManager"));
+import AssignProjectDialog from "@/components/shared/AssignProjectDialog";
 
 type TabKey =
   | "students" | "assessments" | "create-assessment" | "assessment-analytics"
   | "analytics" | "projects" | "coding"
   | "modules" | "content" | "question-bank" | "coding-bank" | "learning-paths"
+  | "module-groups"
   | "proctoring" | "llm-usage";
 
 const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: typeof Users }[] }[] = [
@@ -53,6 +56,7 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
     label: "Manage",
     items: [
       { key: "learning-paths", label: "Learning Paths", icon: Route },
+      { key: "module-groups", label: "Module Groups", icon: Layers },
     ],
   },
   {
@@ -465,6 +469,16 @@ const TrainerDashboard = () => {
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><ProctoringAnalytics key={`pa-${pinnedStudent}`} initialSearch={pinnedStudent} /></Suspense>;
       case "llm-usage":
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><LLMUsageAnalytics /></Suspense>;
+      case "module-groups":
+        return (
+          <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+            <ModuleGroupsManager
+              ownerRole="trainer"
+              ownerId={typeof window !== "undefined" ? (sessionStorage.getItem("trainerId") || "") : ""}
+              ownerName={typeof window !== "undefined" ? (sessionStorage.getItem("trainerName") || "Trainer") : "Trainer"}
+            />
+          </Suspense>
+        );
     }
   };
 

@@ -73,12 +73,13 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
     }
   }, [initialSearch]);
 
-  // Load trainer assignments + trainer list
+  // Load trainer assignments + trainer list + extra student meta (department, degree)
   useEffect(() => {
     (async () => {
-      const [{ data: ts }, { data: tr }] = await Promise.all([
+      const [{ data: ts }, { data: tr }, { data: stu }] = await Promise.all([
         (supabase as any).from("trainer_students").select("trainer_id, student_id"),
         supabase.from("trainers").select("id, name, college").order("name"),
+        supabase.from("students").select("id, department, degree"),
       ]);
       const map: Record<string, Set<string>> = {};
       (ts || []).forEach((row: any) => {
@@ -87,6 +88,9 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       });
       setTrainerMap(map);
       setTrainersList(tr || []);
+      const meta: Record<string, { department: string; degree: string }> = {};
+      (stu || []).forEach((s: any) => { meta[s.id] = { department: s.department || "", degree: s.degree || "" }; });
+      setExtraMeta(meta);
     })();
   }, [refreshKey]);
 
@@ -129,10 +133,72 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
 
   const filteredUsers = useMemo(() => {
     return students.filter(s => {
+      if (collegeFilter !== "all" && s.college !== collegeFilter) return false;
+      const meta = extraMeta[s.id];
+      if (departmentFilter !== "all" && (meta?.department || "") !== departmentFilter) return false;
+      if (degreeFilter !== "all" && (meta?.degree || "") !== degreeFilter) return false;
       if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase()) && !s.email.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
-  }, [students, searchQuery]);
+  }, [students, searchQuery, collegeFilter, departmentFilter, degreeFilter, extraMeta]);
+
+  // Distinct dropdown options
+  const collegeOptions = useMemo(
+    () => Array.from(new Set(students.map(s => s.college).filter(Boolean))).sort(),
+    [students]
+  );
+  const departmentOptions = useMemo(
+    () => Array.from(new Set(Object.values(extraMeta).map(m => m.department).filter(Boolean))).sort(),
+    [extraMeta]
+  );
+  const degreeOptions = useMemo(
+    () => Array.from(new Set(Object.values(extraMeta).map(m => m.degree).filter(Boolean))).sort(),
+    [extraMeta]
+  );
+
+  // Selection helpers
+  const allFilteredSelected = filteredUsers.length > 0 && filteredUsers.every(u => selectedIds.has(u.id));
+  const someFilteredSelected = filteredUsers.some(u => selectedIds.has(u.id));
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filteredUsers.forEach(u => next.delete(u.id));
+      } else {
+        filteredUsers.forEach(u => next.add(u.id));
+      }
+      return next;
+    });
+  };
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const runBulkGenerate = async () => {
+    if (selectedIds.size === 0) {
+      toast.error("Select at least one candidate");
+      return;
+    }
+    setBulkRunning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("bulk-generate-candidate-paths", {
+        body: { candidateIds: Array.from(selectedIds), overwrite: overwriteExisting },
+      });
+      if (error) throw error;
+      toast.success(data?.message || `Started generating paths for ${selectedIds.size} candidate(s)`);
+      setBulkOpen(false);
+      clearSelection();
+    } catch (e: any) {
+      toast.error(`Failed to start: ${e.message || "Unknown error"}`);
+    } finally {
+      setBulkRunning(false);
+    }
+  };
 
   const handleAddUser = async () => {
     if (!newUser.name || !newUser.email || !newUser.mobile || !newUser.college || !newUser.location) {

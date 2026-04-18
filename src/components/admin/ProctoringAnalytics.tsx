@@ -33,13 +33,13 @@ interface ProcLog {
   created_at: string;
 }
 
-const ProctoringAnalytics = () => {
+const ProctoringAnalytics = ({ initialSearch = "" }: { initialSearch?: string } = {}) => {
   const { assessments } = useAssessments();
   const { allowedNames } = useTrainerScope();
   const [summaries, setSummaries] = useState<ProcSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAssessment, setSelectedAssessment] = useState("all");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [photoModal, setPhotoModal] = useState<{ studentName: string; attemptId: string } | null>(null);
   const [photos, setPhotos] = useState<ProcLog[]>([]);
   const [photosLoading, setPhotosLoading] = useState(false);

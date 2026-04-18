@@ -135,6 +135,13 @@ const TrainerDashboard = () => {
   const [progressFilter, setProgressFilter] = useState("all");
   const [sortKey, setSortKey] = useState<"name" | "college" | "progress" | "modulesCompleted" | "avgScore" | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [pinnedStudent, setPinnedStudent] = useState<string>("");
+
+  const pinAndJump = (name: string, tab: TabKey) => {
+    setPinnedStudent(name);
+    setSearchQuery(name);
+    setActive(tab);
+  };
 
   const colleges = useMemo(() => [...new Set(students.map((s) => s.college))].sort(), [students]);
 
@@ -219,14 +226,20 @@ const TrainerDashboard = () => {
                 </div>
                 <div className="flex flex-wrap gap-2 max-w-[60%] justify-end">
                   {students.slice(0, 6).map((s) => (
-                    <button
-                      key={s.id}
-                      onClick={() => { setSearchQuery(s.name); }}
-                      className="px-2.5 py-1 rounded-full bg-primary-foreground/15 hover:bg-primary-foreground/25 text-xs font-medium transition-colors"
-                      title={`Filter analytics by ${s.name}`}
-                    >
-                      {s.name}
-                    </button>
+                    <div key={s.id} className="inline-flex items-center rounded-full bg-primary-foreground/15 hover:bg-primary-foreground/25 text-xs font-medium transition-colors overflow-hidden">
+                      <button
+                        onClick={() => pinAndJump(s.name, "students")}
+                        className="px-2.5 py-1 hover:bg-primary-foreground/10"
+                        title={`Filter all analytics by ${s.name}`}
+                      >
+                        {s.name}
+                      </button>
+                      <div className="flex border-l border-primary-foreground/20">
+                        <button onClick={() => pinAndJump(s.name, "assessment-analytics")} className="px-1.5 py-1 hover:bg-primary-foreground/10" title="Open in Assessment Analytics">A</button>
+                        <button onClick={() => pinAndJump(s.name, "proctoring")} className="px-1.5 py-1 hover:bg-primary-foreground/10 border-l border-primary-foreground/20" title="Open in Proctoring">P</button>
+                        <button onClick={() => pinAndJump(s.name, "projects")} className="px-1.5 py-1 hover:bg-primary-foreground/10 border-l border-primary-foreground/20" title="Open in Project Reviews">Pr</button>
+                      </div>
+                    </div>
                   ))}
                   {students.length > 6 && (
                     <span className="px-2.5 py-1 rounded-full bg-primary-foreground/10 text-xs">
@@ -235,6 +248,18 @@ const TrainerDashboard = () => {
                   )}
                 </div>
               </div>
+              {pinnedStudent && (
+                <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-foreground/20 text-xs">
+                  <span>Filtering analytics by: <strong>{pinnedStudent}</strong></span>
+                  <button
+                    onClick={() => { setPinnedStudent(""); setSearchQuery(""); }}
+                    className="hover:opacity-80"
+                    aria-label="Clear filter"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
             </div>
           <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
             <div className="p-4 border-b border-border space-y-3">
@@ -391,7 +416,7 @@ const TrainerDashboard = () => {
       case "create-assessment":
         return <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}><AssessmentCreator /></Suspense>;
       case "assessment-analytics":
-        return <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}><AssessmentAnalytics /></Suspense>;
+        return <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}><AssessmentAnalytics key={`aa-${pinnedStudent}`} initialSearch={pinnedStudent} /></Suspense>;
       case "analytics":
         return (
           <div className="grid lg:grid-cols-2 gap-6">
@@ -423,7 +448,7 @@ const TrainerDashboard = () => {
           </div>
         );
       case "projects":
-        return <TrainerProjectReview />;
+        return <TrainerProjectReview key={`pr-${pinnedStudent}`} initialSearch={pinnedStudent} />;
       case "coding":
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><TrainerCodingAnalytics /></Suspense>;
       case "modules":
@@ -437,7 +462,7 @@ const TrainerDashboard = () => {
       case "learning-paths":
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><LearningPathsManager /></Suspense>;
       case "proctoring":
-        return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><ProctoringAnalytics /></Suspense>;
+        return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><ProctoringAnalytics key={`pa-${pinnedStudent}`} initialSearch={pinnedStudent} /></Suspense>;
       case "llm-usage":
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><LLMUsageAnalytics /></Suspense>;
     }

@@ -78,12 +78,12 @@ const formatSize = (bytes: number) => {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 };
 
-const TrainerProjectReview = () => {
+const TrainerProjectReview = ({ initialSearch = "" }: { initialSearch?: string } = {}) => {
   const [progressData, setProgressData] = useState<ProjectProgress[]>([]);
   const [documentsData, setDocumentsData] = useState<ProjectDocument[]>([]);
   const [feedbackData, setFeedbackData] = useState<FeedbackComment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
   const [expandedStream, setExpandedStream] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState("");

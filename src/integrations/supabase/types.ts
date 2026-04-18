@@ -63,6 +63,7 @@ export type Database = {
           id: number
           status: string
           title: string
+          trainer_id: string | null
         }
         Insert: {
           color?: string
@@ -74,6 +75,7 @@ export type Database = {
           id?: number
           status?: string
           title: string
+          trainer_id?: string | null
         }
         Update: {
           color?: string
@@ -85,6 +87,7 @@ export type Database = {
           id?: number
           status?: string
           title?: string
+          trainer_id?: string | null
         }
         Relationships: []
       }

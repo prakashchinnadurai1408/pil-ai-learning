@@ -506,7 +506,7 @@ const TrainerDashboard = () => {
       case "coding":
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><TrainerCodingAnalytics /></Suspense>;
       case "modules":
-        return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><AIModuleCreator /></Suspense>;
+        return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><ModulesAndVideos /></Suspense>;
       case "content":
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><ContentManager /></Suspense>;
       case "question-bank":

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+export type QuestionType = "mcq" | "descriptive" | "video" | "coding";
+
 export interface Assessment {
   id: string;
   title: string;
@@ -17,6 +19,14 @@ export interface Assessment {
   question_count: number;
   created_at: string;
   proctoring_enabled: boolean;
+  // New fields
+  source_mode: "topic" | "jd";
+  topic_or_skills: string;
+  jd_text: string;
+  jd_file_url: string;
+  start_at: string | null;
+  end_at: string | null;
+  question_mix: { mcq: number; descriptive: number; video: number; coding: number };
 }
 
 export interface AssessmentQuestion {
@@ -24,10 +34,17 @@ export interface AssessmentQuestion {
   assessment_id: string;
   question: string;
   options: string[];
-  correct: number;
+  correct: number | null;
   explanation: string;
   sort_order: number;
   source: string;
+  // New
+  question_type: QuestionType;
+  expected_answer: string;
+  max_score: number;
+  time_limit_seconds: number | null;
+  starter_code: string;
+  language: string;
 }
 
 export interface AssessmentAttempt {
@@ -43,6 +60,9 @@ export interface AssessmentAttempt {
   answers: Record<string, number>;
   started_at: string;
   completed_at: string | null;
+  responses?: Record<string, any>;
+  ai_grading?: Record<string, { score: number; max: number; feedback: string }>;
+  grading_status?: string;
 }
 
 export function useAssessments(filterStatus?: string) {
@@ -62,7 +82,15 @@ export function useAssessments(filterStatus?: string) {
       setAssessments((data || []).map((a: any) => ({
         ...a,
         assigned_colleges: Array.isArray(a.assigned_colleges) ? a.assigned_colleges : [],
-        options: [],
+        question_mix: a.question_mix && typeof a.question_mix === "object"
+          ? { mcq: 0, descriptive: 0, video: 0, coding: 0, ...a.question_mix }
+          : { mcq: 0, descriptive: 0, video: 0, coding: 0 },
+        source_mode: a.source_mode || "topic",
+        topic_or_skills: a.topic_or_skills || "",
+        jd_text: a.jd_text || "",
+        jd_file_url: a.jd_file_url || "",
+        start_at: a.start_at || null,
+        end_at: a.end_at || null,
       })));
     }
     setLoading(false);
@@ -89,7 +117,15 @@ export function useAssessmentQuestions(assessmentId: string | null) {
         if (!error && data) {
           setQuestions(data.map((q: any) => ({
             ...q,
-            options: Array.isArray(q.options) ? q.options : JSON.parse(q.options),
+            options: Array.isArray(q.options)
+              ? q.options
+              : (typeof q.options === "string" ? JSON.parse(q.options) : []),
+            question_type: q.question_type || "mcq",
+            expected_answer: q.expected_answer || "",
+            max_score: q.max_score ?? 1,
+            time_limit_seconds: q.time_limit_seconds ?? null,
+            starter_code: q.starter_code || "",
+            language: q.language || "",
           })));
         }
         setLoading(false);
@@ -113,6 +149,9 @@ export function useAssessmentAttempts(assessmentId?: string) {
     setAttempts((data || []).map((a: any) => ({
       ...a,
       answers: typeof a.answers === "object" ? a.answers : {},
+      responses: typeof a.responses === "object" ? a.responses : {},
+      ai_grading: typeof a.ai_grading === "object" ? a.ai_grading : {},
+      grading_status: a.grading_status || "pending",
     })));
     setLoading(false);
   }, [assessmentId]);
@@ -122,7 +161,7 @@ export function useAssessmentAttempts(assessmentId?: string) {
   return { attempts, loading, refetch: fetchAttempts };
 }
 
-export async function createAssessment(assessment: {
+export type CreateAssessmentInput = {
   title: string;
   description: string;
   module_id: number | null;
@@ -133,8 +172,17 @@ export async function createAssessment(assessment: {
   max_attempts: number | null;
   passing_score: number;
   proctoring_enabled?: boolean;
+  source_mode?: "topic" | "jd";
+  topic_or_skills?: string;
+  jd_text?: string;
+  jd_file_url?: string;
+  start_at?: string | null;
+  end_at?: string | null;
+  question_mix?: { mcq: number; descriptive: number; video: number; coding: number };
   questions: Omit<AssessmentQuestion, "id" | "assessment_id" | "created_at">[];
-}) {
+};
+
+export async function createAssessment(assessment: CreateAssessmentInput) {
   const { questions, ...assessmentData } = assessment;
 
   const { data: inserted, error } = await supabase
@@ -149,6 +197,7 @@ export async function createAssessment(assessment: {
     .single();
 
   if (error || !inserted) {
+    console.error("createAssessment error", error);
     toast.error("Failed to create assessment");
     return null;
   }
@@ -156,20 +205,26 @@ export async function createAssessment(assessment: {
   const questionRows = questions.map((q, i) => ({
     assessment_id: (inserted as any).id,
     question: q.question,
-    options: q.options,
-    correct: q.correct,
-    explanation: q.explanation,
+    options: q.options || [],
+    correct: q.question_type === "mcq" ? q.correct : null,
+    explanation: q.explanation || "",
     sort_order: i,
-    source: q.source,
+    source: q.source || "manual",
+    question_type: q.question_type,
+    expected_answer: q.expected_answer || "",
+    max_score: q.max_score ?? (q.question_type === "mcq" ? 1 : 5),
+    time_limit_seconds: q.time_limit_seconds ?? null,
+    starter_code: q.starter_code || "",
+    language: q.language || "",
   }));
 
   const { error: qError } = await supabase.from("assessment_questions").insert(questionRows as any);
   if (qError) {
+    console.error("question insert error", qError);
     toast.error("Assessment created but questions failed to save");
     return (inserted as any).id;
   }
 
-  // Mirror to module-wise question bank (skip duplicates by question text)
   await mirrorToQuestionBank(assessmentData.module_id, questions);
 
   toast.success(`Assessment "${assessment.title}" created with ${questions.length} questions!`);
@@ -182,7 +237,6 @@ async function mirrorToQuestionBank(
 ) {
   if (!moduleId || questions.length === 0) return;
 
-  // Get module name
   const { data: mod } = await supabase
     .from("admin_modules")
     .select("title")
@@ -190,7 +244,6 @@ async function mirrorToQuestionBank(
     .maybeSingle();
   const moduleName = (mod as any)?.title || `Module ${moduleId}`;
 
-  // Avoid duplicates: fetch existing question texts for this module
   const { data: existing } = await supabase
     .from("quiz_question_bank")
     .select("question")
@@ -205,10 +258,12 @@ async function mirrorToQuestionBank(
       module_id: moduleId,
       module_name: moduleName,
       question: q.question,
-      options: q.options,
-      correct: q.correct,
+      options: q.options || [],
+      correct: q.question_type === "mcq" ? (q.correct ?? 0) : 0,
       explanation: q.explanation || "",
       source: "assessment",
+      question_type: q.question_type,
+      expected_answer: q.expected_answer || "",
     }));
 
   if (rows.length > 0) {
@@ -216,17 +271,7 @@ async function mirrorToQuestionBank(
   }
 }
 
-export async function updateAssessment(assessmentId: string, assessment: {
-  title: string;
-  description: string;
-  module_id: number | null;
-  assigned_colleges: string[];
-  time_limit_minutes: number | null;
-  max_attempts: number | null;
-  passing_score: number;
-  proctoring_enabled?: boolean;
-  questions: Omit<AssessmentQuestion, "id" | "assessment_id" | "created_at">[];
-}) {
+export async function updateAssessment(assessmentId: string, assessment: Omit<CreateAssessmentInput, "created_by" | "created_by_name">) {
   const { questions, ...assessmentData } = assessment;
 
   const { error } = await supabase
@@ -243,17 +288,22 @@ export async function updateAssessment(assessmentId: string, assessment: {
     return false;
   }
 
-  // Delete old questions and insert new ones
   await supabase.from("assessment_questions").delete().eq("assessment_id", assessmentId);
 
   const questionRows = questions.map((q, i) => ({
     assessment_id: assessmentId,
     question: q.question,
-    options: q.options,
-    correct: q.correct,
-    explanation: q.explanation,
+    options: q.options || [],
+    correct: q.question_type === "mcq" ? q.correct : null,
+    explanation: q.explanation || "",
     sort_order: i,
-    source: q.source,
+    source: q.source || "manual",
+    question_type: q.question_type,
+    expected_answer: q.expected_answer || "",
+    max_score: q.max_score ?? (q.question_type === "mcq" ? 1 : 5),
+    time_limit_seconds: q.time_limit_seconds ?? null,
+    starter_code: q.starter_code || "",
+    language: q.language || "",
   }));
 
   const { error: qError } = await supabase.from("assessment_questions").insert(questionRows as any);
@@ -262,7 +312,6 @@ export async function updateAssessment(assessmentId: string, assessment: {
     return false;
   }
 
-  // Mirror to module-wise question bank
   await mirrorToQuestionBank(assessmentData.module_id, questions);
 
   toast.success(`Assessment "${assessment.title}" updated with ${questions.length} questions!`);
@@ -279,48 +328,23 @@ export async function submitAssessmentAttempt(attempt: {
   correct_answers: number;
   time_taken_seconds: number | null;
   answers: Record<string, number>;
+  responses?: Record<string, any>;
 }) {
-  const { error } = await supabase.from("assessment_attempts").insert({
-    ...attempt,
-    completed_at: new Date().toISOString(),
-  } as any);
+  const { data, error } = await supabase
+    .from("assessment_attempts")
+    .insert({
+      ...attempt,
+      responses: attempt.responses || {},
+      grading_status: "pending",
+      completed_at: new Date().toISOString(),
+    } as any)
+    .select()
+    .single();
 
   if (error) {
     toast.error("Failed to submit assessment");
-    return false;
+    return null;
   }
 
-  // Mirror the assessment's questions to the module question bank
-  // (covers older assessments created before mirroring at create-time existed).
-  try {
-    const { data: assessment } = await supabase
-      .from("assessments")
-      .select("module_id")
-      .eq("id", attempt.assessment_id)
-      .maybeSingle();
-    const modId = (assessment as any)?.module_id as number | null;
-    if (modId) {
-      const { data: aqs } = await supabase
-        .from("assessment_questions")
-        .select("question, options, correct, explanation")
-        .eq("assessment_id", attempt.assessment_id);
-      if (aqs && aqs.length > 0) {
-        await mirrorToQuestionBank(
-          modId,
-          aqs.map((q: any) => ({
-            question: q.question,
-            options: Array.isArray(q.options) ? q.options : JSON.parse(q.options),
-            correct: q.correct,
-            explanation: q.explanation || "",
-            sort_order: 0,
-            source: "assessment",
-          }))
-        );
-      }
-    }
-  } catch (e) {
-    console.warn("Question bank mirror skipped:", e);
-  }
-
-  return true;
+  return (data as any)?.id || null;
 }

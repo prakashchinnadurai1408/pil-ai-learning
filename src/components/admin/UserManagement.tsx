@@ -472,6 +472,13 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
           <table className="w-full">
             <thead className="bg-muted/50">
               <tr className="text-left text-xs text-muted-foreground">
+                <th className="p-4 font-medium w-10">
+                  <Checkbox
+                    checked={allFilteredSelected ? true : someFilteredSelected ? "indeterminate" : false}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all visible"
+                  />
+                </th>
                 <th className="p-4 font-medium">User</th>
                 <th className="p-4 font-medium">Institute</th>
                 <th className="p-4 font-medium">Location</th>
@@ -484,11 +491,17 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
             </thead>
             <tbody className="divide-y divide-border">
               {filteredUsers.length === 0 ? (
-                <tr><td colSpan={8} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
+                <tr><td colSpan={9} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
               ) : null}
               {filteredUsers.map((u) => (
-                <tr key={u.id} className="hover:bg-muted/30 transition-colors">
+                <tr key={u.id} className={`hover:bg-muted/30 transition-colors ${selectedIds.has(u.id) ? "bg-primary/5" : ""}`}>
                   <td className="p-4">
+                    <Checkbox
+                      checked={selectedIds.has(u.id)}
+                      onCheckedChange={() => toggleSelectOne(u.id)}
+                      aria-label={`Select ${u.name}`}
+                    />
+                  </td>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
                         {u.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}

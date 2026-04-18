@@ -54,7 +54,7 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
     const fetchAll = async () => {
       setLoading(true);
 
-      const [sectRes, studRes, trainRes, modRes, chalRes, qRes, trainersListRes] = await Promise.all([
+      const [sectRes, studRes, trainRes, modRes, chalRes, qRes, trainersListRes, ageRes] = await Promise.all([
         supabase.from("admin_section_content").select("section_type, status"),
         supabase.from("students").select("id", { count: "exact", head: true }),
         supabase.from("trainers").select("id", { count: "exact", head: true }),
@@ -62,6 +62,7 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
         supabase.from("coding_challenges").select("id", { count: "exact", head: true }),
         supabase.from("quiz_question_bank").select("id", { count: "exact", head: true }),
         supabase.from("trainers").select("id, name, college").order("name"),
+        supabase.from("students").select("age_group"),
       ]);
 
       const map: Record<string, { total: number; published: number; draft: number }> = {};

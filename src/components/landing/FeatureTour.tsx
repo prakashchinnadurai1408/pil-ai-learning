@@ -134,7 +134,7 @@ const FeatureTour = ({ onClose }: FeatureTourProps) => {
               <Icon className="h-3.5 w-3.5 text-primary-foreground" />
             </div>
             <span className="text-sm font-display font-semibold text-card-foreground">
-              AI LearnHub — Feature Tour
+              AI Upskill Hub — Feature Tour
             </span>
             <span className="text-xs text-muted-foreground ml-2">
               {current + 1} / {slides.length}

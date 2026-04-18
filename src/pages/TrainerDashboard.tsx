@@ -13,7 +13,7 @@ import {
   Search, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FolderKanban, Code2, Sparkles,
   BookOpen, Layers, Database, Route, Activity,
 } from "lucide-react";
-import pluginliveLogo from "@/assets/pluginlive-logo.png";
+import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 import { moduleNames, mcqBank } from "@/data/videoContent";
 import { useTrainerData } from "@/hooks/useTrainerData";
 import { StudentDetailModal } from "@/components/trainer/StudentDetailModal";
@@ -503,7 +503,7 @@ const TrainerDashboard = () => {
             <div className="px-6 h-14 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <SidebarTrigger />
-                <img src={pluginliveLogo} alt="PluginLive" className="h-7" />
+                <img src={pluginliveLogo} alt="AI Upskill Hub" className="h-7" />
                 <span className="font-display font-bold text-gradient-accent">Trainer Portal</span>
               </div>
               <Link to="/trainer-login" onClick={() => sessionStorage.clear()}>

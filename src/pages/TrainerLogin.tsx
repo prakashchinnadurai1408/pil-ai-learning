@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Mail, Users, Phone, Shield, Lock, KeyRound } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "sonner";
-import pluginliveLogo from "@/assets/pluginlive-logo.png";
+import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 
 type Step = "register" | "signin" | "otp" | "forgot" | "reset-otp" | "new-password";
@@ -100,7 +100,7 @@ const TrainerLogin = () => {
     <div className="min-h-screen flex">
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-hero relative items-center justify-center p-12">
         <div className="relative z-10 max-w-md">
-          <img src={pluginliveLogo} alt="PluginLive" className="h-12 mb-8 animate-float" />
+          <img src={pluginliveLogo} alt="AI Upskill Hub" className="h-12 mb-8 animate-float" />
           <h2 className="text-3xl font-display font-bold mb-4" style={{ color: "hsl(0, 0%, 95%)" }}>Trainer & Coordinator Portal</h2>
           <p style={{ color: "hsl(220, 15%, 65%)" }}>Monitor candidate progress, assign training modules, conduct assessments, and manage your institute's AI learning journey.</p>
         </div>

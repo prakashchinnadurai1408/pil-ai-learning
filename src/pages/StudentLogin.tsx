@@ -7,7 +7,7 @@ import { ArrowLeft, GraduationCap, Phone, Shield, Mail, Lock, KeyRound } from "l
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import pluginliveLogo from "@/assets/pluginlive-logo.png";
+import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 
 type Step = "register" | "signin" | "otp" | "forgot" | "reset-otp" | "new-password";
@@ -124,7 +124,7 @@ const StudentLogin = () => {
     <div className="min-h-screen flex">
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-hero relative items-center justify-center p-12">
         <div className="relative z-10 max-w-md">
-          <img src={pluginliveLogo} alt="PluginLive" className="h-12 mb-8 animate-float" />
+          <img src={pluginliveLogo} alt="AI Upskill Hub" className="h-12 mb-8 animate-float" />
           <h2 className="text-3xl font-display font-bold mb-4" style={{ color: "hsl(0, 0%, 95%)" }}>Begin Your AI Journey</h2>
           <p style={{ color: "hsl(220, 15%, 65%)" }}>Join thousands of students mastering AI tools, prompt engineering, and more through our structured learning platform.</p>
           <div className="mt-8 grid grid-cols-2 gap-4">

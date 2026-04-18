@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import pluginliveLogo from "@/assets/pluginlive-logo.png";
+import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 import { GraduationCap, Users, Menu, X, Shield } from "lucide-react";
 
 const Navbar = () => {
@@ -13,9 +13,9 @@ const Navbar = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
       <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2" onClick={closeMenu}>
-          <img src={pluginliveLogo} alt="PluginLive" className="h-8" />
+          <img src={pluginliveLogo} alt="AI Upskill Hub" className="h-8" />
           <span className="font-display text-lg font-bold text-gradient-primary">
-            AI LearnHub
+            AI Upskill Hub
           </span>
         </Link>
 

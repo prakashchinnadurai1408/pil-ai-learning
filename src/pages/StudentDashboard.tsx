@@ -16,7 +16,7 @@ import {
   FolderKanban, LogOut, Play, CheckCircle, Sparkles, Code2, Pencil,
   Lock, Crown, User,
 } from "lucide-react";
-import pluginliveLogo from "@/assets/pluginlive-logo.png";
+import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 import { getMenuAccess, type MenuAccessConfig } from "@/hooks/useMenuAccessControls";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { toast } from "sonner";
@@ -239,8 +239,8 @@ const StudentDashboard = () => {
             <div className="px-6 h-14 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <SidebarTrigger />
-                <img src={pluginliveLogo} alt="PluginLive Logo" className="h-7" />
-                <span className="font-display font-bold text-gradient-primary">AI LearnHub</span>
+                <img src={pluginliveLogo} alt="AI Upskill Hub Logo" className="h-7" />
+                <span className="font-display font-bold text-gradient-primary">AI Upskill Hub</span>
               </div>
               <div className="flex items-center gap-2">
                 <NotificationsPanel studentId={null} />

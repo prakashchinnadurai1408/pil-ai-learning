@@ -686,16 +686,19 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                         <TooltipProvider delayDuration={150}>
                           <UITooltip>
                             <TooltipTrigger asChild>
-                              <div className="inline-flex flex-col items-start gap-0.5">
+                              <button
+                                onClick={() => openPathSheet(u)}
+                                className="inline-flex flex-col items-start gap-0.5 group cursor-pointer"
+                              >
                                 <Badge
                                   variant={p.is_beginner_default ? "outline" : "secondary"}
-                                  className="gap-1 text-xs"
+                                  className="gap-1 text-xs group-hover:ring-2 group-hover:ring-primary/40 transition-all"
                                 >
                                   <Sparkles className="h-3 w-3 text-primary" />
                                   {p.is_beginner_default ? "Beginner" : "Active"}
                                 </Badge>
                                 <span className="text-[10px] text-muted-foreground">{dateStr}</span>
-                              </div>
+                              </button>
                             </TooltipTrigger>
                             <TooltipContent side="top">
                               <p className="text-xs">

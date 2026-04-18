@@ -41,6 +41,32 @@ const AIModuleCreator = () => {
   const [publishConfirmId, setPublishConfirmId] = useState<number | null>(null);
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [expandedModuleId, setExpandedModuleId] = useState<number | null>(null);
+  const [trainers, setTrainers] = useState<Array<{ id: string; name: string }>>([]);
+  const [scopeBusyId, setScopeBusyId] = useState<number | null>(null);
+
+  const isAdmin = typeof window !== "undefined" && !!sessionStorage.getItem("adminEmail");
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    supabase.from("trainers").select("id,name").then(({ data }) => {
+      setTrainers((data as any) || []);
+    });
+  }, [isAdmin]);
+
+  const trainerNameById = (id: string | null) =>
+    id ? (trainers.find(t => t.id === id)?.name || "Trainer") : "Admin (Global)";
+
+  const handleChangeScope = async (moduleId: number, newTrainerId: string | null) => {
+    setScopeBusyId(moduleId);
+    const { error } = await supabase
+      .from("admin_modules")
+      .update({ trainer_id: newTrainerId } as any)
+      .eq("id", moduleId);
+    setScopeBusyId(null);
+    if (error) { toast.error("Failed to update module scope"); return; }
+    toast.success(newTrainerId ? "Module scoped to trainer" : "Module promoted to global");
+    refetch();
+  };
 
   const countByTopic = (topicId: string, sectionType: string) =>
     allSectionContent.filter(c => c.topic_id === topicId && c.section_type === sectionType && c.status === "published").length;
@@ -335,7 +361,24 @@ Return ONLY valid JSON in this exact format, no other text:
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                      <Badge variant="outline" className={m.trainer_id ? "border-warning/40 text-warning" : "border-primary/40 text-primary"}>
+                        {m.trainer_id ? `Trainer: ${trainerNameById(m.trainer_id)}` : "Global"}
+                      </Badge>
+                      {isAdmin && (
+                        <select
+                          disabled={scopeBusyId === m.id}
+                          value={m.trainer_id || ""}
+                          onChange={(e) => handleChangeScope(m.id, e.target.value || null)}
+                          className="h-7 rounded-md border border-input bg-background px-1.5 text-xs"
+                          title="Change module scope"
+                        >
+                          <option value="">🌐 Global (all students)</option>
+                          {trainers.map(t => (
+                            <option key={t.id} value={t.id}>👤 {t.name}</option>
+                          ))}
+                        </select>
+                      )}
                       {m.topics.length > 0 && (
                         <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setExpandedModuleId(expandedModuleId === m.id ? null : m.id)}>
                           {expandedModuleId === m.id ? "Hide topics" : "Show topics"}

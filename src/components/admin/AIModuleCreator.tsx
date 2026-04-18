@@ -36,6 +36,7 @@ const AIModuleCreator = () => {
   const [editingTopic, setEditingTopic] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [publishConfirmId, setPublishConfirmId] = useState<number | null>(null);
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
   const handleGenerate = async () => {
     if (!moduleTitle.trim()) {

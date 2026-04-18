@@ -82,6 +82,13 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
       setChallengeCount(chalRes.count || 0);
       setQuestionCount(qRes.count || 0);
       setTrainers((trainersListRes.data as Trainer[]) || []);
+      const ageMap: Record<string, number> = {};
+      AGE_BUCKETS.forEach(b => { ageMap[b.key] = 0; });
+      ((ageRes.data as any[]) || []).forEach((r) => {
+        const k = (r.age_group || "").trim();
+        if (k && ageMap[k] !== undefined) ageMap[k]++;
+      });
+      setAgeGroups(ageMap);
       setLoading(false);
     };
     fetchAll();

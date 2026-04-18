@@ -111,7 +111,10 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
   },
 ];
 
-const TrainerSidebar = ({ active, onSelect }: { active: TabKey; onSelect: (k: TabKey) => void }) => {
+const TrainerSidebar = ({ active, onSelect, menuAccess, tier, onLockedClick }: {
+  active: TabKey; onSelect: (k: TabKey) => void;
+  menuAccess: MenuAccessConfig; tier: Tier; onLockedClick: () => void;
+}) => {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   return (
@@ -125,14 +128,16 @@ const TrainerSidebar = ({ active, onSelect }: { active: TabKey; onSelect: (k: Ta
                 {section.items.map((item) => {
                   const Icon = item.icon;
                   const isActive = active === item.key;
+                  const menuKey = TAB_TO_MENU_KEY[item.key];
+                  const isLocked = menuKey ? !isAllowed(menuAccess, menuKey, tier) : false;
                   return (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton
-                        onClick={() => onSelect(item.key)}
+                        onClick={() => (isLocked ? onLockedClick() : onSelect(item.key))}
                         className={isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"}
                       >
-                        <Icon className="mr-2 h-4 w-4" />
-                        {!collapsed && <span>{item.label}</span>}
+                        {isLocked ? <Lock className="mr-2 h-4 w-4 text-muted-foreground" /> : <Icon className="mr-2 h-4 w-4" />}
+                        {!collapsed && <span>{item.label}{isLocked ? " 🔒" : ""}</span>}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
@@ -144,6 +149,13 @@ const TrainerSidebar = ({ active, onSelect }: { active: TabKey; onSelect: (k: Ta
       </SidebarContent>
     </Sidebar>
   );
+};
+
+const normalizeTier = (raw: any): Tier => {
+  const v = String(raw || "free").toLowerCase();
+  if (v === "premium" || v === "pro") return "advanced";
+  if ((TIERS as string[]).includes(v)) return v as Tier;
+  return "free";
 };
 
 const TrainerDashboard = () => {

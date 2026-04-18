@@ -61,7 +61,8 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
   const [collegeFilter, setCollegeFilter] = useState<string>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [degreeFilter, setDegreeFilter] = useState<string>("all");
-  const [extraMeta, setExtraMeta] = useState<Record<string, { department: string; degree: string }>>({});
+  const [ageGroupFilter, setAgeGroupFilter] = useState<string>("all");
+  const [extraMeta, setExtraMeta] = useState<Record<string, { department: string; degree: string; age_group: string }>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
   const [overwriteExisting, setOverwriteExisting] = useState(false);
@@ -92,7 +93,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       const [{ data: ts }, { data: tr }, { data: stu }, { data: paths }] = await Promise.all([
         (supabase as any).from("trainer_students").select("trainer_id, student_id"),
         supabase.from("trainers").select("id, name, college").order("name"),
-        supabase.from("students").select("id, department, degree"),
+        supabase.from("students").select("id, department, degree, age_group"),
         (supabase as any).from("candidate_learning_paths")
           .select("id, candidate_id, generated_at, is_beginner_default, status, title, rationale, model_used")
           .eq("status", "active")
@@ -105,8 +106,8 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       });
       setTrainerMap(map);
       setTrainersList(tr || []);
-      const meta: Record<string, { department: string; degree: string }> = {};
-      (stu || []).forEach((s: any) => { meta[s.id] = { department: s.department || "", degree: s.degree || "" }; });
+      const meta: Record<string, { department: string; degree: string; age_group: string }> = {};
+      (stu || []).forEach((s: any) => { meta[s.id] = { department: s.department || "", degree: s.degree || "", age_group: s.age_group || "" }; });
       setExtraMeta(meta);
       const pmap: Record<string, { id: string; generated_at: string; is_beginner_default: boolean; status: string; title: string; rationale: string; model_used: string }> = {};
       (paths || []).forEach((p: any) => {
@@ -185,6 +186,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       const meta = extraMeta[s.id];
       if (departmentFilter !== "all" && (meta?.department || "") !== departmentFilter) return false;
       if (degreeFilter !== "all" && (meta?.degree || "") !== degreeFilter) return false;
+      if (ageGroupFilter !== "all" && (meta?.age_group || "") !== ageGroupFilter) return false;
       if (pathFilter !== "all") {
         const p = pathMap[s.id];
         if (pathFilter === "has" && !p) return false;
@@ -194,7 +196,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase()) && !s.email.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
-  }, [students, searchQuery, collegeFilter, departmentFilter, degreeFilter, extraMeta, pathFilter, pathMap]);
+  }, [students, searchQuery, collegeFilter, departmentFilter, degreeFilter, ageGroupFilter, extraMeta, pathFilter, pathMap]);
 
   // Distinct dropdown options
   const collegeOptions = useMemo(
@@ -395,8 +397,8 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
   };
 
   const exportCSV = () => {
-    const headers = ["Name", "Email", "Institute", "Location", "Mobile", "Progress %", "Modules Completed", "Avg Score %"];
-    const rows = filteredUsers.map(s => [s.name, s.email, s.college, s.location, s.mobile, s.progress, s.modulesCompleted, s.avgScore]);
+    const headers = ["Name", "Email", "Institute", "Location", "Mobile", "Age Group", "Progress %", "Modules Completed", "Avg Score %"];
+    const rows = filteredUsers.map(s => [s.name, s.email, s.college, s.location, s.mobile, extraMeta[s.id]?.age_group || "", s.progress, s.modulesCompleted, s.avgScore]);
     const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -519,7 +521,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
           </div>
 
           {/* Filters Row */}
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-5 gap-2">
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-6 gap-2">
             <Select value={collegeFilter} onValueChange={(v) => { setCollegeFilter(v); clearSelection(); }}>
               <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="All institutes" /></SelectTrigger>
               <SelectContent className="bg-popover z-50 max-h-72">
@@ -539,6 +541,16 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
               <SelectContent className="bg-popover z-50 max-h-72">
                 <SelectItem value="all">All degrees</SelectItem>
                 {degreeOptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={ageGroupFilter} onValueChange={(v) => { setAgeGroupFilter(v); clearSelection(); }}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="All age groups" /></SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                <SelectItem value="all">All age groups</SelectItem>
+                <SelectItem value="10-14">10–14 years</SelectItem>
+                <SelectItem value="15-18">15–18 years</SelectItem>
+                <SelectItem value="19-22">19–22 years</SelectItem>
+                <SelectItem value="23+">23+ years</SelectItem>
               </SelectContent>
             </Select>
             <Select value={pathFilter} onValueChange={(v) => { setPathFilter(v); clearSelection(); }}>
@@ -604,6 +616,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                 <th className="p-4 font-medium">User</th>
                 <th className="p-4 font-medium">Institute</th>
                 <th className="p-4 font-medium">Location</th>
+                <th className="p-4 font-medium">Age Group</th>
                 <th className="p-4 font-medium">Progress</th>
                 <th className="p-4 font-medium">Score</th>
                 <th className="p-4 font-medium">Trainers</th>
@@ -614,7 +627,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
             </thead>
             <tbody className="divide-y divide-border">
               {filteredUsers.length === 0 ? (
-                <tr><td colSpan={10} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
+                <tr><td colSpan={11} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
               ) : null}
               {filteredUsers.map((u) => (
                 <tr key={u.id} className={`hover:bg-muted/30 transition-colors ${selectedIds.has(u.id) ? "bg-primary/5" : ""}`}>
@@ -638,6 +651,13 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                   </td>
                   <td className="p-4 text-sm text-muted-foreground">{u.college}</td>
                   <td className="p-4 text-sm text-muted-foreground">{u.location}</td>
+                  <td className="p-4 text-sm">
+                    {extraMeta[u.id]?.age_group ? (
+                      <Badge variant="outline" className="text-xs">{extraMeta[u.id].age_group} yrs</Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
                       <Progress value={u.progress} className="h-1.5 w-20" />

@@ -12,6 +12,13 @@ interface ContentCount {
   draft: number;
 }
 
+const AGE_BUCKETS = [
+  { key: "10-14", label: "10–14 yrs" },
+  { key: "15-18", label: "15–18 yrs" },
+  { key: "19-22", label: "19–22 yrs" },
+  { key: "23+",   label: "23+ yrs" },
+];
+
 interface Trainer { id: string; name: string; college: string }
 interface Student { id: string; name: string; college: string }
 
@@ -35,6 +42,7 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
   const [challengeCount, setChallengeCount] = useState(0);
   const [questionCount, setQuestionCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [ageGroups, setAgeGroups] = useState<Record<string, number>>({});
 
   // Trainer-scoped panel state
   const [trainers, setTrainers] = useState<Trainer[]>([]);
@@ -46,7 +54,7 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
     const fetchAll = async () => {
       setLoading(true);
 
-      const [sectRes, studRes, trainRes, modRes, chalRes, qRes, trainersListRes] = await Promise.all([
+      const [sectRes, studRes, trainRes, modRes, chalRes, qRes, trainersListRes, ageRes] = await Promise.all([
         supabase.from("admin_section_content").select("section_type, status"),
         supabase.from("students").select("id", { count: "exact", head: true }),
         supabase.from("trainers").select("id", { count: "exact", head: true }),
@@ -54,6 +62,7 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
         supabase.from("coding_challenges").select("id", { count: "exact", head: true }),
         supabase.from("quiz_question_bank").select("id", { count: "exact", head: true }),
         supabase.from("trainers").select("id, name, college").order("name"),
+        supabase.from("students").select("age_group"),
       ]);
 
       const map: Record<string, { total: number; published: number; draft: number }> = {};
@@ -73,6 +82,13 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
       setChallengeCount(chalRes.count || 0);
       setQuestionCount(qRes.count || 0);
       setTrainers((trainersListRes.data as Trainer[]) || []);
+      const ageMap: Record<string, number> = {};
+      AGE_BUCKETS.forEach(b => { ageMap[b.key] = 0; });
+      ((ageRes.data as any[]) || []).forEach((r) => {
+        const k = (r.age_group || "").trim();
+        if (k && ageMap[k] !== undefined) ageMap[k]++;
+      });
+      setAgeGroups(ageMap);
       setLoading(false);
     };
     fetchAll();
@@ -137,6 +153,47 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
           );
         })}
       </div>
+
+      {/* Age Group Breakdown */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <GraduationCap className="h-5 w-5 text-primary" />
+            Candidates by Age Group
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(() => {
+            const total = Object.values(ageGroups).reduce((a, b) => a + b, 0);
+            const unspecified = Math.max(0, studentCount - total);
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {AGE_BUCKETS.map(b => {
+                  const count = ageGroups[b.key] || 0;
+                  const pct = studentCount > 0 ? Math.round((count / studentCount) * 100) : 0;
+                  return (
+                    <div key={b.key} className="rounded-lg border border-border bg-card p-3">
+                      <p className="text-xs text-muted-foreground">{b.label}</p>
+                      <p className="text-2xl font-bold text-foreground">{count}</p>
+                      <div className="mt-2 h-1.5 bg-muted rounded overflow-hidden">
+                        <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{pct}%</p>
+                    </div>
+                  );
+                })}
+                <div className="rounded-lg border border-dashed border-border bg-muted/20 p-3">
+                  <p className="text-xs text-muted-foreground">Unspecified</p>
+                  <p className="text-2xl font-bold text-foreground">{unspecified}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {studentCount > 0 ? Math.round((unspecified / studentCount) * 100) : 0}%
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
 
       {/* Trainer-scoped Assigned Students */}
       <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">

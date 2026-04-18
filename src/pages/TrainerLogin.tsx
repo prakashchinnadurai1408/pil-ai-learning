@@ -38,15 +38,10 @@ const TrainerLogin = () => {
   const handleVerifyRegisterOTP = async () => {
     if (otp.length < 4) { toast.error("Enter the complete 4-digit OTP"); return; }
     if (otp !== "1234") { toast.error("Invalid OTP. Please enter 1234"); return; }
-    const { error } = await supabase.from("trainers").insert({
-      name: form.name.trim(), email: form.email.trim(), mobile: form.mobile.trim(),
-      college: form.college.trim(), location: form.location.trim(), password: form.password,
-    });
     const { data: inserted, error } = await supabase.from("trainers").insert({
       name: form.name.trim(), email: form.email.trim(), mobile: form.mobile.trim(),
       college: form.college.trim(), location: form.location.trim(), password: form.password,
     }).select("id").maybeSingle();
-    // Note: original insert was already executed in the line above; keep behavior identical
     if (error) { console.error("Trainer insert error:", error); toast.error("Registration failed"); return; }
     if (inserted?.id) sessionStorage.setItem("trainerId", inserted.id);
     sessionStorage.setItem("trainerName", form.name);
@@ -59,6 +54,7 @@ const TrainerLogin = () => {
     if (!signinForm.mobile || !signinForm.password) { toast.error("Please fill all fields"); return; }
     const { data, error } = await supabase.from("trainers").select("*").eq("mobile", signinForm.mobile).eq("password", signinForm.password).maybeSingle();
     if (error || !data) { toast.error("Invalid mobile number or password"); return; }
+    sessionStorage.setItem("trainerId", data.id);
     sessionStorage.setItem("trainerName", data.name);
     sessionStorage.setItem("trainerEmail", data.email);
     toast.success("Welcome back, " + data.name + "!");

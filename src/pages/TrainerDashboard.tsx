@@ -533,7 +533,7 @@ const TrainerDashboard = () => {
     }
   };
 
-  const lockedActive = TAB_TO_MENU_KEY[active] && !isAllowed(menuAccess, TAB_TO_MENU_KEY[active]!, tier);
+  // Trainer tier badge + sidebar locks handled below.
 
   return (
     <SidebarProvider>

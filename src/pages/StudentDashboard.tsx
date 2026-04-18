@@ -138,11 +138,12 @@ const StudentDashboard = () => {
   useEffect(() => {
     getMenuAccess().then(setMenuAccess);
     if (studentId) {
-      supabase.from("students").select("subscription_tier, college, department, degree").eq("id", studentId).single()
+      supabase.from("students").select("subscription_tier, college, department, degree, age_group").eq("id", studentId).single()
         .then(({ data }) => {
           if (data?.subscription_tier === "premium") setUserTier("premium");
           if (data?.college) sessionStorage.setItem("studentCollege", data.college);
           if (data?.department) sessionStorage.setItem("studentDepartment", data.department);
+          if ((data as any)?.age_group) sessionStorage.setItem("studentAgeGroup", (data as any).age_group);
           if (data?.degree) sessionStorage.setItem("studentDegree", data.degree);
         });
     }

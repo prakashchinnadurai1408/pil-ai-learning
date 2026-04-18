@@ -521,7 +521,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
           </div>
 
           {/* Filters Row */}
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-5 gap-2">
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-6 gap-2">
             <Select value={collegeFilter} onValueChange={(v) => { setCollegeFilter(v); clearSelection(); }}>
               <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="All institutes" /></SelectTrigger>
               <SelectContent className="bg-popover z-50 max-h-72">
@@ -541,6 +541,16 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
               <SelectContent className="bg-popover z-50 max-h-72">
                 <SelectItem value="all">All degrees</SelectItem>
                 {degreeOptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={ageGroupFilter} onValueChange={(v) => { setAgeGroupFilter(v); clearSelection(); }}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="All age groups" /></SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                <SelectItem value="all">All age groups</SelectItem>
+                <SelectItem value="10-14">10–14 years</SelectItem>
+                <SelectItem value="15-18">15–18 years</SelectItem>
+                <SelectItem value="19-22">19–22 years</SelectItem>
+                <SelectItem value="23+">23+ years</SelectItem>
               </SelectContent>
             </Select>
             <Select value={pathFilter} onValueChange={(v) => { setPathFilter(v); clearSelection(); }}>

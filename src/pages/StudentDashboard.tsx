@@ -35,6 +35,8 @@ const PromptEngineeringLab = lazy(() => import("@/components/dashboard/PromptEng
 const StudentProfilePage = lazy(() => import("@/components/dashboard/StudentProfilePage"));
 const AICoachWidget = lazy(() => import("@/components/dashboard/AICoachWidget"));
 const MyAILearningPath = lazy(() => import("@/components/dashboard/MyAILearningPath"));
+const StudentModulesView = lazy(() => import("@/components/dashboard/StudentModulesView"));
+const MyAssignedProjects = lazy(() => import("@/components/dashboard/MyAssignedProjects"));
 
 type TabKey = keyof MenuAccessConfig;
 
@@ -43,7 +45,6 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
     label: "Learn",
     items: [
       { key: "modules", label: "Modules", icon: BookOpen },
-      { key: "videos", label: "Videos", icon: Video },
     ],
   },
   {
@@ -161,70 +162,17 @@ const StudentDashboard = () => {
             </Suspense>
           </ErrorBoundary>
         ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" role="list" aria-label="Course modules">
-              {filteredModules.map((mod, i) => {
-                const Icon = mod.icon;
-                const isCompleted = i < 2;
-                const isActive = i === 2;
-                const progress = isCompleted ? 100 : isActive ? 45 : i === 3 ? 10 : 0;
-                return (
-                  <div key={mod.id} role="listitem"
-                    className={`relative bg-card rounded-lg border p-5 shadow-card transition-all hover:shadow-elevated ${isActive ? "border-primary ring-1 ring-primary/20" : "border-border"}`}>
-                    <div className="flex items-start justify-between mb-3">
-                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${mod.color} flex items-center justify-center`}>
-                        <Icon className="h-5 w-5 text-primary-foreground" />
-                      </div>
-                      {isCompleted && <CheckCircle className="h-5 w-5 text-success" />}
-                      {isActive && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">In Progress</span>}
-                    </div>
-                    <h3 className="font-display font-semibold mb-1 text-card-foreground">{mod.title}</h3>
-                    <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{mod.description}</p>
-                    <Progress value={progress} className="h-1.5 mb-2" />
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-muted-foreground">{progress}% complete</span>
-                      <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-primary" onClick={() => setSelectedModuleId(mod.id)}>
-                        <Play className="h-3 w-3" /> {isCompleted ? "Review" : progress > 0 ? "Continue" : "Start"}
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {filteredAdminModules.length > 0 && (
-              <>
-                <div className="flex items-center gap-2 mt-8 mb-4">
-                  <Sparkles className="h-4 w-4 text-accent" />
-                  <h3 className="font-display font-semibold text-card-foreground">Additional Modules</h3>
-                  <span className="text-xs text-muted-foreground">({filteredAdminModules.length} new)</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" role="list">
-                  {filteredAdminModules.map((mod) => (
-                    <div key={`admin-${mod.id}`} className="relative bg-card rounded-lg border border-accent/20 p-5 shadow-card transition-all hover:shadow-elevated">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-accent flex items-center justify-center">
-                          <BookOpen className="h-5 w-5 text-accent-foreground" />
-                        </div>
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent/10 text-accent">New</span>
-                      </div>
-                      <h3 className="font-display font-semibold mb-1 text-card-foreground">{mod.title}</h3>
-                      <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{mod.description}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <BookOpen className="h-3 w-3" /> {mod.topics.length} topics · {mod.duration}
-                      </div>
-                      <Progress value={0} className="h-1.5 mt-3 mb-2" />
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">0% complete</span>
-                        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-accent" onClick={() => setSelectedModuleId(mod.id)}>
-                          <Play className="h-3 w-3" /> Start
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </>
+          <Suspense fallback={<ContentSkeleton />}>
+            <StudentModulesView
+              studentId={studentId}
+              college={studentCollege}
+              department={studentDepartment}
+              degree={studentDegree}
+              filteredModules={filteredModules}
+              filteredAdminModules={filteredAdminModules}
+              onOpenModule={(id) => setSelectedModuleId(id)}
+            />
+          </Suspense>
         );
       case "videos":
         return <Suspense fallback={<ContentSkeleton />}><VideoLearning /></Suspense>;
@@ -247,7 +195,14 @@ const StudentDashboard = () => {
           </>
         );
       case "projects":
-        return <Suspense fallback={<ContentSkeleton />}><ProjectsView /></Suspense>;
+        return (
+          <div className="space-y-4">
+            {studentId && (
+              <Suspense fallback={null}><MyAssignedProjects studentId={studentId} /></Suspense>
+            )}
+            <Suspense fallback={<ContentSkeleton />}><ProjectsView /></Suspense>
+          </div>
+        );
       default:
         return null;
     }

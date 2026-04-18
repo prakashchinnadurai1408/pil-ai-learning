@@ -312,21 +312,46 @@ const AssessmentCreator = () => {
               <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Assessment description..." rows={2} />
             </div>
 
-            {/* Multi-module selection */}
+            {/* Module Group filter + multi-module selection */}
+            <div>
+              <Label>Module Group (optional filter)</Label>
+              <Select value={selectedGroupId} onValueChange={(v) => { setSelectedGroupId(v); setSelectedModuleIds([]); }}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="All modules" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All modules</SelectItem>
+                  {moduleGroups.map(g => (
+                    <SelectItem key={g.id} value={g.id}>{g.name} ({g.items.length})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div>
               <Label>Modules (select multiple)</Label>
               <div className="flex flex-wrap gap-2 mt-2">
-                {adminModules.map(m => (
-                  <label key={m.id} className="flex items-center gap-1.5 text-xs bg-muted px-2.5 py-1.5 rounded-lg cursor-pointer hover:bg-muted/80">
-                    <Checkbox checked={selectedModuleIds.includes(m.id)} onCheckedChange={() => toggleModule(m.id)} />
-                    {m.title}
-                  </label>
-                ))}
+                {(() => {
+                  const allowed = selectedGroupId === "all"
+                    ? adminModules
+                    : adminModules.filter(m => {
+                        const g = moduleGroups.find(gr => gr.id === selectedGroupId);
+                        return g?.items.some(it => it.module_id === m.id);
+                      });
+                  if (allowed.length === 0) {
+                    return <p className="text-xs text-muted-foreground">No modules in this group.</p>;
+                  }
+                  return allowed.map(m => (
+                    <label key={m.id} className="flex items-center gap-1.5 text-xs bg-muted px-2.5 py-1.5 rounded-lg cursor-pointer hover:bg-muted/80">
+                      <Checkbox checked={selectedModuleIds.includes(m.id)} onCheckedChange={() => toggleModule(m.id)} />
+                      {m.title}
+                    </label>
+                  ));
+                })()}
               </div>
               {selectedModuleIds.length > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">{selectedModuleIds.length} module(s) selected</p>
               )}
             </div>
+
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div>

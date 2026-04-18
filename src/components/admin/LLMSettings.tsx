@@ -92,6 +92,32 @@ const LLMSettings = () => {
   const [row, setRow] = useState<LLMRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testingYT, setTestingYT] = useState(false);
+  const [ytResult, setYtResult] = useState<{ ok: boolean; message: string; videoId?: string | null } | null>(null);
+
+  const testYouTubeKey = async () => {
+    setTestingYT(true);
+    setYtResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("youtube-search", {
+        body: { query: "intro to artificial intelligence", maxResults: 1 },
+      });
+      if (error) {
+        setYtResult({ ok: false, message: error.message || "Edge function call failed" });
+      } else if (data?.error) {
+        setYtResult({ ok: false, message: data.error });
+      } else if (data?.videoId) {
+        setYtResult({ ok: true, message: `Key works — found video ID ${data.videoId}`, videoId: data.videoId });
+        toast.success("YouTube API key is valid");
+      } else {
+        setYtResult({ ok: false, message: "No video returned. Key may be invalid or quota exhausted." });
+      }
+    } catch (e: any) {
+      setYtResult({ ok: false, message: e?.message || "Network error" });
+    } finally {
+      setTestingYT(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {

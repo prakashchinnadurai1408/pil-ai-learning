@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { Video, MessageSquare, FlaskConical, ClipboardCheck, FolderKanban, Users, GraduationCap, Code2, Database, UserCheck } from "lucide-react";
+import { Video, MessageSquare, FlaskConical, ClipboardCheck, FolderKanban, Users, GraduationCap, Code2, Database, UserCheck, Brain } from "lucide-react";
 
 interface ContentCount {
   section_type: string;
@@ -43,6 +43,7 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
   const [questionCount, setQuestionCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [ageGroups, setAgeGroups] = useState<Record<string, number>>({});
+  const [adaptiveStats, setAdaptiveStats] = useState<Record<string, { attempts: number; avg: number; passRate: number }>>({});
 
   // Trainer-scoped panel state
   const [trainers, setTrainers] = useState<Trainer[]>([]);
@@ -89,6 +90,36 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
         if (k && ageMap[k] !== undefined) ageMap[k]++;
       });
       setAgeGroups(ageMap);
+
+      // Adaptive agent calibration: pass rate + avg score per age group (passing = score >= 70)
+      const PASS_THRESHOLD = 70;
+      const studentAgeMap = new Map<string, string>();
+      const { data: studentsForAge } = await supabase
+        .from("students").select("id, age_group");
+      ((studentsForAge as any[]) || []).forEach((s) => {
+        if (s.age_group) studentAgeMap.set(s.id, s.age_group);
+      });
+      const { data: scoresData } = await supabase
+        .from("student_assessment_scores").select("student_id, score");
+      const acc: Record<string, { sum: number; count: number; passed: number }> = {};
+      AGE_BUCKETS.forEach(b => { acc[b.key] = { sum: 0, count: 0, passed: 0 }; });
+      ((scoresData as any[]) || []).forEach((r) => {
+        const ag = studentAgeMap.get(r.student_id);
+        if (!ag || !acc[ag]) return;
+        acc[ag].sum += r.score || 0;
+        acc[ag].count += 1;
+        if ((r.score || 0) >= PASS_THRESHOLD) acc[ag].passed += 1;
+      });
+      const stats: Record<string, { attempts: number; avg: number; passRate: number }> = {};
+      Object.entries(acc).forEach(([k, v]) => {
+        stats[k] = {
+          attempts: v.count,
+          avg: v.count > 0 ? Math.round(v.sum / v.count) : 0,
+          passRate: v.count > 0 ? Math.round((v.passed / v.count) * 100) : 0,
+        };
+      });
+      setAdaptiveStats(stats);
+
       setLoading(false);
     };
     fetchAll();

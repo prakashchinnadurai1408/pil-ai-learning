@@ -8,9 +8,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Search, Users, UserCheck, Building2 } from "lucide-react";
 import { toast } from "sonner";
+import { TIERS, TIER_META, type Tier } from "@/hooks/useMenuAccessControls";
 
-interface Trainer { id: string; name: string; email: string; college: string; }
+interface Trainer { id: string; name: string; email: string; college: string; subscription_tier?: string; }
 interface Student { id: string; name: string; email: string; college: string; }
+
+const normalizeTier = (raw: any): Tier => {
+  const v = String(raw || "free").toLowerCase();
+  if (v === "premium" || v === "pro") return "advanced";
+  if ((TIERS as string[]).includes(v)) return v as Tier;
+  return "free";
+};
 
 const TrainerAssignments = () => {
   const [trainers, setTrainers] = useState<Trainer[]>([]);
@@ -27,11 +35,11 @@ const TrainerAssignments = () => {
   const load = async () => {
     setLoading(true);
     const [{ data: t }, { data: s }, { data: a }] = await Promise.all([
-      supabase.from("trainers").select("id, name, email, college"),
+      supabase.from("trainers").select("id, name, email, college, subscription_tier"),
       supabase.from("students").select("id, name, email, college"),
       (supabase as any).from("trainer_students").select("trainer_id, student_id"),
     ]);
-    setTrainers(t || []);
+    setTrainers((t || []) as any);
     setStudents(s || []);
     const map: Record<string, Set<string>> = {};
     (a || []).forEach((row: any) => {
@@ -149,16 +157,25 @@ const TrainerAssignments = () => {
               <th className="p-4 font-medium">Trainer</th>
               <th className="p-4 font-medium">Email</th>
               <th className="p-4 font-medium">Institute</th>
+              <th className="p-4 font-medium">Plan</th>
               <th className="p-4 font-medium">Assigned</th>
               <th className="p-4 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {trainers.length === 0 && (
-              <tr><td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">No trainers registered yet.</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-sm text-muted-foreground">No trainers registered yet.</td></tr>
             )}
             {trainers.map(t => {
               const count = assignments[t.id]?.size ?? 0;
+              const currentTier = normalizeTier(t.subscription_tier);
+              const setTier = async (newTier: Tier) => {
+                setTrainers(prev => prev.map(x => x.id === t.id ? { ...x, subscription_tier: newTier } : x));
+                const { error } = await (supabase as any).from("trainers")
+                  .update({ subscription_tier: newTier }).eq("id", t.id);
+                if (error) { toast.error("Failed to update plan"); load(); }
+                else toast.success(`${t.name} → ${TIER_META[newTier].label}`);
+              };
               return (
                 <tr key={t.id} className="hover:bg-muted/30 transition-colors">
                   <td className="p-4">
@@ -171,6 +188,21 @@ const TrainerAssignments = () => {
                   </td>
                   <td className="p-4 text-sm text-muted-foreground">{t.email}</td>
                   <td className="p-4 text-sm text-muted-foreground">{t.college}</td>
+                  <td className="p-4">
+                    <Select value={currentTier} onValueChange={(v) => setTier(v as Tier)}>
+                      <SelectTrigger className={`h-8 w-[140px] text-xs ${TIER_META[currentTier].color}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        {TIERS.map((tt) => (
+                          <SelectItem key={tt} value={tt} className="text-xs">
+                            <span className={TIER_META[tt].color}>{TIER_META[tt].label}</span>
+                            <span className="text-muted-foreground ml-2">{TIER_META[tt].price}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
                   <td className="p-4">
                     <Badge variant="secondary" className="gap-1">
                       <Users className="h-3 w-3" /> {count}

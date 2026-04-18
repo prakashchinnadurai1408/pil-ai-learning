@@ -42,6 +42,7 @@ const ProctoringAnalytics = lazy(() => import("@/components/admin/ProctoringAnal
 const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytics"));
 const ModuleGroupsManager = lazy(() => import("@/components/admin/ModuleGroupsManager"));
 import AssignProjectDialog from "@/components/shared/AssignProjectDialog";
+import TrainerUpgradeDialog from "@/components/trainer/TrainerUpgradeDialog";
 
 type TabKey =
   | "students" | "assessments" | "create-assessment" | "assessment-analytics"
@@ -554,6 +555,9 @@ const TrainerDashboard = () => {
                 <img src={pluginliveLogo} alt="AI Upskill Hub" className="h-7" />
                 <span className="font-display font-bold text-gradient-accent">Trainer Portal</span>
                 <Badge variant="outline" className={`ml-2 ${TIER_META[tier].color} border-current`}>{TIER_META[tier].label}</Badge>
+                <Button variant="ghost" size="sm" className="ml-1 gap-1 text-xs text-warning hover:text-warning" onClick={() => setUpgradeOpen(true)}>
+                  <Crown className="h-3.5 w-3.5" /> Upgrade
+                </Button>
               </div>
               <Link to="/trainer-login" onClick={() => sessionStorage.clear()}>
                 <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
@@ -595,6 +599,12 @@ const TrainerDashboard = () => {
           assignerRole="trainer"
           assignerId={trainerId}
           assignerName={trainerName}
+        />
+        <TrainerUpgradeDialog
+          open={upgradeOpen}
+          onOpenChange={setUpgradeOpen}
+          menuAccess={menuAccess}
+          currentTier={tier}
         />
       </div>
     </SidebarProvider>

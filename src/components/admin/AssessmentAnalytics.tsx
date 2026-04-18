@@ -30,12 +30,12 @@ interface StudentInfo {
   department: string;
 }
 
-const AssessmentAnalytics = () => {
+const AssessmentAnalytics = ({ initialSearch = "" }: { initialSearch?: string } = {}) => {
   const { assessments } = useAssessments();
   const { attempts, loading } = useAssessmentAttempts();
   const { allowedNames } = useTrainerScope();
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [aiDiagnostics, setAiDiagnostics] = useState<string | null>(null);
   const [generatingDiagnostics, setGeneratingDiagnostics] = useState(false);
   const [questionStatsForExport, setQuestionStatsForExport] = useState<any[]>([]);

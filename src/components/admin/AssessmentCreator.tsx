@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,8 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Sparkles, Plus, Trash2, Loader2, Upload, Database, ClipboardCheck,
-  Search, ArrowRight, X, Pencil, Shield
+  Sparkles, Plus, Loader2, Upload, Database, ClipboardCheck,
+  Search, ArrowRight, X, Pencil, Shield, Trash2, FileText, CalendarRange
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,23 +17,20 @@ import { useAdminModules } from "@/hooks/useAdminModules";
 import { useModuleGroups } from "@/hooks/useModuleGroups";
 import {
   useAssessments,
-  useAssessmentQuestions,
   createAssessment,
   updateAssessment,
+  type QuestionType,
 } from "@/hooks/useAssessments";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import TypedQuestionEditor, { emptyQuestion, type QuestionDraft } from "./TypedQuestionEditor";
 
-interface QuestionDraft {
-  question: string;
-  options: string[];
-  correct: number;
-  explanation: string;
-  source: string;
-}
-
-const emptyQuestion = (): QuestionDraft => ({
-  question: "", options: ["", "", "", ""], correct: 0, explanation: "", source: "manual",
-});
+const toLocalInput = (iso: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const fromLocalInput = (val: string): string | null => (val ? new Date(val).toISOString() : null);
 
 const AssessmentCreator = () => {
   const { adminModules } = useAdminModules();
@@ -43,6 +40,7 @@ const AssessmentCreator = () => {
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Assessment metadata
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedModuleIds, setSelectedModuleIds] = useState<number[]>([]);
@@ -50,29 +48,45 @@ const AssessmentCreator = () => {
   const [maxAttempts, setMaxAttempts] = useState<string>("");
   const [passingScore, setPassingScore] = useState("60");
   const [assignedColleges, setAssignedColleges] = useState<string[]>([]);
-  const [questions, setQuestions] = useState<QuestionDraft[]>([emptyQuestion()]);
+  const [questions, setQuestions] = useState<QuestionDraft[]>([emptyQuestion("mcq")]);
   const [showForm, setShowForm] = useState(false);
   const [proctoringEnabled, setProctoringEnabled] = useState(false);
 
-  // AI generation
+  // Source mode (Topic vs JD)
+  const [sourceMode, setSourceMode] = useState<"topic" | "jd">("topic");
+  const [topicOrSkills, setTopicOrSkills] = useState("");
+  const [jdText, setJdText] = useState("");
+  const [jdFileUrl, setJdFileUrl] = useState("");
+  const [uploadingJd, setUploadingJd] = useState(false);
+
+  // Schedule window
+  const [startAt, setStartAt] = useState<string>("");
+  const [endAt, setEndAt] = useState<string>("");
+
+  // AI mix
+  const [mixMcq, setMixMcq] = useState("5");
+  const [mixDescriptive, setMixDescriptive] = useState("2");
+  const [mixVideo, setMixVideo] = useState("0");
+  const [mixCoding, setMixCoding] = useState("0");
+  const [aiDifficulty, setAiDifficulty] = useState<"easy" | "medium" | "hard">("medium");
+  const [aiCodingLang, setAiCodingLang] = useState("python");
   const [generating, setGenerating] = useState(false);
-  const [aiTopic, setAiTopic] = useState("");
-  const [aiCount, setAiCount] = useState("10");
 
   // Question bank
   const [bankQuestions, setBankQuestions] = useState<QuestionDraft[]>([]);
   const [loadingBank, setLoadingBank] = useState(false);
   const [bankModuleFilters, setBankModuleFilters] = useState<number[]>([]);
+  const [bankGroupId, setBankGroupId] = useState<string>("all");
   const [selectedBankIds, setSelectedBankIds] = useState<Set<number>>(new Set());
 
   // Colleges
   const [colleges, setColleges] = useState<string[]>([]);
   const [collegeSearch, setCollegeSearch] = useState("");
-  useState(() => {
+  useEffect(() => {
     supabase.from("colleges").select("name").then(({ data }) => {
       if (data) setColleges(data.map((c: any) => c.name));
     });
-  });
+  }, []);
 
   const filteredColleges = useMemo(() => {
     if (!collegeSearch.trim()) return colleges;
@@ -80,117 +94,135 @@ const AssessmentCreator = () => {
     return colleges.filter(c => c.toLowerCase().includes(q));
   }, [colleges, collegeSearch]);
 
-  // Bulk upload
-  const handleBulkUpload = useCallback((text: string) => {
-    try {
-      // Try JSON first
-      const parsed = JSON.parse(text);
-      const arr = Array.isArray(parsed) ? parsed : [parsed];
-      const newQs: QuestionDraft[] = arr.map((q: any) => ({
-        question: q.question || "",
-        options: Array.isArray(q.options) ? q.options : ["", "", "", ""],
-        correct: typeof q.correct === "number" ? q.correct : 0,
-        explanation: q.explanation || "",
-        source: "bulk",
-      })).filter((q: QuestionDraft) => q.question.trim());
-      if (newQs.length > 0) {
-        setQuestions(prev => [...prev.filter(q => q.question.trim()), ...newQs]);
-        toast.success(`Imported ${newQs.length} questions from JSON`);
-        return;
-      }
-    } catch { /* not JSON, try CSV */ }
-
-    // CSV: question,optA,optB,optC,optD,correctIndex,explanation
-    const lines = text.trim().split("\n").filter(l => l.trim());
-    const startIdx = lines[0]?.toLowerCase().includes("question") ? 1 : 0;
-    const newQs: QuestionDraft[] = [];
-    for (let i = startIdx; i < lines.length; i++) {
-      const cols = lines[i].split(/[,\t]/).map(c => c.trim().replace(/^"|"$/g, ""));
-      if (cols.length >= 5) {
-        newQs.push({
-          question: cols[0],
-          options: [cols[1], cols[2], cols[3], cols[4]],
-          correct: parseInt(cols[5] || "0") || 0,
-          explanation: cols[6] || "",
-          source: "bulk",
-        });
-      }
-    }
-    if (newQs.length > 0) {
-      setQuestions(prev => [...prev.filter(q => q.question.trim()), ...newQs]);
-      toast.success(`Imported ${newQs.length} questions from CSV`);
-    } else {
-      toast.error("No valid questions found. Use CSV (question,optA,optB,optC,optD,correct,explanation) or JSON format.");
-    }
-  }, []);
-
-  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      handleBulkUpload(ev.target?.result as string);
-    };
-    reader.readAsText(file);
-    e.target.value = "";
-  }, [handleBulkUpload]);
-
-  const addQuestion = () => setQuestions([...questions, emptyQuestion()]);
+  // ---- Question helpers ----
+  const addQuestion = (type: QuestionType = "mcq") => setQuestions([...questions, emptyQuestion(type)]);
   const removeQuestion = (idx: number) => {
     if (questions.length <= 1) return;
     setQuestions(questions.filter((_, i) => i !== idx));
   };
-  const updateQuestion = (idx: number, field: keyof QuestionDraft, value: any) => {
-    setQuestions(questions.map((q, i) => i === idx ? { ...q, [field]: value } : q));
-  };
-  const updateOption = (qIdx: number, oIdx: number, value: string) => {
-    setQuestions(questions.map((q, i) => {
-      if (i !== qIdx) return q;
-      const opts = [...q.options]; opts[oIdx] = value;
-      return { ...q, options: opts };
-    }));
+  const updateQuestion = (idx: number, next: QuestionDraft) => {
+    setQuestions(questions.map((q, i) => (i === idx ? next : q)));
   };
 
-  const toggleModule = (id: number) => {
-    setSelectedModuleIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-  const toggleCollege = (college: string) => {
-    setAssignedColleges(prev => prev.includes(college) ? prev.filter(c => c !== college) : [...prev, college]);
-  };
-  const toggleBankModule = (id: number) => {
-    setBankModuleFilters(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
+  const toggleModule = (id: number) =>
+    setSelectedModuleIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+  const toggleCollege = (c: string) =>
+    setAssignedColleges(prev => (prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]));
+  const toggleBankModule = (id: number) =>
+    setBankModuleFilters(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
 
+  // ---- JD upload ----
+  const handleJdUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingJd(true);
+    try {
+      const ext = file.name.split(".").pop() || "bin";
+      const path = `jd/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage.from("assessment-uploads").upload(path, file, { upsert: false });
+      if (error) throw error;
+      const { data: pub } = supabase.storage.from("assessment-uploads").getPublicUrl(path);
+      setJdFileUrl(pub.publicUrl);
+
+      // For .txt files we can read inline; for PDF/DOCX, ask user to also paste text.
+      if (file.type.startsWith("text/") || file.name.toLowerCase().endsWith(".txt")) {
+        const text = await file.text();
+        setJdText(prev => prev || text);
+      } else {
+        toast.info("JD file uploaded. Paste the JD text below for AI to read it.");
+      }
+      toast.success("JD file uploaded");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to upload JD: " + (err?.message || "unknown error"));
+    } finally {
+      setUploadingJd(false);
+      e.target.value = "";
+    }
+  }, []);
+
+  // ---- AI generation ----
   const handleAIGenerate = async () => {
-    if (!aiTopic.trim()) { toast.error("Enter a topic for AI generation"); return; }
+    const mix = {
+      mcq: Math.max(0, parseInt(mixMcq) || 0),
+      descriptive: Math.max(0, parseInt(mixDescriptive) || 0),
+      video: Math.max(0, parseInt(mixVideo) || 0),
+      coding: Math.max(0, parseInt(mixCoding) || 0),
+    };
+    const total = mix.mcq + mix.descriptive + mix.video + mix.coding;
+    if (total === 0) { toast.error("Set at least one question count > 0"); return; }
+    if (sourceMode === "topic" && !topicOrSkills.trim()) { toast.error("Enter topic / skills"); return; }
+    if (sourceMode === "jd" && !jdText.trim()) { toast.error("Paste or upload a Job Description text"); return; }
+
     setGenerating(true);
     try {
-      const modNames = selectedModuleIds.map(id => adminModules.find(m => m.id === id)?.title).filter(Boolean).join(", ");
-      const { data, error } = await supabase.functions.invoke("generate-video-quiz", {
-        body: { videoTitle: aiTopic, moduleName: modNames || aiTopic, questionCount: Number(aiCount) || 10 },
+      const { data, error } = await supabase.functions.invoke("generate-assessment-questions", {
+        body: {
+          source_mode: sourceMode,
+          topic_or_skills: topicOrSkills,
+          jd_text: jdText,
+          mix,
+          module_id: selectedModuleIds[0] || null,
+          difficulty: aiDifficulty,
+          language: aiCodingLang,
+        },
       });
-      if (error || !data?.questions) throw new Error("Failed");
-      const aiQs: QuestionDraft[] = data.questions.map((q: any) => ({
-        question: q.question, options: q.options, correct: q.correct,
-        explanation: q.explanation || "", source: "ai",
+      if (error) throw error;
+      const aiQs: QuestionDraft[] = (data?.questions || []).map((q: any) => ({
+        question: q.question,
+        options: q.options || [],
+        correct: typeof q.correct === "number" ? q.correct : null,
+        explanation: q.explanation || "",
+        source: "ai",
+        question_type: q.question_type,
+        expected_answer: q.expected_answer || "",
+        max_score: q.max_score ?? 1,
+        time_limit_seconds: q.time_limit_seconds ?? null,
+        starter_code: q.starter_code || "",
+        language: q.language || "",
       }));
+      if (aiQs.length === 0) { toast.error("AI returned no questions"); return; }
       setQuestions(prev => [...prev.filter(q => q.question.trim()), ...aiQs]);
-      toast.success(`Generated ${aiQs.length} AI questions!`);
-    } catch { toast.error("AI generation failed"); }
-    finally { setGenerating(false); }
+      toast.success(`Generated ${aiQs.length} AI question(s)!`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("AI generation failed: " + (err?.message || ""));
+    } finally {
+      setGenerating(false);
+    }
   };
 
+  // ---- Question bank ----
   const loadQuestionBank = async () => {
     setLoadingBank(true);
-    let query = supabase.from("quiz_question_bank").select("*").order("created_at", { ascending: false });
-    if (bankModuleFilters.length > 0) {
-      query = query.in("module_id", bankModuleFilters);
+    let modIds: number[] = bankModuleFilters;
+    if (bankGroupId !== "all") {
+      const g = moduleGroups.find(gr => gr.id === bankGroupId);
+      const groupModuleIds = g?.items.map(it => it.module_id) || [];
+      modIds = bankModuleFilters.length > 0
+        ? bankModuleFilters.filter(id => groupModuleIds.includes(id))
+        : groupModuleIds;
+      if (modIds.length === 0) {
+        setBankQuestions([]); setLoadingBank(false);
+        toast.info("No modules in selected group match the filter.");
+        return;
+      }
     }
+    let query = supabase.from("quiz_question_bank").select("*").order("created_at", { ascending: false });
+    if (modIds.length > 0) query = query.in("module_id", modIds);
     const { data } = await query;
     setBankQuestions((data || []).map((q: any) => ({
       question: q.question,
-      options: Array.isArray(q.options) ? q.options : JSON.parse(q.options),
-      correct: q.correct, explanation: q.explanation, source: "bank",
+      options: Array.isArray(q.options) ? q.options : (typeof q.options === "string" ? JSON.parse(q.options) : []),
+      correct: typeof q.correct === "number" ? q.correct : null,
+      explanation: q.explanation || "",
+      source: "bank",
+      question_type: q.question_type || "mcq",
+      expected_answer: q.expected_answer || "",
+      max_score: q.question_type === "mcq" || !q.question_type ? 1 : 5,
+      time_limit_seconds: q.question_type === "video" ? 120 : null,
+      starter_code: "",
+      language: "",
     })));
     setSelectedBankIds(new Set());
     setLoadingBank(false);
@@ -203,6 +235,7 @@ const AssessmentCreator = () => {
     setBankQuestions([]); setSelectedBankIds(new Set());
   };
 
+  // ---- Edit / reset ----
   const handleEdit = async (assessment: any) => {
     setEditingId(assessment.id);
     setTitle(assessment.title);
@@ -213,19 +246,35 @@ const AssessmentCreator = () => {
     setPassingScore(String(assessment.passing_score));
     setAssignedColleges(assessment.assigned_colleges || []);
     setProctoringEnabled(assessment.proctoring_enabled || false);
-    
-    // Load existing questions
+    setSourceMode((assessment.source_mode as "topic" | "jd") || "topic");
+    setTopicOrSkills(assessment.topic_or_skills || "");
+    setJdText(assessment.jd_text || "");
+    setJdFileUrl(assessment.jd_file_url || "");
+    setStartAt(toLocalInput(assessment.start_at));
+    setEndAt(toLocalInput(assessment.end_at));
+    const mix = assessment.question_mix || {};
+    setMixMcq(String(mix.mcq ?? 0));
+    setMixDescriptive(String(mix.descriptive ?? 0));
+    setMixVideo(String(mix.video ?? 0));
+    setMixCoding(String(mix.coding ?? 0));
+
     const { data } = await supabase.from("assessment_questions").select("*").eq("assessment_id", assessment.id).order("sort_order");
     if (data && data.length > 0) {
       setQuestions(data.map((q: any) => ({
         question: q.question,
-        options: Array.isArray(q.options) ? q.options : JSON.parse(q.options),
-        correct: q.correct,
+        options: Array.isArray(q.options) ? q.options : (typeof q.options === "string" ? JSON.parse(q.options) : []),
+        correct: typeof q.correct === "number" ? q.correct : null,
         explanation: q.explanation || "",
         source: q.source || "manual",
+        question_type: q.question_type || "mcq",
+        expected_answer: q.expected_answer || "",
+        max_score: q.max_score ?? 1,
+        time_limit_seconds: q.time_limit_seconds ?? null,
+        starter_code: q.starter_code || "",
+        language: q.language || "",
       })));
     } else {
-      setQuestions([emptyQuestion()]);
+      setQuestions([emptyQuestion("mcq")]);
     }
     setShowForm(true);
   };
@@ -233,41 +282,54 @@ const AssessmentCreator = () => {
   const resetForm = () => {
     setTitle(""); setDescription(""); setSelectedModuleIds([]);
     setTimeLimitMinutes(""); setMaxAttempts(""); setPassingScore("60");
-    setAssignedColleges([]); setQuestions([emptyQuestion()]);
+    setAssignedColleges([]); setQuestions([emptyQuestion("mcq")]);
     setEditingId(null); setShowForm(false); setProctoringEnabled(false);
+    setSourceMode("topic"); setTopicOrSkills(""); setJdText(""); setJdFileUrl("");
+    setStartAt(""); setEndAt("");
+    setMixMcq("5"); setMixDescriptive("2"); setMixVideo("0"); setMixCoding("0");
   };
 
+  // ---- Save ----
   const handleCreate = async () => {
     if (!title.trim()) { toast.error("Enter assessment title"); return; }
-    const validQs = questions.filter(q => q.question.trim() && q.options.every(o => o.trim()));
+    const validQs = questions.filter(q => {
+      if (!q.question.trim()) return false;
+      if (q.question_type === "mcq") return q.options.every(o => o.trim());
+      return true;
+    });
     if (validQs.length === 0) { toast.error("Add at least one complete question"); return; }
     setCreating(true);
 
+    const payload = {
+      title: title.trim(),
+      description: description.trim(),
+      module_id: selectedModuleIds[0] || null,
+      assigned_colleges: assignedColleges,
+      time_limit_minutes: timeLimitMinutes ? Number(timeLimitMinutes) : null,
+      max_attempts: maxAttempts ? Number(maxAttempts) : null,
+      passing_score: Number(passingScore) || 60,
+      proctoring_enabled: proctoringEnabled,
+      source_mode: sourceMode,
+      topic_or_skills: topicOrSkills,
+      jd_text: jdText,
+      jd_file_url: jdFileUrl,
+      start_at: fromLocalInput(startAt),
+      end_at: fromLocalInput(endAt),
+      question_mix: {
+        mcq: parseInt(mixMcq) || 0,
+        descriptive: parseInt(mixDescriptive) || 0,
+        video: parseInt(mixVideo) || 0,
+        coding: parseInt(mixCoding) || 0,
+      },
+      questions: validQs,
+    };
+
     if (editingId) {
-      await updateAssessment(editingId, {
-        title: title.trim(), description: description.trim(),
-        module_id: selectedModuleIds[0] || null,
-        assigned_colleges: assignedColleges,
-        time_limit_minutes: timeLimitMinutes ? Number(timeLimitMinutes) : null,
-        max_attempts: maxAttempts ? Number(maxAttempts) : null,
-        passing_score: Number(passingScore) || 60,
-        proctoring_enabled: proctoringEnabled,
-        questions: validQs.map((q, i) => ({ ...q, sort_order: i })),
-      });
+      await updateAssessment(editingId, payload);
     } else {
       const creatorName = sessionStorage.getItem("trainerName") || sessionStorage.getItem("adminEmail") || "Admin";
       const creatorRole = sessionStorage.getItem("trainerName") ? "trainer" : "admin";
-      await createAssessment({
-        title: title.trim(), description: description.trim(),
-        module_id: selectedModuleIds[0] || null,
-        created_by: creatorRole, created_by_name: creatorName,
-        assigned_colleges: assignedColleges,
-        time_limit_minutes: timeLimitMinutes ? Number(timeLimitMinutes) : null,
-        max_attempts: maxAttempts ? Number(maxAttempts) : null,
-        passing_score: Number(passingScore) || 60,
-        proctoring_enabled: proctoringEnabled,
-        questions: validQs.map((q, i) => ({ ...q, sort_order: i })),
-      });
+      await createAssessment({ ...payload, created_by: creatorRole, created_by_name: creatorName });
     }
 
     resetForm(); setCreating(false); refetch();
@@ -286,16 +348,66 @@ const AssessmentCreator = () => {
     toast.success(`Assessment ${newStatus}`); refetch();
   };
 
+  // -----------------------------------------------------------------------
   if (showForm) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-display font-bold text-foreground">{editingId ? "Edit Assessment" : "Create Assessment"}</h3>
+          <h3 className="text-lg font-display font-bold text-foreground">
+            {editingId ? "Edit Assessment" : "Create Assessment"}
+          </h3>
           <Button variant="ghost" onClick={resetForm}>← Back to List</Button>
         </div>
 
+        {/* Step 1: Source */}
         <Card>
-          <CardHeader><CardTitle className="text-sm">Assessment Details</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> 1. Source — Topic / Skills or Job Description</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant={sourceMode === "topic" ? "default" : "outline"}
+                onClick={() => setSourceMode("topic")}
+              >Topic / Skills</Button>
+              <Button
+                size="sm"
+                variant={sourceMode === "jd" ? "default" : "outline"}
+                onClick={() => setSourceMode("jd")}
+              >Job Description</Button>
+            </div>
+            {sourceMode === "topic" ? (
+              <Textarea
+                placeholder="e.g., Machine Learning fundamentals, Python OOP, SQL joins..."
+                value={topicOrSkills}
+                onChange={(e) => setTopicOrSkills(e.target.value)}
+                rows={3}
+              />
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg cursor-pointer hover:bg-muted text-xs">
+                    {uploadingJd ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                    Upload JD (PDF / DOCX / TXT)
+                    <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={handleJdUpload} disabled={uploadingJd} />
+                  </label>
+                  {jdFileUrl && (
+                    <a href={jdFileUrl} target="_blank" rel="noreferrer" className="text-xs text-primary underline">view uploaded file</a>
+                  )}
+                </div>
+                <Textarea
+                  placeholder="Paste the Job Description text here (required for AI generation)..."
+                  value={jdText}
+                  onChange={(e) => setJdText(e.target.value)}
+                  rows={6}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Step 2: Details */}
+        <Card>
+          <CardHeader><CardTitle className="text-sm">2. Assessment Details</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
@@ -312,7 +424,6 @@ const AssessmentCreator = () => {
               <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Assessment description..." rows={2} />
             </div>
 
-            {/* Module Group filter + multi-module selection */}
             <div>
               <Label>Module Group (optional filter)</Label>
               <Select value={selectedGroupId} onValueChange={(v) => { setSelectedGroupId(v); setSelectedModuleIds([]); }}>
@@ -347,11 +458,7 @@ const AssessmentCreator = () => {
                   ));
                 })()}
               </div>
-              {selectedModuleIds.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">{selectedModuleIds.length} module(s) selected</p>
-              )}
             </div>
-
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
@@ -364,19 +471,29 @@ const AssessmentCreator = () => {
               </div>
             </div>
 
-            {/* Proctoring toggle */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <Label className="flex items-center gap-1"><CalendarRange className="h-3 w-3" /> Start (visible from)</Label>
+                <Input type="datetime-local" value={startAt} onChange={e => setStartAt(e.target.value)} />
+              </div>
+              <div>
+                <Label className="flex items-center gap-1"><CalendarRange className="h-3 w-3" /> End (closes at)</Label>
+                <Input type="datetime-local" value={endAt} onChange={e => setEndAt(e.target.value)} />
+              </div>
+            </div>
+
             <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border">
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-primary" />
                 <div>
                   <Label className="text-sm font-medium">Enable Proctoring</Label>
-                  <p className="text-xs text-muted-foreground">Camera, fullscreen lock, tab switch detection, face detection</p>
+                  <p className="text-xs text-muted-foreground">Camera, fullscreen lock, tab switch, face detection</p>
                 </div>
               </div>
               <Switch checked={proctoringEnabled} onCheckedChange={setProctoringEnabled} />
             </div>
 
-            {/* Institute assignment with search */}
+            {/* Institutes */}
             <div>
               <Label>Assign to Institutes</Label>
               <div className="relative mt-2">
@@ -408,93 +525,94 @@ const AssessmentCreator = () => {
           </CardContent>
         </Card>
 
-        {/* Question sources */}
+        {/* Step 3: Questions */}
         <Card>
-          <CardHeader><CardTitle className="text-sm">Add Questions</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm">3. Questions</CardTitle></CardHeader>
           <CardContent>
-            <Tabs defaultValue="manual">
+            <Tabs defaultValue="ai">
               <TabsList className="mb-4">
-                <TabsTrigger value="manual" className="gap-1 text-xs"><Plus className="h-3 w-3" /> Manual</TabsTrigger>
-                <TabsTrigger value="bulk" className="gap-1 text-xs"><Upload className="h-3 w-3" /> Bulk Upload</TabsTrigger>
                 <TabsTrigger value="ai" className="gap-1 text-xs"><Sparkles className="h-3 w-3" /> AI Generate</TabsTrigger>
+                <TabsTrigger value="manual" className="gap-1 text-xs"><Plus className="h-3 w-3" /> Manual</TabsTrigger>
                 <TabsTrigger value="bank" className="gap-1 text-xs"><Database className="h-3 w-3" /> Question Bank</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="manual" className="space-y-4">
-                {questions.map((q, qi) => (
-                  <div key={qi} className="border border-border rounded-lg p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <span className="text-xs font-bold text-muted-foreground">Q{qi + 1}</span>
-                      {questions.length > 1 && (
-                        <Button variant="ghost" size="sm" onClick={() => removeQuestion(qi)}>
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </Button>
-                      )}
-                    </div>
-                    <Input placeholder="Question text..." value={q.question} onChange={e => updateQuestion(qi, "question", e.target.value)} />
-                    <div className="grid grid-cols-2 gap-2">
-                      {q.options.map((opt, oi) => (
-                        <div key={oi} className="flex items-center gap-2">
-                          <input type="radio" name={`correct-${qi}`} checked={q.correct === oi} onChange={() => updateQuestion(qi, "correct", oi)} className="accent-primary" />
-                          <Input placeholder={`Option ${String.fromCharCode(65 + oi)}`} value={opt} onChange={e => updateOption(qi, oi, e.target.value)} className="flex-1" />
-                        </div>
-                      ))}
-                    </div>
-                    <Input placeholder="Explanation (shown after answering)" value={q.explanation} onChange={e => updateQuestion(qi, "explanation", e.target.value)} />
-                  </div>
-                ))}
-                <Button variant="outline" size="sm" onClick={addQuestion} className="gap-1">
-                  <Plus className="h-3 w-3" /> Add Question
-                </Button>
-              </TabsContent>
-
-              <TabsContent value="bulk" className="space-y-4">
-                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                  <p className="text-sm font-medium text-foreground">Bulk Upload Questions</p>
-                  <p className="text-xs text-muted-foreground">
-                    Upload a CSV or JSON file, or paste content below.<br />
-                    <strong>CSV format:</strong> question, optionA, optionB, optionC, optionD, correctIndex (0-3), explanation<br />
-                    <strong>JSON format:</strong> [{`{ "question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..." }`}]
-                  </p>
-                  <div className="flex gap-2">
-                    <label className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg cursor-pointer hover:bg-muted text-sm">
-                      <Upload className="h-4 w-4" /> Upload File
-                      <input type="file" accept=".csv,.json,.txt" className="hidden" onChange={handleFileUpload} />
-                    </label>
-                  </div>
-                  <Textarea
-                    rows={6}
-                    placeholder="Or paste CSV/JSON content here..."
-                    onBlur={(e) => { if (e.target.value.trim()) { handleBulkUpload(e.target.value); e.target.value = ""; } }}
-                  />
-                </div>
-              </TabsContent>
-
+              {/* AI Generate */}
               <TabsContent value="ai" className="space-y-4">
-                <div className="grid sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
-                    <Label>Topic</Label>
-                    <Input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="e.g., Machine Learning Basics" />
+                    <Label className="text-xs">MCQ</Label>
+                    <Input type="number" min={0} value={mixMcq} onChange={e => setMixMcq(e.target.value)} />
                   </div>
                   <div>
-                    <Label>Number of Questions</Label>
-                    <Input type="number" value={aiCount} onChange={e => setAiCount(e.target.value)} />
+                    <Label className="text-xs">Descriptive</Label>
+                    <Input type="number" min={0} value={mixDescriptive} onChange={e => setMixDescriptive(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Video</Label>
+                    <Input type="number" min={0} value={mixVideo} onChange={e => setMixVideo(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Coding</Label>
+                    <Input type="number" min={0} value={mixCoding} onChange={e => setMixCoding(e.target.value)} />
                   </div>
                 </div>
-                {selectedModuleIds.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Generating for modules: {selectedModuleIds.map(id => adminModules.find(m => m.id === id)?.title).filter(Boolean).join(", ")}
-                  </p>
-                )}
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Difficulty</Label>
+                    <Select value={aiDifficulty} onValueChange={(v) => setAiDifficulty(v as any)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="easy">Easy</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="hard">Hard</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {parseInt(mixCoding) > 0 && (
+                    <div>
+                      <Label className="text-xs">Coding language</Label>
+                      <Input value={aiCodingLang} onChange={e => setAiCodingLang(e.target.value)} placeholder="python" />
+                    </div>
+                  )}
+                </div>
                 <Button onClick={handleAIGenerate} disabled={generating} className="gap-2 bg-gradient-accent border-0">
                   {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  {generating ? "Generating..." : "Generate with AI"}
+                  {generating ? "Generating..." : `Generate ${(parseInt(mixMcq)||0)+(parseInt(mixDescriptive)||0)+(parseInt(mixVideo)||0)+(parseInt(mixCoding)||0)} questions`}
                 </Button>
+                <p className="text-xs text-muted-foreground">
+                  Source: <strong>{sourceMode === "topic" ? "Topic/Skills" : "Job Description"}</strong>. Edit any AI question below before saving.
+                </p>
               </TabsContent>
 
+              {/* Manual */}
+              <TabsContent value="manual" className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={() => addQuestion("mcq")} className="gap-1"><Plus className="h-3 w-3" /> MCQ</Button>
+                  <Button variant="outline" size="sm" onClick={() => addQuestion("descriptive")} className="gap-1"><Plus className="h-3 w-3" /> Descriptive</Button>
+                  <Button variant="outline" size="sm" onClick={() => addQuestion("video")} className="gap-1"><Plus className="h-3 w-3" /> Video</Button>
+                  <Button variant="outline" size="sm" onClick={() => addQuestion("coding")} className="gap-1"><Plus className="h-3 w-3" /> Coding</Button>
+                </div>
+                <p className="text-xs text-muted-foreground">All added questions appear in the editor below.</p>
+              </TabsContent>
+
+              {/* Bank */}
               <TabsContent value="bank" className="space-y-4">
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Module Group</Label>
+                    <Select value={bankGroupId} onValueChange={setBankGroupId}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All groups</SelectItem>
+                        {moduleGroups.map(g => (
+                          <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <div>
-                  <Label className="mb-2 block">Filter by Modules (select multiple)</Label>
+                  <Label className="mb-2 block text-xs">Filter by Modules (optional)</Label>
                   <div className="flex flex-wrap gap-2 mb-3">
                     {adminModules.map(m => (
                       <label key={m.id} className="flex items-center gap-1.5 text-xs bg-muted px-2.5 py-1.5 rounded-lg cursor-pointer hover:bg-muted/80">
@@ -506,7 +624,7 @@ const AssessmentCreator = () => {
                   <div className="flex gap-2">
                     <Button onClick={loadQuestionBank} disabled={loadingBank} variant="outline" className="gap-1">
                       {loadingBank ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
-                      Load Questions {bankModuleFilters.length > 0 ? `(${bankModuleFilters.length} modules)` : "(All)"}
+                      Load Questions
                     </Button>
                     {selectedBankIds.size > 0 && (
                       <Button onClick={importSelectedFromBank} className="gap-1 bg-gradient-primary border-0 text-primary-foreground">
@@ -523,8 +641,13 @@ const AssessmentCreator = () => {
                           setSelectedBankIds(prev => { const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next; });
                         }} />
                         <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] uppercase bg-primary/10 text-primary px-1.5 py-0.5 rounded">{q.question_type}</span>
+                          </div>
                           <p className="text-sm font-medium">{q.question}</p>
-                          <p className="text-xs text-muted-foreground">{q.options.map((o, oi) => `${String.fromCharCode(65 + oi)}) ${o}`).join(" · ")}</p>
+                          {q.question_type === "mcq" && q.options.length > 0 && (
+                            <p className="text-xs text-muted-foreground">{q.options.map((o, oi) => `${String.fromCharCode(65 + oi)}) ${o}`).join(" · ")}</p>
+                          )}
                         </div>
                       </label>
                     ))}
@@ -532,10 +655,25 @@ const AssessmentCreator = () => {
                 )}
               </TabsContent>
             </Tabs>
+
+            {/* Editor list (always visible) */}
+            <div className="mt-6 space-y-3">
+              <h4 className="text-sm font-semibold text-foreground">Questions ({questions.filter(q => q.question.trim()).length})</h4>
+              {questions.map((q, qi) => (
+                <TypedQuestionEditor
+                  key={qi}
+                  index={qi}
+                  question={q}
+                  onChange={(next) => updateQuestion(qi, next)}
+                  onRemove={() => removeQuestion(qi)}
+                  canRemove={questions.length > 1}
+                />
+              ))}
+            </div>
           </CardContent>
         </Card>
 
-        <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+        <div className="flex items-center justify-between p-4 bg-muted rounded-lg sticky bottom-0">
           <p className="text-sm"><strong>{questions.filter(q => q.question.trim()).length}</strong> questions ready</p>
           <Button onClick={handleCreate} disabled={creating} className="gap-2 bg-gradient-primary border-0 text-primary-foreground">
             {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
@@ -546,6 +684,7 @@ const AssessmentCreator = () => {
     );
   }
 
+  // -----------------------------------------------------------------------
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -572,6 +711,7 @@ const AssessmentCreator = () => {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {assessments.map(a => {
             const mod = adminModules.find(m => m.id === a.module_id);
+            const mix = a.question_mix || { mcq: 0, descriptive: 0, video: 0, coding: 0 };
             return (
               <div key={a.id} className="bg-card border border-border rounded-lg p-5 shadow-card">
                 <div className="flex items-start justify-between mb-3">
@@ -589,9 +729,20 @@ const AssessmentCreator = () => {
                 {mod && <p className="text-xs text-muted-foreground mb-2">{mod.title}</p>}
                 <div className="text-xs text-muted-foreground space-y-1 mb-3">
                   <p>{a.question_count} questions · Pass: {a.passing_score}%</p>
+                  {(mix.mcq || mix.descriptive || mix.video || mix.coding) > 0 && (
+                    <p className="text-[11px]">
+                      {mix.mcq ? `${mix.mcq} MCQ ` : ""}
+                      {mix.descriptive ? `· ${mix.descriptive} Desc ` : ""}
+                      {mix.video ? `· ${mix.video} Video ` : ""}
+                      {mix.coding ? `· ${mix.coding} Code ` : ""}
+                    </p>
+                  )}
                   {a.time_limit_minutes && <p>⏱️ {a.time_limit_minutes} min</p>}
                   {a.max_attempts && <p>🔄 Max {a.max_attempts} attempts</p>}
-                  {a.assigned_colleges.length > 0 && <p>🏫 {a.assigned_colleges.join(", ")}</p>}
+                  {(a.start_at || a.end_at) && (
+                    <p>📅 {a.start_at ? new Date(a.start_at).toLocaleDateString() : "—"} → {a.end_at ? new Date(a.end_at).toLocaleDateString() : "—"}</p>
+                  )}
+                  {a.assigned_colleges.length > 0 && <p>🏫 {a.assigned_colleges.length} institute(s)</p>}
                   {a.proctoring_enabled && <p className="text-primary font-medium">🛡️ Proctored</p>}
                 </div>
                 <div className="flex gap-2">

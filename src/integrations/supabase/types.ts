@@ -144,11 +144,14 @@ export type Database = {
       }
       assessment_attempts: {
         Row: {
+          ai_grading: Json
           answers: Json
           assessment_id: string
           completed_at: string | null
           correct_answers: number
+          grading_status: string
           id: string
+          responses: Json
           score: number
           started_at: string
           student_college: string
@@ -158,11 +161,14 @@ export type Database = {
           total_questions: number
         }
         Insert: {
+          ai_grading?: Json
           answers?: Json
           assessment_id: string
           completed_at?: string | null
           correct_answers?: number
+          grading_status?: string
           id?: string
+          responses?: Json
           score?: number
           started_at?: string
           student_college?: string
@@ -172,11 +178,14 @@ export type Database = {
           total_questions?: number
         }
         Update: {
+          ai_grading?: Json
           answers?: Json
           assessment_id?: string
           completed_at?: string | null
           correct_answers?: number
+          grading_status?: string
           id?: string
+          responses?: Json
           score?: number
           started_at?: string
           student_college?: string
@@ -198,36 +207,54 @@ export type Database = {
       assessment_questions: {
         Row: {
           assessment_id: string
-          correct: number
+          correct: number | null
           created_at: string
+          expected_answer: string
           explanation: string
           id: string
+          language: string
+          max_score: number
           options: Json
           question: string
+          question_type: string
           sort_order: number
           source: string
+          starter_code: string
+          time_limit_seconds: number | null
         }
         Insert: {
           assessment_id: string
-          correct: number
+          correct?: number | null
           created_at?: string
+          expected_answer?: string
           explanation?: string
           id?: string
+          language?: string
+          max_score?: number
           options?: Json
           question: string
+          question_type?: string
           sort_order?: number
           source?: string
+          starter_code?: string
+          time_limit_seconds?: number | null
         }
         Update: {
           assessment_id?: string
-          correct?: number
+          correct?: number | null
           created_at?: string
+          expected_answer?: string
           explanation?: string
           id?: string
+          language?: string
+          max_score?: number
           options?: Json
           question?: string
+          question_type?: string
           sort_order?: number
           source?: string
+          starter_code?: string
+          time_limit_seconds?: number | null
         }
         Relationships: [
           {
@@ -246,15 +273,22 @@ export type Database = {
           created_by: string
           created_by_name: string
           description: string
+          end_at: string | null
           id: string
+          jd_file_url: string
+          jd_text: string
           max_attempts: number | null
           module_id: number | null
           passing_score: number
           proctoring_enabled: boolean
           question_count: number
+          question_mix: Json
+          source_mode: string
+          start_at: string | null
           status: string
           time_limit_minutes: number | null
           title: string
+          topic_or_skills: string
           updated_at: string
         }
         Insert: {
@@ -263,15 +297,22 @@ export type Database = {
           created_by?: string
           created_by_name?: string
           description?: string
+          end_at?: string | null
           id?: string
+          jd_file_url?: string
+          jd_text?: string
           max_attempts?: number | null
           module_id?: number | null
           passing_score?: number
           proctoring_enabled?: boolean
           question_count?: number
+          question_mix?: Json
+          source_mode?: string
+          start_at?: string | null
           status?: string
           time_limit_minutes?: number | null
           title: string
+          topic_or_skills?: string
           updated_at?: string
         }
         Update: {
@@ -280,15 +321,22 @@ export type Database = {
           created_by?: string
           created_by_name?: string
           description?: string
+          end_at?: string | null
           id?: string
+          jd_file_url?: string
+          jd_text?: string
           max_attempts?: number | null
           module_id?: number | null
           passing_score?: number
           proctoring_enabled?: boolean
           question_count?: number
+          question_mix?: Json
+          source_mode?: string
+          start_at?: string | null
           status?: string
           time_limit_minutes?: number | null
           title?: string
+          topic_or_skills?: string
           updated_at?: string
         }
         Relationships: [
@@ -1082,34 +1130,40 @@ export type Database = {
         Row: {
           correct: number
           created_at: string
+          expected_answer: string
           explanation: string
           id: string
           module_id: number
           module_name: string
           options: Json
           question: string
+          question_type: string
           source: string
         }
         Insert: {
           correct: number
           created_at?: string
+          expected_answer?: string
           explanation?: string
           id?: string
           module_id: number
           module_name: string
           options?: Json
           question: string
+          question_type?: string
           source?: string
         }
         Update: {
           correct?: number
           created_at?: string
+          expected_answer?: string
           explanation?: string
           id?: string
           module_id?: number
           module_name?: string
           options?: Json
           question?: string
+          question_type?: string
           source?: string
         }
         Relationships: []

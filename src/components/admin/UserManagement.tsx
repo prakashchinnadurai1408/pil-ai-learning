@@ -367,7 +367,7 @@ const UserManagement = () => {
                         .filter(Boolean) as string[];
                       return (
                         <TooltipProvider delayDuration={150}>
-                          <Tooltip>
+                          <UITooltip>
                             <TooltipTrigger asChild>
                               <button
                                 onClick={() => openReassign(u)}
@@ -392,7 +392,7 @@ const UserManagement = () => {
                                 </div>
                               )}
                             </TooltipContent>
-                          </Tooltip>
+                          </UITooltip>
                         </TooltipProvider>
                       );
                     })()}

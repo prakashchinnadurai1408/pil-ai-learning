@@ -8,9 +8,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search, UserPlus, Edit, Trash2, Eye, Download, X, KeyRound,
-  Users, GraduationCap, TrendingUp, BarChart3, Ban, CheckCircle
+  Users, GraduationCap, TrendingUp, BarChart3, Ban, CheckCircle, UserCog
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useTrainerData } from "@/hooks/useTrainerData";
 import type { StudentData } from "@/hooks/useTrainerData";
@@ -35,6 +37,12 @@ const UserManagement = () => {
   const [newPassword, setNewPassword] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const [statusMap, setStatusMap] = useState<Record<string, string>>({});
+  // Trainer assignments: studentId -> Set of trainer IDs
+  const [trainerMap, setTrainerMap] = useState<Record<string, Set<string>>>({});
+  const [trainersList, setTrainersList] = useState<{ id: string; name: string; college: string }[]>([]);
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [reassignDraft, setReassignDraft] = useState<Set<string>>(new Set());
+  const [savingReassign, setSavingReassign] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -46,6 +54,60 @@ const UserManagement = () => {
       }
     })();
   }, [refreshKey, students.length]);
+
+  // Load trainer assignments + trainer list
+  useEffect(() => {
+    (async () => {
+      const [{ data: ts }, { data: tr }] = await Promise.all([
+        (supabase as any).from("trainer_students").select("trainer_id, student_id"),
+        supabase.from("trainers").select("id, name, college").order("name"),
+      ]);
+      const map: Record<string, Set<string>> = {};
+      (ts || []).forEach((row: any) => {
+        if (!map[row.student_id]) map[row.student_id] = new Set();
+        map[row.student_id].add(row.trainer_id);
+      });
+      setTrainerMap(map);
+      setTrainersList(tr || []);
+    })();
+  }, [refreshKey]);
+
+  const openReassign = (u: StudentData) => {
+    setSelectedUser(u);
+    setReassignDraft(new Set(trainerMap[u.id] || []));
+    setReassignOpen(true);
+  };
+
+  const toggleReassign = (trainerId: string) => {
+    setReassignDraft(prev => {
+      const next = new Set(prev);
+      if (next.has(trainerId)) next.delete(trainerId); else next.add(trainerId);
+      return next;
+    });
+  };
+
+  const saveReassign = async () => {
+    if (!selectedUser) return;
+    setSavingReassign(true);
+    const existing = trainerMap[selectedUser.id] || new Set<string>();
+    const toAdd: string[] = [];
+    const toRemove: string[] = [];
+    reassignDraft.forEach(id => { if (!existing.has(id)) toAdd.push(id); });
+    existing.forEach(id => { if (!reassignDraft.has(id)) toRemove.push(id); });
+    if (toRemove.length > 0) {
+      await (supabase as any).from("trainer_students")
+        .delete().eq("student_id", selectedUser.id).in("trainer_id", toRemove);
+    }
+    if (toAdd.length > 0) {
+      await (supabase as any).from("trainer_students").insert(
+        toAdd.map(trainer_id => ({ trainer_id, student_id: selectedUser.id }))
+      );
+    }
+    toast.success(`Updated trainers for ${selectedUser.name}`);
+    setSavingReassign(false);
+    setReassignOpen(false);
+    setRefreshKey(k => k + 1);
+  };
 
   const filteredUsers = useMemo(() => {
     return students.filter(s => {

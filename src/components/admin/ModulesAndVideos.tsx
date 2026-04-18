@@ -24,7 +24,7 @@ const ModulesAndVideos = () => {
       </TabsContent>
       <TabsContent value="videos">
         <Suspense fallback={<Fallback />}>
-          <ContentManager initialSection="videos" hideSections={["videos"]} sectionsOverride={["videos"]} />
+          <ContentManager initialSection="videos" sectionsOverride={["videos"]} />
         </Suspense>
       </TabsContent>
     </Tabs>

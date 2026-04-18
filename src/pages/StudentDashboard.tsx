@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar,
@@ -12,12 +13,12 @@ import { modules } from "@/data/modules";
 import { useAdminModules } from "@/hooks/useAdminModules";
 import { useStudentLearningPaths } from "@/hooks/useLearningPaths";
 import {
-  BookOpen, MessageSquare, Video, FlaskConical, ClipboardCheck,
-  FolderKanban, LogOut, Play, CheckCircle, Sparkles, Code2, Pencil,
+  BookOpen, MessageSquare, FlaskConical, ClipboardCheck,
+  FolderKanban, LogOut, CheckCircle, Code2, Pencil,
   Lock, Crown, User,
 } from "lucide-react";
 import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
-import { getMenuAccess, type MenuAccessConfig } from "@/hooks/useMenuAccessControls";
+import { getMenuAccess, isAllowed, TIER_META, TIERS, type MenuAccessConfig, type Tier } from "@/hooks/useMenuAccessControls";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { toast } from "sonner";
 import NotificationsPanel from "@/components/dashboard/NotificationsPanel";
@@ -39,31 +40,20 @@ const StudentModulesView = lazy(() => import("@/components/dashboard/StudentModu
 const MyAssignedProjects = lazy(() => import("@/components/dashboard/MyAssignedProjects"));
 const MyModuleGroups = lazy(() => import("@/components/dashboard/MyModuleGroups"));
 
-type TabKey = keyof MenuAccessConfig;
+type TabKey = "modules" | "videos" | "playground" | "coding" | "prompts" | "tools" | "assessments" | "projects";
 
 const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: typeof BookOpen }[] }[] = [
-  {
-    label: "Learn",
-    items: [
-      { key: "modules", label: "Modules", icon: BookOpen },
-    ],
-  },
-  {
-    label: "Practice",
-    items: [
-      { key: "playground", label: "AI Chat", icon: MessageSquare },
-      { key: "coding", label: "Coding", icon: Code2 },
-      { key: "prompts", label: "Prompts", icon: Pencil },
-      { key: "tools", label: "AI Tools", icon: FlaskConical },
-    ],
-  },
-  {
-    label: "Progress",
-    items: [
-      { key: "assessments", label: "Assessments", icon: ClipboardCheck },
-      { key: "projects", label: "Projects", icon: FolderKanban },
-    ],
-  },
+  { label: "Learn", items: [{ key: "modules", label: "Modules", icon: BookOpen }] },
+  { label: "Practice", items: [
+    { key: "playground", label: "AI Chat", icon: MessageSquare },
+    { key: "coding", label: "Coding", icon: Code2 },
+    { key: "prompts", label: "Prompts", icon: Pencil },
+    { key: "tools", label: "AI Tools", icon: FlaskConical },
+  ]},
+  { label: "Progress", items: [
+    { key: "assessments", label: "Assessments", icon: ClipboardCheck },
+    { key: "projects", label: "Projects", icon: FolderKanban },
+  ]},
 ];
 
 const StudentSidebar = ({
@@ -72,7 +62,7 @@ const StudentSidebar = ({
   active: TabKey;
   onSelect: (k: TabKey) => void;
   menuAccess: MenuAccessConfig;
-  userTier: "free" | "premium";
+  userTier: Tier;
   onLockedClick: () => void;
 }) => {
   const { state } = useSidebar();
@@ -87,7 +77,7 @@ const StudentSidebar = ({
               <SidebarMenu>
                 {section.items.map((item) => {
                   const Icon = item.icon;
-                  const isLocked = menuAccess[item.key]?.[userTier] === false;
+                  const isLocked = !isAllowed(menuAccess, item.key, userTier);
                   const isActive = active === item.key;
                   return (
                     <SidebarMenuItem key={item.key}>
@@ -110,6 +100,13 @@ const StudentSidebar = ({
   );
 };
 
+const normalizeTier = (raw: any): Tier => {
+  const v = String(raw || "free").toLowerCase();
+  if (v === "premium") return "advanced"; // legacy compat
+  if ((TIERS as string[]).includes(v)) return v as Tier;
+  return "free";
+};
+
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState<TabKey>("modules");
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
@@ -123,24 +120,15 @@ const StudentDashboard = () => {
   const studentDepartment = sessionStorage.getItem("studentDepartment") || "";
   const studentDegree = sessionStorage.getItem("studentDegree") || "";
   const overallProgress = 28;
-  const [userTier, setUserTier] = useState<"free" | "premium">("free");
-  const [menuAccess, setMenuAccess] = useState<MenuAccessConfig>({
-    modules: { free: true, premium: true },
-    videos: { free: true, premium: true },
-    playground: { free: true, premium: true },
-    coding: { free: true, premium: true },
-    prompts: { free: true, premium: true },
-    tools: { free: false, premium: true },
-    assessments: { free: true, premium: true },
-    projects: { free: false, premium: true },
-  });
+  const [userTier, setUserTier] = useState<Tier>("free");
+  const [menuAccess, setMenuAccess] = useState<MenuAccessConfig>({});
 
   useEffect(() => {
-    getMenuAccess().then(setMenuAccess);
+    getMenuAccess("student").then(setMenuAccess);
     if (studentId) {
       supabase.from("students").select("subscription_tier, college, department, degree, age_group").eq("id", studentId).single()
         .then(({ data }) => {
-          if (data?.subscription_tier === "premium") setUserTier("premium");
+          if (data?.subscription_tier) setUserTier(normalizeTier(data.subscription_tier));
           if (data?.college) sessionStorage.setItem("studentCollege", data.college);
           if (data?.department) sessionStorage.setItem("studentDepartment", data.department);
           if ((data as any)?.age_group) sessionStorage.setItem("studentAgeGroup", (data as any).age_group);
@@ -149,10 +137,16 @@ const StudentDashboard = () => {
     }
   }, [studentId]);
 
-  const { allowedModuleIds, pathNames } = useStudentLearningPaths(studentCollege, studentDepartment, studentDegree, userTier);
+  const { allowedModuleIds, pathNames } = useStudentLearningPaths(studentCollege, studentDepartment, studentDegree, userTier === "free" ? "free" : "premium");
 
   const filteredModules = allowedModuleIds === null ? modules : modules.filter((m) => allowedModuleIds.includes(m.id));
   const filteredAdminModules = allowedModuleIds === null ? publishedAdminModules : publishedAdminModules.filter((m) => allowedModuleIds.includes(m.id));
+
+  // Header / inline gates for non-sidebar menus
+  const showAIPath = isAllowed(menuAccess, "ai_path", userTier);
+  const showModuleGroups = isAllowed(menuAccess, "module_groups", userTier);
+  const showNotifications = isAllowed(menuAccess, "notifications", userTier);
+  const showProfileBtn = isAllowed(menuAccess, "profile", userTier);
 
   const renderActive = () => {
     switch (activeTab) {
@@ -165,7 +159,7 @@ const StudentDashboard = () => {
           </ErrorBoundary>
         ) : (
           <div className="space-y-4">
-            {studentId && (
+            {studentId && showModuleGroups && (
               <Suspense fallback={null}>
                 <MyModuleGroups
                   studentId={studentId}
@@ -223,6 +217,9 @@ const StudentDashboard = () => {
     }
   };
 
+  // Build dynamic comparison rows from current access controls (used in upgrade dialog)
+  const upgradeRows = Object.entries(menuAccess).map(([key, perTier]) => ({ key, perTier }));
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -241,12 +238,17 @@ const StudentDashboard = () => {
                 <SidebarTrigger />
                 <img src={pluginliveLogo} alt="AI Upskill Hub Logo" className="h-7" />
                 <span className="font-display font-bold text-gradient-primary">AI Upskill Hub</span>
+                <Badge variant="outline" className={`ml-2 ${TIER_META[userTier].color} border-current`}>
+                  {TIER_META[userTier].label}
+                </Badge>
               </div>
               <div className="flex items-center gap-2">
-                <NotificationsPanel studentId={null} />
-                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => setShowProfile(true)}>
-                  <User className="h-4 w-4" /> <span className="hidden sm:inline">{studentName}</span>
-                </Button>
+                {showNotifications && <NotificationsPanel studentId={null} />}
+                {showProfileBtn && (
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => setShowProfile(true)}>
+                    <User className="h-4 w-4" /> <span className="hidden sm:inline">{studentName}</span>
+                  </Button>
+                )}
                 <Link to="/student-login" onClick={() => sessionStorage.clear()}>
                   <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
                     <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Logout</span>
@@ -293,7 +295,7 @@ const StudentDashboard = () => {
                   </div>
                 )}
 
-                {studentId && activeTab === "modules" && !selectedModuleId && (
+                {studentId && showAIPath && activeTab === "modules" && !selectedModuleId && (
                   <div className="mb-8">
                     <ErrorBoundary>
                       <Suspense fallback={<ContentSkeleton />}>
@@ -313,36 +315,46 @@ const StudentDashboard = () => {
                   </div>
                 )}
 
-                <ErrorBoundary>
-                  {renderActive()}
-                </ErrorBoundary>
+                <ErrorBoundary>{renderActive()}</ErrorBoundary>
               </>
             )}
           </main>
         </div>
 
         <Dialog open={upgradeDialogOpen} onOpenChange={setUpgradeDialogOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-lg">
-                <Crown className="h-5 w-5 text-warning" /> Upgrade to Premium
+                <Crown className="h-5 w-5 text-warning" /> Upgrade Your Plan
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-2">
-              <p className="text-sm text-muted-foreground">
-                This feature is available exclusively for Premium subscribers. Upgrade your plan to unlock:
-              </p>
-              <ul className="space-y-2 text-sm">
-                {["All modules & video lessons", "Unlimited AI Chat & Tools", "Full coding challenges (40+ languages)", "Advanced assessments & retakes", "Project guide & document uploads", "Certificate of completion"].map((f, i) => (
-                  <li key={i} className="flex items-center gap-2 text-card-foreground">
-                    <CheckCircle className="h-4 w-4 text-success shrink-0" /> {f}
-                  </li>
-                ))}
-              </ul>
-              <div className="bg-warning/10 rounded-lg p-4 text-center">
-                <p className="text-2xl font-display font-bold text-card-foreground">₹499<span className="text-sm font-normal text-muted-foreground">/month</span></p>
-                <p className="text-xs text-muted-foreground mt-1">or ₹4,999/year (save 17%)</p>
-              </div>
+            <div className="overflow-x-auto -mx-2 px-2">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left p-2 font-medium text-muted-foreground">Feature</th>
+                    {TIERS.map((t) => (
+                      <th key={t} className={`p-2 text-center font-display ${TIER_META[t].color} ${t === userTier ? "bg-muted/50 rounded-t" : ""}`}>
+                        {TIER_META[t].label}<br /><span className="text-[10px] text-muted-foreground font-normal">{TIER_META[t].price}</span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {upgradeRows.map(({ key, perTier }) => (
+                    <tr key={key} className="border-b border-border/30">
+                      <td className="p-2 text-card-foreground">{key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</td>
+                      {TIERS.map((t) => (
+                        <td key={t} className={`p-2 text-center ${t === userTier ? "bg-muted/30" : ""}`}>
+                          {perTier[t]
+                            ? <CheckCircle className="h-3.5 w-3.5 text-success mx-auto" />
+                            : <span className="text-muted-foreground/40">—</span>}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
             <DialogFooter className="flex-col sm:flex-row gap-2">
               <Button variant="outline" onClick={() => setUpgradeDialogOpen(false)} className="flex-1">Maybe Later</Button>
@@ -350,7 +362,7 @@ const StudentDashboard = () => {
                 setUpgradeDialogOpen(false);
                 toast.info("Contact your administrator to upgrade your subscription.");
               }}>
-                <Crown className="h-4 w-4" /> Upgrade Now
+                <Crown className="h-4 w-4" /> Contact Admin to Upgrade
               </Button>
             </DialogFooter>
           </DialogContent>

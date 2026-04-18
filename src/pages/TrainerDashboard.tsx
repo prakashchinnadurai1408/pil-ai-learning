@@ -135,6 +135,13 @@ const TrainerDashboard = () => {
   const [progressFilter, setProgressFilter] = useState("all");
   const [sortKey, setSortKey] = useState<"name" | "college" | "progress" | "modulesCompleted" | "avgScore" | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [pinnedStudent, setPinnedStudent] = useState<string>("");
+
+  const pinAndJump = (name: string, tab: TabKey) => {
+    setPinnedStudent(name);
+    setSearchQuery(name);
+    setActive(tab);
+  };
 
   const colleges = useMemo(() => [...new Set(students.map((s) => s.college))].sort(), [students]);
 

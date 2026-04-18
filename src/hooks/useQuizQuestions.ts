@@ -92,15 +92,36 @@ export function useQuizQuestions(moduleId: number, moduleName: string) {
     return newQuestions;
   };
 
+  const mirrorStaticToBank = async (qs: QuizQuestion[]) => {
+    if (qs.length === 0) return;
+    const bankExisting = await fetchBankQuestions();
+    const existingHashes = new Set(bankExisting.map(hashQuestion));
+    const toInsert = qs.filter((q) => !existingHashes.has(hashQuestion(q)));
+    if (toInsert.length === 0) return;
+    await supabase.from("quiz_question_bank").insert(
+      toInsert.map((q) => ({
+        module_id: moduleId,
+        module_name: moduleName,
+        question: q.question,
+        options: q.options,
+        correct: q.correct,
+        explanation: q.explanation,
+        source: "student_quiz",
+      }))
+    );
+  };
+
   const loadQuestions = useCallback(async (isRetake: boolean) => {
     setLoading(true);
 
     if (!isRetake) {
-      // First attempt: use static questions shuffled
+      // First attempt: use static questions shuffled + mirror to bank
       const staticQs = shuffle(getStaticQuestions());
       setQuestions(staticQs);
       setAttemptCount(1);
       setUsedQuestionHashes(new Set(staticQs.map(hashQuestion)));
+      // fire-and-forget mirror so the bank captures any new static questions
+      mirrorStaticToBank(staticQs).catch(() => {});
       setLoading(false);
       return;
     }

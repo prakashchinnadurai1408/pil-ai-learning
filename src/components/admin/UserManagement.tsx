@@ -46,8 +46,15 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
   const [reassignDraft, setReassignDraft] = useState<Set<string>>(new Set());
   const [savingReassign, setSavingReassign] = useState(false);
 
-  // AI path status per candidate: candidate_id -> { generated_at, is_beginner_default, status }
-  const [pathMap, setPathMap] = useState<Record<string, { generated_at: string; is_beginner_default: boolean; status: string }>>({});
+  // AI path status per candidate: candidate_id -> { id, generated_at, is_beginner_default, status, title, rationale, model_used }
+  const [pathMap, setPathMap] = useState<Record<string, { id: string; generated_at: string; is_beginner_default: boolean; status: string; title: string; rationale: string; model_used: string }>>({});
+  const [pathFilter, setPathFilter] = useState<string>("all"); // all | has | none | beginner
+
+  // Path detail side panel
+  const [pathSheetOpen, setPathSheetOpen] = useState(false);
+  const [pathSheetCandidate, setPathSheetCandidate] = useState<StudentData | null>(null);
+  const [pathSheetLoading, setPathSheetLoading] = useState(false);
+  const [pathSheetModules, setPathSheetModules] = useState<Array<{ id: string; module_id: number; module_title: string; sort_order: number; reason: string }>>([]);
 
   // Bulk AI Path generation
   const [collegeFilter, setCollegeFilter] = useState<string>("all");

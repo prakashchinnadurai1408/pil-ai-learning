@@ -92,7 +92,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
         supabase.from("trainers").select("id, name, college").order("name"),
         supabase.from("students").select("id, department, degree"),
         (supabase as any).from("candidate_learning_paths")
-          .select("candidate_id, generated_at, is_beginner_default, status")
+          .select("id, candidate_id, generated_at, is_beginner_default, status, title, rationale, model_used")
           .eq("status", "active")
           .order("generated_at", { ascending: false }),
       ]);
@@ -106,19 +106,39 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       const meta: Record<string, { department: string; degree: string }> = {};
       (stu || []).forEach((s: any) => { meta[s.id] = { department: s.department || "", degree: s.degree || "" }; });
       setExtraMeta(meta);
-      const pmap: Record<string, { generated_at: string; is_beginner_default: boolean; status: string }> = {};
+      const pmap: Record<string, { id: string; generated_at: string; is_beginner_default: boolean; status: string; title: string; rationale: string; model_used: string }> = {};
       (paths || []).forEach((p: any) => {
         if (!pmap[p.candidate_id]) {
           pmap[p.candidate_id] = {
+            id: p.id,
             generated_at: p.generated_at,
             is_beginner_default: !!p.is_beginner_default,
             status: p.status,
+            title: p.title || "",
+            rationale: p.rationale || "",
+            model_used: p.model_used || "",
           };
         }
       });
       setPathMap(pmap);
     })();
   }, [refreshKey]);
+
+  const openPathSheet = async (u: StudentData) => {
+    const p = pathMap[u.id];
+    if (!p) return;
+    setPathSheetCandidate(u);
+    setPathSheetOpen(true);
+    setPathSheetLoading(true);
+    setPathSheetModules([]);
+    const { data } = await (supabase as any)
+      .from("candidate_learning_path_modules")
+      .select("id, module_id, module_title, sort_order, reason")
+      .eq("path_id", p.id)
+      .order("sort_order", { ascending: true });
+    setPathSheetModules(data || []);
+    setPathSheetLoading(false);
+  };
 
   const openReassign = (u: StudentData) => {
     setSelectedUser(u);

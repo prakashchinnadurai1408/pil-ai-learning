@@ -215,6 +215,18 @@ const StudentLogin = () => {
                 </div>
               </div>
               <div>
+                <Label htmlFor="age_group">Your Age Group</Label>
+                <Select value={form.age_group} onValueChange={(v) => setForm({ ...form, age_group: v })}>
+                  <SelectTrigger id="age_group"><SelectValue placeholder="Select your age group" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10-14">10–14 years</SelectItem>
+                    <SelectItem value="15-18">15–18 years</SelectItem>
+                    <SelectItem value="19-22">19–22 years</SelectItem>
+                    <SelectItem value="23+">23+ years</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

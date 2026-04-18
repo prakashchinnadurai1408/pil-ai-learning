@@ -23,9 +23,10 @@ import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
 // Pass-through wrapper that accepts forwarded props for deep-linking
 const UserManagement = lazy(() => import("@/components/admin/UserManagement"));
-const AIModuleCreator = lazy(() => import("@/components/admin/AIModuleCreator"));
+const ModulesAndVideos = lazy(() => import("@/components/admin/ModulesAndVideos"));
 const SubscriptionManagement = lazy(() => import("@/components/admin/SubscriptionManagement"));
 const ContentManager = lazy(() => import("@/components/admin/ContentManager"));
+const OtherSectionContent = () => <ContentManager sectionsOverride={["ai_chat", "tools", "assessments", "projects"]} />;
 const QuestionBankViewer = lazy(() => import("@/components/admin/QuestionBankViewer"));
 const CodingChallengeManager = lazy(() => import("@/components/admin/CodingChallengeManager"));
 const DashboardOverview = lazy(() => import("@/components/admin/DashboardOverview"));
@@ -74,8 +75,8 @@ const SECTIONS: { label: string; items: MenuItem[] }[] = [
   {
     label: "Content",
     items: [
-      { key: "modules", label: "Modules", icon: BookOpen, component: AIModuleCreator },
-      { key: "content", label: "Section Content", icon: Layers, component: ContentManager },
+      { key: "modules", label: "Modules & Videos", icon: BookOpen, component: ModulesAndVideos },
+      { key: "content", label: "Section Content", icon: Layers, component: OtherSectionContent },
       { key: "question-bank", label: "Question Bank", icon: Database, component: QuestionBankViewer },
       { key: "coding", label: "Coding Challenges", icon: Code2, component: CodingChallengeManager },
       { key: "assessments", label: "Assessments", icon: ClipboardCheck, component: AssessmentCreator },

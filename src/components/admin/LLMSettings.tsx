@@ -92,6 +92,32 @@ const LLMSettings = () => {
   const [row, setRow] = useState<LLMRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testingYT, setTestingYT] = useState(false);
+  const [ytResult, setYtResult] = useState<{ ok: boolean; message: string; videoId?: string | null } | null>(null);
+
+  const testYouTubeKey = async () => {
+    setTestingYT(true);
+    setYtResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("youtube-search", {
+        body: { query: "intro to artificial intelligence", maxResults: 1 },
+      });
+      if (error) {
+        setYtResult({ ok: false, message: error.message || "Edge function call failed" });
+      } else if (data?.error) {
+        setYtResult({ ok: false, message: data.error });
+      } else if (data?.videoId) {
+        setYtResult({ ok: true, message: `Key works — found video ID ${data.videoId}`, videoId: data.videoId });
+        toast.success("YouTube API key is valid");
+      } else {
+        setYtResult({ ok: false, message: "No video returned. Key may be invalid or quota exhausted." });
+      }
+    } catch (e: any) {
+      setYtResult({ ok: false, message: e?.message || "Network error" });
+    } finally {
+      setTestingYT(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -172,6 +198,14 @@ const LLMSettings = () => {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
+              onClick={testYouTubeKey}
+              disabled={testingYT}
+              className="gap-2"
+            >
+              {testingYT ? <Loader2 className="h-4 w-4 animate-spin" /> : <Youtube className="h-4 w-4" />}
+              Test YouTube API
+            </Button>
+            <Button
               variant="outline"
               className="gap-2"
               onClick={() => {
@@ -193,6 +227,27 @@ const LLMSettings = () => {
               Get a key from Google Cloud Console →
             </a>
           </div>
+          {ytResult && (
+            <div
+              className={`text-sm rounded-md border px-3 py-2 ${
+                ytResult.ok
+                  ? "border-primary/30 bg-primary/5 text-foreground"
+                  : "border-destructive/40 bg-destructive/5 text-destructive"
+              }`}
+            >
+              {ytResult.message}
+              {ytResult.ok && ytResult.videoId && (
+                <a
+                  href={`https://www.youtube.com/watch?v=${ytResult.videoId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="ml-2 underline underline-offset-4"
+                >
+                  Open video ↗
+                </a>
+              )}
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             Tip: Enable <strong>YouTube Data API v3</strong> on your Google Cloud project, then create an API key
             and restrict it to that API for safety. After updating, edge functions pick up the new key within seconds.

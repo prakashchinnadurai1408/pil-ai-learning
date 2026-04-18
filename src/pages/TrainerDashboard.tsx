@@ -35,11 +35,14 @@ const CodingChallengeManager = lazy(() => import("@/components/admin/CodingChall
 const LearningPathsManager = lazy(() => import("@/components/admin/LearningPathsManager"));
 const ProctoringAnalytics = lazy(() => import("@/components/admin/ProctoringAnalytics"));
 const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytics"));
+const ModuleGroupsManager = lazy(() => import("@/components/admin/ModuleGroupsManager"));
+import AssignProjectDialog from "@/components/shared/AssignProjectDialog";
 
 type TabKey =
   | "students" | "assessments" | "create-assessment" | "assessment-analytics"
   | "analytics" | "projects" | "coding"
   | "modules" | "content" | "question-bank" | "coding-bank" | "learning-paths"
+  | "module-groups"
   | "proctoring" | "llm-usage";
 
 const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: typeof Users }[] }[] = [
@@ -53,6 +56,7 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
     label: "Manage",
     items: [
       { key: "learning-paths", label: "Learning Paths", icon: Route },
+      { key: "module-groups", label: "Module Groups", icon: Layers },
     ],
   },
   {
@@ -136,6 +140,10 @@ const TrainerDashboard = () => {
   const [sortKey, setSortKey] = useState<"name" | "college" | "progress" | "modulesCompleted" | "avgScore" | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [pinnedStudent, setPinnedStudent] = useState<string>("");
+  const [assignProjectOpen, setAssignProjectOpen] = useState(false);
+
+  const trainerId = typeof window !== "undefined" ? (sessionStorage.getItem("trainerId") || "") : "";
+  const trainerName = typeof window !== "undefined" ? (sessionStorage.getItem("trainerName") || "Trainer") : "Trainer";
 
   const pinAndJump = (name: string, tab: TabKey) => {
     setPinnedStudent(name);
@@ -272,6 +280,9 @@ const TrainerDashboard = () => {
                     </Button>
                   )}
                   <ComposeMessageDialog recipientStudents={filteredStudents.map((s) => ({ id: s.id, name: s.name, email: s.email }))} />
+                  <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => setAssignProjectOpen(true)}>
+                    <FolderKanban className="h-3 w-3" /> Assign Project
+                  </Button>
                   <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={exportCSV}>
                     <Download className="h-3 w-3" /> Export CSV
                   </Button>
@@ -465,6 +476,16 @@ const TrainerDashboard = () => {
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><ProctoringAnalytics key={`pa-${pinnedStudent}`} initialSearch={pinnedStudent} /></Suspense>;
       case "llm-usage":
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><LLMUsageAnalytics /></Suspense>;
+      case "module-groups":
+        return (
+          <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+            <ModuleGroupsManager
+              ownerRole="trainer"
+              ownerId={typeof window !== "undefined" ? (sessionStorage.getItem("trainerId") || "") : ""}
+              ownerName={typeof window !== "undefined" ? (sessionStorage.getItem("trainerName") || "Trainer") : "Trainer"}
+            />
+          </Suspense>
+        );
     }
   };
 
@@ -514,6 +535,14 @@ const TrainerDashboard = () => {
         </div>
 
         <StudentDetailModal student={selectedStudent} open={detailOpen} onOpenChange={setDetailOpen} />
+        <AssignProjectDialog
+          open={assignProjectOpen}
+          onOpenChange={setAssignProjectOpen}
+          students={filteredStudents.map((s) => ({ id: s.id, name: s.name }))}
+          assignerRole="trainer"
+          assignerId={trainerId}
+          assignerName={trainerName}
+        />
       </div>
     </SidebarProvider>
   );

@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search, UserPlus, Edit, Trash2, Eye, Download, X, KeyRound,
-  Users, GraduationCap, TrendingUp, BarChart3, Ban, CheckCircle, UserCog, Sparkles, Loader2
+  Users, GraduationCap, TrendingUp, BarChart3, Ban, CheckCircle, UserCog, Sparkles, Loader2, FolderKanban
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,6 +23,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, LineChart, Line
 } from "recharts";
+import AssignProjectDialog from "@/components/shared/AssignProjectDialog";
 
 const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: string; onClearSearch?: () => void }) => {
   const { students, loading, totalStudents, avgProgress, avgOverallScore, moduleStats, scoreDistribution } = useTrainerData();
@@ -65,6 +66,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
   const [bulkOpen, setBulkOpen] = useState(false);
   const [overwriteExisting, setOverwriteExisting] = useState(false);
   const [bulkRunning, setBulkRunning] = useState(false);
+  const [assignProjectOpen, setAssignProjectOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -493,6 +495,19 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                 title={selectedIds.size === 0 ? "Select at least one candidate" : `Generate AI paths for ${selectedIds.size} candidate(s)`}
               >
                 <Sparkles className="h-3 w-3" /> Generate AI Path
+                {selectedIds.size > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{selectedIds.size}</Badge>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1 text-xs"
+                onClick={() => setAssignProjectOpen(true)}
+                disabled={selectedIds.size === 0}
+                title={selectedIds.size === 0 ? "Select at least one candidate" : `Assign project to ${selectedIds.size} candidate(s)`}
+              >
+                <FolderKanban className="h-3 w-3" /> Assign Project
                 {selectedIds.size > 0 && (
                   <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{selectedIds.size}</Badge>
                 )}
@@ -989,6 +1004,16 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
           })()}
         </SheetContent>
       </Sheet>
+
+      <AssignProjectDialog
+        open={assignProjectOpen}
+        onOpenChange={setAssignProjectOpen}
+        students={filteredUsers.filter(u => selectedIds.has(u.id)).map(u => ({ id: u.id, name: u.name }))}
+        assignerRole="admin"
+        assignerId="admin"
+        assignerName="Admin"
+        onAssigned={() => clearSelection()}
+      />
     </div>
   );
 };

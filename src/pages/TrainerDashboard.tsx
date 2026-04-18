@@ -80,7 +80,7 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
   {
     label: "Content",
     items: [
-      { key: "modules", label: "Modules", icon: BookOpen },
+      { key: "modules", label: "Modules & Videos", icon: BookOpen },
       { key: "content", label: "Section Content", icon: Layers },
       { key: "question-bank", label: "Question Bank", icon: Database },
       { key: "coding-bank", label: "Coding Challenges", icon: Code2 },

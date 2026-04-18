@@ -23,9 +23,9 @@ import {
   PieChart, Pie, Cell, Legend, LineChart, Line
 } from "recharts";
 
-const UserManagement = () => {
+const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: string; onClearSearch?: () => void }) => {
   const { students, loading, totalStudents, avgProgress, avgOverallScore, moduleStats, scoreDistribution } = useTrainerData();
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialSearch || "");
   const [roleFilter, setRoleFilter] = useState("all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -55,6 +55,13 @@ const UserManagement = () => {
       }
     })();
   }, [refreshKey, students.length]);
+
+  // Sync initialSearch prop into local state when it changes
+  useEffect(() => {
+    if (initialSearch) {
+      setSearchQuery(initialSearch);
+    }
+  }, [initialSearch]);
 
   // Load trainer assignments + trainer list
   useEffect(() => {
@@ -311,7 +318,28 @@ const UserManagement = () => {
           </div>
           <div className="mt-3 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search users by name or email..." className="pl-9 h-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            <Input 
+              placeholder="Search users by name or email..." 
+              className="pl-9 h-9" 
+              value={searchQuery} 
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (!e.target.value && onClearSearch) onClearSearch();
+              }} 
+            />
+            {initialSearch && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-7 text-xs"
+                onClick={() => {
+                  setSearchQuery("");
+                  onClearSearch?.();
+                }}
+              >
+                Clear
+              </Button>
+            )}
           </div>
         </div>
 

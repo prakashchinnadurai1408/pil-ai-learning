@@ -533,10 +533,18 @@ const TrainerDashboard = () => {
     }
   };
 
+  const lockedActive = TAB_TO_MENU_KEY[active] && !isAllowed(menuAccess, TAB_TO_MENU_KEY[active]!, tier);
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        <TrainerSidebar active={active} onSelect={setActive} />
+        <TrainerSidebar
+          active={active}
+          onSelect={setActive}
+          menuAccess={menuAccess}
+          tier={tier}
+          onLockedClick={() => setUpgradeOpen(true)}
+        />
 
         <div className="flex-1 flex flex-col">
           <header className="sticky top-0 z-50 glass border-b border-border/50">
@@ -545,6 +553,7 @@ const TrainerDashboard = () => {
                 <SidebarTrigger />
                 <img src={pluginliveLogo} alt="AI Upskill Hub" className="h-7" />
                 <span className="font-display font-bold text-gradient-accent">Trainer Portal</span>
+                <Badge variant="outline" className={`ml-2 ${TIER_META[tier].color} border-current`}>{TIER_META[tier].label}</Badge>
               </div>
               <Link to="/trainer-login" onClick={() => sessionStorage.clear()}>
                 <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">

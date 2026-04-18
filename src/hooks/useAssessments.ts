@@ -179,7 +179,7 @@ export type CreateAssessmentInput = {
   start_at?: string | null;
   end_at?: string | null;
   question_mix?: { mcq: number; descriptive: number; video: number; coding: number };
-  questions: Omit<AssessmentQuestion, "id" | "assessment_id" | "created_at">[];
+  questions: Omit<AssessmentQuestion, "id" | "assessment_id" | "created_at" | "sort_order">[];
 };
 
 export async function createAssessment(assessment: CreateAssessmentInput) {

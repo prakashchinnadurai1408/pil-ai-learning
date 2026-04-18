@@ -226,6 +226,60 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
         </CardContent>
       </Card>
 
+      {/* Adaptive Agent Calibration */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Brain className="h-5 w-5 text-primary" />
+            Adaptive Agent — Calibration by Age Group
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Quiz pass rate (≥70%) and average score per age group. Use this to verify the
+            adaptive difficulty floor/ceiling are calibrated correctly. Healthy target: 60–85% pass rate.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            {AGE_BUCKETS.map((b) => {
+              const s = adaptiveStats[b.key] || { attempts: 0, avg: 0, passRate: 0 };
+              const calibrated = s.attempts >= 3 && s.passRate >= 60 && s.passRate <= 85;
+              const tooHard = s.attempts >= 3 && s.passRate < 60;
+              const status = s.attempts < 3
+                ? { label: "Insufficient data", tone: "text-muted-foreground" }
+                : calibrated
+                ? { label: "Well calibrated", tone: "text-green-600" }
+                : tooHard
+                ? { label: "Too hard — lower ceiling", tone: "text-destructive" }
+                : { label: "Too easy — raise floor", tone: "text-yellow-600" };
+              return (
+                <div key={b.key} className="rounded-lg border border-border bg-card p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium text-foreground">{b.label}</p>
+                    <Badge variant="outline" className="text-[10px]">
+                      {s.attempts} attempt{s.attempts === 1 ? "" : "s"}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase">Pass rate</p>
+                      <p className="text-xl font-bold text-foreground">{s.passRate}%</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase">Avg score</p>
+                      <p className="text-xl font-bold text-foreground">{s.avg}%</p>
+                    </div>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded overflow-hidden mb-1">
+                    <div className="h-full bg-primary" style={{ width: `${Math.min(100, s.passRate)}%` }} />
+                  </div>
+                  <p className={`text-[11px] mt-1 ${status.tone}`}>{status.label}</p>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Trainer-scoped Assigned Students */}
       <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
         <CardHeader className="pb-3">

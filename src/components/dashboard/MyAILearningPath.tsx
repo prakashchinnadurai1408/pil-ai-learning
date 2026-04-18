@@ -18,20 +18,31 @@ interface ModuleProgressMap {
   [moduleId: number]: { progress_percent: number; completed: boolean };
 }
 
+const AGE_LABEL: Record<string, string> = {
+  "10-14": "10–14 yrs",
+  "15-18": "15–18 yrs",
+  "19-22": "19–22 yrs",
+  "23+": "23+ yrs",
+};
+
 const MyAILearningPath = ({ candidateId, onOpenModule }: Props) => {
   const { path, loading, generating, generate } = useCandidateLearningPath(candidateId);
   const [diagOpen, setDiagOpen] = useState(false);
   const [progressMap, setProgressMap] = useState<ModuleProgressMap>({});
   const [candidateName, setCandidateName] = useState("");
+  const [ageGroup, setAgeGroup] = useState<string>("");
 
   useEffect(() => {
     if (!candidateId) return;
     supabase
       .from("students")
-      .select("name")
+      .select("name, age_group")
       .eq("id", candidateId)
       .maybeSingle()
-      .then(({ data }) => setCandidateName((data as any)?.name || ""));
+      .then(({ data }) => {
+        setCandidateName((data as any)?.name || "");
+        setAgeGroup((data as any)?.age_group || "");
+      });
 
     supabase
       .from("student_module_progress")

@@ -177,7 +177,7 @@ const TrainerProjectReview = () => {
 
         return { studentName: name, streams };
       });
-  }, [progressData, documentsData, feedbackData]);
+  }, [progressData, documentsData, feedbackData, allowedNames]);
 
   const filtered = useMemo(
     () =>

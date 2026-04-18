@@ -212,6 +212,24 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
     [extraMeta]
   );
 
+  const AGE_BUCKETS = [
+    { key: "10-14", label: "10–14 yrs", color: "hsl(var(--primary))" },
+    { key: "15-18", label: "15–18 yrs", color: "hsl(var(--accent))" },
+    { key: "19-22", label: "19–22 yrs", color: "hsl(var(--success))" },
+    { key: "23+",   label: "23+ yrs",   color: "hsl(var(--warning))" },
+    { key: "",      label: "Unspecified", color: "hsl(var(--muted-foreground))" },
+  ];
+  const ageGroupData = useMemo(() => {
+    const counts: Record<string, number> = { "10-14": 0, "15-18": 0, "19-22": 0, "23+": 0, "": 0 };
+    students.forEach(s => {
+      const k = (extraMeta[s.id]?.age_group || "").trim();
+      counts[k in counts ? k : ""]++;
+    });
+    return AGE_BUCKETS
+      .map(b => ({ key: b.key, name: b.label, value: counts[b.key], color: b.color }))
+      .filter(d => d.value > 0);
+  }, [students, extraMeta]);
+
   // Selection helpers
   const allFilteredSelected = filteredUsers.length > 0 && filteredUsers.every(u => selectedIds.has(u.id));
   const someFilteredSelected = filteredUsers.some(u => selectedIds.has(u.id));

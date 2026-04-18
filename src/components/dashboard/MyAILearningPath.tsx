@@ -138,6 +138,10 @@ const MyAILearningPath = ({ candidateId, onOpenModule }: Props) => {
                 ) : (
                   <Badge className="text-xs gap-1"><Sparkles className="h-3 w-3" /> AI Personalized</Badge>
                 )}
+                <Badge variant="outline" className="text-[10px] gap-1 border-primary/40 text-primary">
+                  <Brain className="h-3 w-3" />
+                  Adaptive Agent{ageGroup && AGE_LABEL[ageGroup] ? ` · ${AGE_LABEL[ageGroup]}` : ""}
+                </Badge>
               </CardTitle>
               {path.rationale && (
                 <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{path.rationale}</p>

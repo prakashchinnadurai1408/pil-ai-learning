@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Save, Loader2, Brain, KeyRound } from "lucide-react";
+import { Sparkles, Save, Loader2, Brain, KeyRound, Youtube, RefreshCw, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 type ProviderKey = "lovable" | "openai" | "anthropic" | "deepseek" | "xai";
@@ -153,6 +153,53 @@ const LLMSettings = () => {
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Youtube className="h-5 w-5 text-destructive" /> YouTube Data API key
+          </CardTitle>
+          <CardDescription>
+            Used by the video lesson finder and AI-generated module content to fetch real YouTube video IDs.
+            The key is stored securely as a backend secret and never exposed to the browser.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2 text-sm">
+            <CheckCircle2 className="h-4 w-4 text-primary" />
+            <span className="text-muted-foreground">
+              Current status: <strong className="text-foreground">YOUTUBE_API_KEY is configured</strong>
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                toast.info("Ask Lovable to rotate the YouTube API key", {
+                  description:
+                    "In Lovable chat, send: \"Update the YOUTUBE_API_KEY secret\" — a secure form will appear to paste the new key.",
+                  duration: 9000,
+                });
+              }}
+            >
+              <RefreshCw className="h-4 w-4" /> How to update the key
+            </Button>
+            <a
+              href="https://console.cloud.google.com/apis/credentials"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 text-xs text-primary underline-offset-4 hover:underline self-center"
+            >
+              Get a key from Google Cloud Console →
+            </a>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Tip: Enable <strong>YouTube Data API v3</strong> on your Google Cloud project, then create an API key
+            and restrict it to that API for safety. After updating, edge functions pick up the new key within seconds.
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

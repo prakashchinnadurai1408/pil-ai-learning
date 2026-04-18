@@ -273,7 +273,74 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
     refetch();
   };
 
-  const handleSaveYoutubeId = async (itemId: string) => {
+  const handleGenerateForEmptyTopics = async (mod: typeof adminModules[number]) => {
+    const moduleItems = items.filter(i => i.module_id === mod.id && i.status === "published");
+    const emptyTopics = mod.topics.filter(t => !moduleItems.some(it => (it as any).topic_id === t.id));
+    if (emptyTopics.length === 0) {
+      toast.info("All topics already have published content!");
+      return;
+    }
+    setGeneratingEmpty(true);
+    let totalGenerated = 0;
+    const insertedVideoRows: { id: string; content: any }[] = [];
+
+    for (const t of emptyTopics) {
+      try {
+        const { data, error } = await supabase.functions.invoke("generate-section-content", {
+          body: { sectionType: activeSection, topic: t.title, moduleName: mod.title },
+        });
+        if (error || !data?.content) continue;
+
+        const rows = data.content.map((item: any, i: number) => ({
+          module_id: mod.id,
+          topic_id: t.id,
+          section_type: activeSection,
+          title: item.title || item.prompt || item.question || `${t.title} - ${i + 1}`,
+          content: item,
+          status: "published",
+          sort_order: i,
+        }));
+
+        const { data: inserted } = await supabase
+          .from("admin_section_content")
+          .insert(rows as any)
+          .select("id, content");
+        totalGenerated += rows.length;
+        if (activeSection === "videos" && inserted) {
+          insertedVideoRows.push(...(inserted as any[]));
+        }
+      } catch { /* continue */ }
+    }
+
+    // Auto-fetch YouTube IDs for any newly created video rows
+    if (activeSection === "videos" && insertedVideoRows.length > 0) {
+      const needsId = insertedVideoRows.filter((r: any) => {
+        const c = r.content as any;
+        return !c?.youtubeId && c?.youtubeQuery;
+      });
+      await Promise.all(
+        needsId.map(async (r: any) => {
+          try {
+            const c = r.content as any;
+            const { data: yt } = await supabase.functions.invoke("youtube-search", {
+              body: { query: c.youtubeQuery },
+            });
+            if (yt?.videoId) {
+              await supabase
+                .from("admin_section_content")
+                .update({ content: { ...c, youtubeId: yt.videoId } } as any)
+                .eq("id", r.id);
+            }
+          } catch { /* continue */ }
+        })
+      );
+    }
+
+    setGeneratingEmpty(false);
+    const label = SECTION_TYPES.find(s => s.id === activeSection)?.label || activeSection;
+    toast.success(`Generated & published ${totalGenerated} ${label} items across ${emptyTopics.length} empty topics!`);
+    refetch();
+  };
     const item = items.find(i => i.id === itemId);
     if (!item) return;
     const updatedContent = { ...(item.content as any), youtubeId: youtubeIdInput.trim() || null };

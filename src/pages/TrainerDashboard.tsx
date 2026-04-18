@@ -175,6 +175,18 @@ const TrainerDashboard = () => {
   const trainerId = typeof window !== "undefined" ? (sessionStorage.getItem("trainerId") || "") : "";
   const trainerName = typeof window !== "undefined" ? (sessionStorage.getItem("trainerName") || "Trainer") : "Trainer";
 
+  const [menuAccess, setMenuAccess] = useState<MenuAccessConfig>({});
+  const [tier, setTier] = useState<Tier>("free");
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  useEffect(() => {
+    getMenuAccess("trainer").then(setMenuAccess);
+    if (trainerId) {
+      supabase.from("trainers").select("subscription_tier").eq("id", trainerId).maybeSingle()
+        .then(({ data }) => { if (data) setTier(normalizeTier((data as any).subscription_tier)); });
+    }
+  }, [trainerId]);
+
   const pinAndJump = (name: string, tab: TabKey) => {
     setPinnedStudent(name);
     setSearchQuery(name);

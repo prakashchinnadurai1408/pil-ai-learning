@@ -1,0 +1,1 @@
+UPDATE public.students SET age_group = '10-14' WHERE id = 'a7777777-7777-7777-7777-777777777777'; UPDATE public.students SET age_group = '19-22' WHERE id = 'a2222222-2222-2222-2222-222222222222';

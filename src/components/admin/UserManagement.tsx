@@ -45,6 +45,9 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
   const [reassignDraft, setReassignDraft] = useState<Set<string>>(new Set());
   const [savingReassign, setSavingReassign] = useState(false);
 
+  // AI path status per candidate: candidate_id -> { generated_at, is_beginner_default, status }
+  const [pathMap, setPathMap] = useState<Record<string, { generated_at: string; is_beginner_default: boolean; status: string }>>({});
+
   // Bulk AI Path generation
   const [collegeFilter, setCollegeFilter] = useState<string>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");

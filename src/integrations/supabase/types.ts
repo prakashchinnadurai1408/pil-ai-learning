@@ -669,24 +669,42 @@ export type Database = {
       }
       menu_access_controls: {
         Row: {
+          advanced_access: boolean
+          audience: string
+          beginner_access: boolean
+          enterprise_access: boolean
           free_access: boolean
           id: string
+          label: string
           menu_key: string
           premium_access: boolean
+          sort_order: number
           updated_at: string
         }
         Insert: {
+          advanced_access?: boolean
+          audience?: string
+          beginner_access?: boolean
+          enterprise_access?: boolean
           free_access?: boolean
           id?: string
+          label?: string
           menu_key: string
           premium_access?: boolean
+          sort_order?: number
           updated_at?: string
         }
         Update: {
+          advanced_access?: boolean
+          audience?: string
+          beginner_access?: boolean
+          enterprise_access?: boolean
           free_access?: boolean
           id?: string
+          label?: string
           menu_key?: string
           premium_access?: boolean
+          sort_order?: number
           updated_at?: string
         }
         Relationships: []
@@ -1407,6 +1425,7 @@ export type Database = {
           mobile: string
           name: string
           password: string
+          subscription_tier: string
         }
         Insert: {
           college: string
@@ -1417,6 +1436,7 @@ export type Database = {
           mobile: string
           name: string
           password?: string
+          subscription_tier?: string
         }
         Update: {
           college?: string
@@ -1427,6 +1447,7 @@ export type Database = {
           mobile?: string
           name?: string
           password?: string
+          subscription_tier?: string
         }
         Relationships: []
       }

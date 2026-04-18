@@ -1,8 +1,10 @@
-import { useState, useMemo, lazy, Suspense } from "react";
+import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -11,8 +13,10 @@ import {
 import {
   Users, BarChart3, ClipboardCheck, LogOut, TrendingUp, Eye, Loader2,
   Search, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FolderKanban, Code2, Sparkles,
-  BookOpen, Layers, Database, Route, Activity,
+  BookOpen, Layers, Database, Route, Activity, Lock, Crown,
 } from "lucide-react";
+import { getMenuAccess, isAllowed, TIER_META, TIERS, type MenuAccessConfig, type Tier } from "@/hooks/useMenuAccessControls";
+import { toast } from "sonner";
 import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 import { moduleNames, mcqBank } from "@/data/videoContent";
 import { useTrainerData } from "@/hooks/useTrainerData";
@@ -45,6 +49,18 @@ type TabKey =
   | "modules" | "content" | "question-bank" | "coding-bank" | "learning-paths"
   | "module-groups"
   | "proctoring" | "llm-usage";
+
+// Map dashboard tabs to access-control menu keys (trainer audience)
+const TAB_TO_MENU_KEY: Partial<Record<TabKey, string>> = {
+  students: "students",
+  assessments: "assessments_overview",
+  "create-assessment": "create_assessment",
+  "assessment-analytics": "assessment_analytics",
+  analytics: "module_analytics",
+  coding: "coding_analytics",
+  projects: "project_reviews",
+  "assigned-projects": "project_reviews",
+};
 
 const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: typeof Users }[] }[] = [
   {
@@ -95,7 +111,10 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
   },
 ];
 
-const TrainerSidebar = ({ active, onSelect }: { active: TabKey; onSelect: (k: TabKey) => void }) => {
+const TrainerSidebar = ({ active, onSelect, menuAccess, tier, onLockedClick }: {
+  active: TabKey; onSelect: (k: TabKey) => void;
+  menuAccess: MenuAccessConfig; tier: Tier; onLockedClick: () => void;
+}) => {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   return (
@@ -109,14 +128,16 @@ const TrainerSidebar = ({ active, onSelect }: { active: TabKey; onSelect: (k: Ta
                 {section.items.map((item) => {
                   const Icon = item.icon;
                   const isActive = active === item.key;
+                  const menuKey = TAB_TO_MENU_KEY[item.key];
+                  const isLocked = menuKey ? !isAllowed(menuAccess, menuKey, tier) : false;
                   return (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton
-                        onClick={() => onSelect(item.key)}
+                        onClick={() => (isLocked ? onLockedClick() : onSelect(item.key))}
                         className={isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"}
                       >
-                        <Icon className="mr-2 h-4 w-4" />
-                        {!collapsed && <span>{item.label}</span>}
+                        {isLocked ? <Lock className="mr-2 h-4 w-4 text-muted-foreground" /> : <Icon className="mr-2 h-4 w-4" />}
+                        {!collapsed && <span>{item.label}{isLocked ? " 🔒" : ""}</span>}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
@@ -128,6 +149,13 @@ const TrainerSidebar = ({ active, onSelect }: { active: TabKey; onSelect: (k: Ta
       </SidebarContent>
     </Sidebar>
   );
+};
+
+const normalizeTier = (raw: any): Tier => {
+  const v = String(raw || "free").toLowerCase();
+  if (v === "premium" || v === "pro") return "advanced";
+  if ((TIERS as string[]).includes(v)) return v as Tier;
+  return "free";
 };
 
 const TrainerDashboard = () => {
@@ -146,6 +174,18 @@ const TrainerDashboard = () => {
 
   const trainerId = typeof window !== "undefined" ? (sessionStorage.getItem("trainerId") || "") : "";
   const trainerName = typeof window !== "undefined" ? (sessionStorage.getItem("trainerName") || "Trainer") : "Trainer";
+
+  const [menuAccess, setMenuAccess] = useState<MenuAccessConfig>({});
+  const [tier, setTier] = useState<Tier>("free");
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  useEffect(() => {
+    getMenuAccess("trainer").then(setMenuAccess);
+    if (trainerId) {
+      supabase.from("trainers").select("subscription_tier").eq("id", trainerId).maybeSingle()
+        .then(({ data }) => { if (data) setTier(normalizeTier((data as any).subscription_tier)); });
+    }
+  }, [trainerId]);
 
   const pinAndJump = (name: string, tab: TabKey) => {
     setPinnedStudent(name);
@@ -493,10 +533,18 @@ const TrainerDashboard = () => {
     }
   };
 
+  // Trainer tier badge + sidebar locks handled below.
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        <TrainerSidebar active={active} onSelect={setActive} />
+        <TrainerSidebar
+          active={active}
+          onSelect={setActive}
+          menuAccess={menuAccess}
+          tier={tier}
+          onLockedClick={() => setUpgradeOpen(true)}
+        />
 
         <div className="flex-1 flex flex-col">
           <header className="sticky top-0 z-50 glass border-b border-border/50">
@@ -505,6 +553,7 @@ const TrainerDashboard = () => {
                 <SidebarTrigger />
                 <img src={pluginliveLogo} alt="AI Upskill Hub" className="h-7" />
                 <span className="font-display font-bold text-gradient-accent">Trainer Portal</span>
+                <Badge variant="outline" className={`ml-2 ${TIER_META[tier].color} border-current`}>{TIER_META[tier].label}</Badge>
               </div>
               <Link to="/trainer-login" onClick={() => sessionStorage.clear()}>
                 <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">

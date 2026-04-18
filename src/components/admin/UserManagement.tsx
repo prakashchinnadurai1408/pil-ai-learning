@@ -397,8 +397,8 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
   };
 
   const exportCSV = () => {
-    const headers = ["Name", "Email", "Institute", "Location", "Mobile", "Progress %", "Modules Completed", "Avg Score %"];
-    const rows = filteredUsers.map(s => [s.name, s.email, s.college, s.location, s.mobile, s.progress, s.modulesCompleted, s.avgScore]);
+    const headers = ["Name", "Email", "Institute", "Location", "Mobile", "Age Group", "Progress %", "Modules Completed", "Avg Score %"];
+    const rows = filteredUsers.map(s => [s.name, s.email, s.college, s.location, s.mobile, extraMeta[s.id]?.age_group || "", s.progress, s.modulesCompleted, s.avgScore]);
     const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);

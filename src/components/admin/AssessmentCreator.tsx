@@ -37,6 +37,8 @@ const emptyQuestion = (): QuestionDraft => ({
 
 const AssessmentCreator = () => {
   const { adminModules } = useAdminModules();
+  const { groups: moduleGroups } = useModuleGroups({ ownerRole: "admin" });
+  const [selectedGroupId, setSelectedGroupId] = useState<string>("all");
   const { assessments, loading: loadingAssessments, refetch } = useAssessments();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);

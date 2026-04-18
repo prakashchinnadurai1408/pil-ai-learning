@@ -110,7 +110,10 @@ Return ONLY valid JSON in this exact format, no other text:
     // AI-generated content always saves as draft for human review
     setSaving(true);
 
-    const adminUser = sessionStorage.getItem("adminEmail") || sessionStorage.getItem("adminName") || "admin";
+    const trainerId = sessionStorage.getItem("trainerId");
+    const adminUser = trainerId
+      ? (sessionStorage.getItem("trainerName") || "trainer")
+      : (sessionStorage.getItem("adminEmail") || sessionStorage.getItem("adminName") || "admin");
 
     const { data: mod, error: modError } = await supabase
       .from("admin_modules")
@@ -119,7 +122,8 @@ Return ONLY valid JSON in this exact format, no other text:
         description: moduleDescription.trim() || `Learn about ${moduleTitle}`,
         status: "draft",
         created_by: adminUser,
-      })
+        trainer_id: trainerId || null,
+      } as any)
       .select()
       .single();
 

@@ -140,6 +140,10 @@ const TrainerDashboard = () => {
   const [sortKey, setSortKey] = useState<"name" | "college" | "progress" | "modulesCompleted" | "avgScore" | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [pinnedStudent, setPinnedStudent] = useState<string>("");
+  const [assignProjectOpen, setAssignProjectOpen] = useState(false);
+
+  const trainerId = typeof window !== "undefined" ? (sessionStorage.getItem("trainerId") || "") : "";
+  const trainerName = typeof window !== "undefined" ? (sessionStorage.getItem("trainerName") || "Trainer") : "Trainer";
 
   const pinAndJump = (name: string, tab: TabKey) => {
     setPinnedStudent(name);
@@ -276,6 +280,9 @@ const TrainerDashboard = () => {
                     </Button>
                   )}
                   <ComposeMessageDialog recipientStudents={filteredStudents.map((s) => ({ id: s.id, name: s.name, email: s.email }))} />
+                  <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => setAssignProjectOpen(true)}>
+                    <FolderKanban className="h-3 w-3" /> Assign Project
+                  </Button>
                   <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={exportCSV}>
                     <Download className="h-3 w-3" /> Export CSV
                   </Button>
@@ -528,6 +535,14 @@ const TrainerDashboard = () => {
         </div>
 
         <StudentDetailModal student={selectedStudent} open={detailOpen} onOpenChange={setDetailOpen} />
+        <AssignProjectDialog
+          open={assignProjectOpen}
+          onOpenChange={setAssignProjectOpen}
+          students={filteredStudents.map((s) => ({ id: s.id, name: s.name }))}
+          assignerRole="trainer"
+          assignerId={trainerId}
+          assignerName={trainerName}
+        />
       </div>
     </SidebarProvider>
   );

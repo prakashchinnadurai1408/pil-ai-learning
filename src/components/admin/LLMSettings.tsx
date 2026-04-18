@@ -372,6 +372,99 @@ const LLMSettings = () => {
         })}
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sliders className="h-5 w-5 text-primary" /> Adaptive Difficulty by Age Group
+          </CardTitle>
+          <CardDescription>
+            Override the floor and ceiling difficulty the Adaptive AI Agent will use when picking
+            quiz/coding challenge difficulty for each age group. The agent starts at the floor and
+            ramps up to the ceiling as scores improve. To lock an age group at one difficulty, set
+            floor and ceiling to the same value.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3">
+            {AGE_GROUPS.map((g) => {
+              const ov = row.age_group_difficulty_overrides[g.key] || DEFAULT_OVERRIDES[g.key];
+              const invalid = DIFFICULTY_RANK[ov.floor] > DIFFICULTY_RANK[ov.ceiling];
+              return (
+                <div
+                  key={g.key}
+                  className={`grid sm:grid-cols-3 gap-3 items-end rounded-lg border p-3 ${
+                    invalid ? "border-destructive/50 bg-destructive/5" : "border-border"
+                  }`}
+                >
+                  <div>
+                    <Label className="text-sm font-medium">{g.label}</Label>
+                    {invalid && (
+                      <p className="text-xs text-destructive mt-1">
+                        Floor must be ≤ ceiling
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Floor (start at)</Label>
+                    <Select
+                      value={ov.floor}
+                      onValueChange={(v: Difficulty) =>
+                        setRow({
+                          ...row,
+                          age_group_difficulty_overrides: {
+                            ...row.age_group_difficulty_overrides,
+                            [g.key]: { ...ov, floor: v },
+                          },
+                        })
+                      }
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {DIFFICULTY_OPTIONS.map((d) => (
+                          <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Ceiling (max)</Label>
+                    <Select
+                      value={ov.ceiling}
+                      onValueChange={(v: Difficulty) =>
+                        setRow({
+                          ...row,
+                          age_group_difficulty_overrides: {
+                            ...row.age_group_difficulty_overrides,
+                            [g.key]: { ...ov, ceiling: v },
+                          },
+                        })
+                      }
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {DIFFICULTY_OPTIONS.map((d) => (
+                          <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setRow({ ...row, age_group_difficulty_overrides: DEFAULT_OVERRIDES })
+            }
+          >
+            Reset to defaults
+          </Button>
+        </CardContent>
+      </Card>
+
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving} className="gap-2">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

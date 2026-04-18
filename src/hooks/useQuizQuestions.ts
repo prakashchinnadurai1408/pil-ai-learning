@@ -30,14 +30,42 @@ export function useQuizQuestions(moduleId: number, moduleName: string) {
   const studentId = (typeof window !== "undefined" && sessionStorage.getItem("studentId")) || "";
 
   const computeAdaptiveDifficulty = async (): Promise<"easy" | "medium" | "hard"> => {
-    const defaultByAge: Record<string, "easy" | "medium" | "hard"> = {
-      "10-14": "easy",
-      "15-18": "easy",
-      "19-22": "medium",
-      "23+": "medium",
+    const RANK: Record<"easy" | "medium" | "hard", number> = { easy: 0, medium: 1, hard: 2 };
+    const RANK_INV: Array<"easy" | "medium" | "hard"> = ["easy", "medium", "hard"];
+    const clamp = (
+      d: "easy" | "medium" | "hard",
+      floor: "easy" | "medium" | "hard",
+      ceiling: "easy" | "medium" | "hard"
+    ) => RANK_INV[Math.max(RANK[floor], Math.min(RANK[ceiling], RANK[d]))];
+
+    // Defaults if admin overrides aren't configured
+    const DEFAULT_OVERRIDES: Record<string, { floor: "easy" | "medium" | "hard"; ceiling: "easy" | "medium" | "hard" }> = {
+      "10-14": { floor: "easy", ceiling: "easy" },
+      "15-18": { floor: "easy", ceiling: "medium" },
+      "19-22": { floor: "easy", ceiling: "hard" },
+      "23+":   { floor: "easy", ceiling: "hard" },
     };
-    const base = defaultByAge[ageGroup] || "easy";
-    if (!studentId) return base;
+
+    // Fetch admin overrides (non-blocking on failure)
+    let overrides = DEFAULT_OVERRIDES;
+    try {
+      const { data: settings } = await supabase
+        .from("llm_settings")
+        .select("age_group_difficulty_overrides" as any)
+        .limit(1)
+        .maybeSingle();
+      const rawOverrides = (settings as any)?.age_group_difficulty_overrides;
+      if (rawOverrides && Object.keys(rawOverrides).length) {
+        overrides = { ...DEFAULT_OVERRIDES, ...rawOverrides };
+      }
+    } catch {
+      /* keep defaults */
+    }
+
+    const cfg = overrides[ageGroup] || { floor: "easy" as const, ceiling: "hard" as const };
+    const base = cfg.floor;
+
+    if (!studentId) return clamp(base, cfg.floor, cfg.ceiling);
     try {
       const { data } = await supabase
         .from("student_assessment_scores")
@@ -46,15 +74,15 @@ export function useQuizQuestions(moduleId: number, moduleName: string) {
         .order("attempted_at", { ascending: false })
         .limit(3);
       const scores = (data || []).map((r: any) => r.score || 0);
-      if (scores.length === 0) return base;
+      if (scores.length === 0) return clamp(base, cfg.floor, cfg.ceiling);
       const avg = scores.reduce((s, x) => s + x, 0) / scores.length;
-      // Younger learners cap at medium even when scores are great
-      const cap: "easy" | "medium" | "hard" = ageGroup === "10-14" ? "medium" : "hard";
-      if (avg >= 85) return cap;
-      if (avg >= 70) return "medium";
-      return base;
+      // Performance-driven target, then clamp to admin floor/ceiling for this age group
+      let target: "easy" | "medium" | "hard" = base;
+      if (avg >= 85) target = "hard";
+      else if (avg >= 70) target = "medium";
+      return clamp(target, cfg.floor, cfg.ceiling);
     } catch {
-      return base;
+      return clamp(base, cfg.floor, cfg.ceiling);
     }
   };
 

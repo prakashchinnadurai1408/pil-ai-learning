@@ -19,6 +19,7 @@ import {
 } from "@/hooks/useAssessments";
 import QuestionLevelAnalytics from "./QuestionLevelAnalytics";
 import { exportAnalyticsPDF } from "./exportAnalyticsPDF";
+import { useTrainerScope } from "@/hooks/useTrainerScope";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
 
@@ -32,6 +33,7 @@ interface StudentInfo {
 const AssessmentAnalytics = () => {
   const { assessments } = useAssessments();
   const { attempts, loading } = useAssessmentAttempts();
+  const { allowedNames } = useTrainerScope();
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [aiDiagnostics, setAiDiagnostics] = useState<string | null>(null);
@@ -54,13 +56,14 @@ const AssessmentAnalytics = () => {
 
   const filteredAttempts = useMemo(() => {
     let result = attempts;
+    if (allowedNames) result = result.filter(a => allowedNames.has(a.student_name));
     if (selectedAssessmentId !== "all") result = result.filter(a => a.assessment_id === selectedAssessmentId);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(a => a.student_name.toLowerCase().includes(q) || a.student_college.toLowerCase().includes(q));
     }
     return result;
-  }, [attempts, selectedAssessmentId, searchQuery]);
+  }, [attempts, selectedAssessmentId, searchQuery, allowedNames]);
 
   const stats = useMemo(() => {
     if (filteredAttempts.length === 0) return null;

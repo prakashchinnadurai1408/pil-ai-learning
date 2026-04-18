@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { techStream, nonTechStream, mbaCaseStudyStream } from "@/data/projectGuideData";
 import { toast } from "sonner";
+import { useTrainerScope } from "@/hooks/useTrainerScope";
 
 interface ProjectProgress {
   id: string;
@@ -126,10 +127,12 @@ const TrainerProjectReview = () => {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  const { allowedNames } = useTrainerScope();
+
   const studentSummaries = useMemo<StudentProjectSummary[]>(() => {
     const studentNames = new Set<string>();
-    progressData.forEach((p) => studentNames.add(p.student_name));
-    documentsData.forEach((d) => studentNames.add(d.student_name));
+    progressData.forEach((p) => { if (!allowedNames || allowedNames.has(p.student_name)) studentNames.add(p.student_name); });
+    documentsData.forEach((d) => { if (!allowedNames || allowedNames.has(d.student_name)) studentNames.add(d.student_name); });
 
     return Array.from(studentNames)
       .sort()
@@ -174,7 +177,7 @@ const TrainerProjectReview = () => {
 
         return { studentName: name, streams };
       });
-  }, [progressData, documentsData, feedbackData]);
+  }, [progressData, documentsData, feedbackData, allowedNames]);
 
   const filtered = useMemo(
     () =>

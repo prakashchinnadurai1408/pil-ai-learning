@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAssessments } from "@/hooks/useAssessments";
+import { useTrainerScope } from "@/hooks/useTrainerScope";
 import { exportProctoringPDF } from "./exportProctoringPDF";
 
 interface ProcSummary {
@@ -34,6 +35,7 @@ interface ProcLog {
 
 const ProctoringAnalytics = () => {
   const { assessments } = useAssessments();
+  const { allowedNames } = useTrainerScope();
   const [summaries, setSummaries] = useState<ProcSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAssessment, setSelectedAssessment] = useState("all");
@@ -64,6 +66,7 @@ const ProctoringAnalytics = () => {
 
   const filtered = useMemo(() => {
     let result = summaries;
+    if (allowedNames) result = result.filter(s => allowedNames.has(s.student_name));
     if (selectedAssessment !== "all") {
       result = result.filter(s => s.assessment_id === selectedAssessment);
     }
@@ -72,7 +75,7 @@ const ProctoringAnalytics = () => {
       result = result.filter(s => s.student_name.toLowerCase().includes(q));
     }
     return result;
-  }, [summaries, selectedAssessment, search]);
+  }, [summaries, selectedAssessment, search, allowedNames]);
 
   const overallStats = useMemo(() => {
     if (filtered.length === 0) return null;

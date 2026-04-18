@@ -8,9 +8,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search, UserPlus, Edit, Trash2, Eye, Download, X, KeyRound,
-  Users, GraduationCap, TrendingUp, BarChart3, Ban, CheckCircle
+  Users, GraduationCap, TrendingUp, BarChart3, Ban, CheckCircle, UserCog
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useTrainerData } from "@/hooks/useTrainerData";
 import type { StudentData } from "@/hooks/useTrainerData";
@@ -35,6 +37,12 @@ const UserManagement = () => {
   const [newPassword, setNewPassword] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const [statusMap, setStatusMap] = useState<Record<string, string>>({});
+  // Trainer assignments: studentId -> Set of trainer IDs
+  const [trainerMap, setTrainerMap] = useState<Record<string, Set<string>>>({});
+  const [trainersList, setTrainersList] = useState<{ id: string; name: string; college: string }[]>([]);
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [reassignDraft, setReassignDraft] = useState<Set<string>>(new Set());
+  const [savingReassign, setSavingReassign] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -46,6 +54,60 @@ const UserManagement = () => {
       }
     })();
   }, [refreshKey, students.length]);
+
+  // Load trainer assignments + trainer list
+  useEffect(() => {
+    (async () => {
+      const [{ data: ts }, { data: tr }] = await Promise.all([
+        (supabase as any).from("trainer_students").select("trainer_id, student_id"),
+        supabase.from("trainers").select("id, name, college").order("name"),
+      ]);
+      const map: Record<string, Set<string>> = {};
+      (ts || []).forEach((row: any) => {
+        if (!map[row.student_id]) map[row.student_id] = new Set();
+        map[row.student_id].add(row.trainer_id);
+      });
+      setTrainerMap(map);
+      setTrainersList(tr || []);
+    })();
+  }, [refreshKey]);
+
+  const openReassign = (u: StudentData) => {
+    setSelectedUser(u);
+    setReassignDraft(new Set(trainerMap[u.id] || []));
+    setReassignOpen(true);
+  };
+
+  const toggleReassign = (trainerId: string) => {
+    setReassignDraft(prev => {
+      const next = new Set(prev);
+      if (next.has(trainerId)) next.delete(trainerId); else next.add(trainerId);
+      return next;
+    });
+  };
+
+  const saveReassign = async () => {
+    if (!selectedUser) return;
+    setSavingReassign(true);
+    const existing = trainerMap[selectedUser.id] || new Set<string>();
+    const toAdd: string[] = [];
+    const toRemove: string[] = [];
+    reassignDraft.forEach(id => { if (!existing.has(id)) toAdd.push(id); });
+    existing.forEach(id => { if (!reassignDraft.has(id)) toRemove.push(id); });
+    if (toRemove.length > 0) {
+      await (supabase as any).from("trainer_students")
+        .delete().eq("student_id", selectedUser.id).in("trainer_id", toRemove);
+    }
+    if (toAdd.length > 0) {
+      await (supabase as any).from("trainer_students").insert(
+        toAdd.map(trainer_id => ({ trainer_id, student_id: selectedUser.id }))
+      );
+    }
+    toast.success(`Updated trainers for ${selectedUser.name}`);
+    setSavingReassign(false);
+    setReassignOpen(false);
+    setRefreshKey(k => k + 1);
+  };
 
   const filteredUsers = useMemo(() => {
     return students.filter(s => {
@@ -261,13 +323,14 @@ const UserManagement = () => {
                 <th className="p-4 font-medium">Location</th>
                 <th className="p-4 font-medium">Progress</th>
                 <th className="p-4 font-medium">Score</th>
+                <th className="p-4 font-medium">Trainers</th>
                 <th className="p-4 font-medium">Status</th>
                 <th className="p-4 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filteredUsers.length === 0 ? (
-                <tr><td colSpan={7} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
+                <tr><td colSpan={8} className="p-8 text-center text-sm text-muted-foreground">No users found.</td></tr>
               ) : null}
               {filteredUsers.map((u) => (
                 <tr key={u.id} className="hover:bg-muted/30 transition-colors">
@@ -294,6 +357,18 @@ const UserManagement = () => {
                     <span className={`text-sm font-medium ${u.avgScore >= 80 ? "text-success" : u.avgScore >= 60 ? "text-warning" : "text-destructive"}`}>
                       {u.avgScore}%
                     </span>
+                  </td>
+                  <td className="p-4">
+                    <button
+                      onClick={() => openReassign(u)}
+                      className="inline-flex items-center gap-1 group"
+                      title="Reassign trainers"
+                    >
+                      <Badge variant={(trainerMap[u.id]?.size ?? 0) > 0 ? "secondary" : "outline"} className="gap-1">
+                        <UserCog className="h-3 w-3" /> {trainerMap[u.id]?.size ?? 0}
+                      </Badge>
+                      <span className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">Edit</span>
+                    </button>
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
@@ -411,6 +486,35 @@ const UserManagement = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Reassign Trainers */}
+      <Dialog open={reassignOpen} onOpenChange={setReassignOpen}>
+        <DialogContent className="max-w-md max-h-[70vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Assign Trainers — {selectedUser?.name}</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">{reassignDraft.size} trainer(s) selected</p>
+          <div className="flex-1 overflow-y-auto border border-border rounded-md divide-y divide-border">
+            {trainersList.length === 0 ? (
+              <p className="p-4 text-sm text-muted-foreground text-center">No trainers registered.</p>
+            ) : trainersList.map(t => (
+              <label key={t.id} className="flex items-center gap-3 p-3 hover:bg-muted/40 cursor-pointer">
+                <Checkbox checked={reassignDraft.has(t.id)} onCheckedChange={() => toggleReassign(t.id)} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-card-foreground truncate">{t.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{t.college}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReassignOpen(false)} disabled={savingReassign}>Cancel</Button>
+            <Button className="bg-gradient-primary border-0 text-primary-foreground" onClick={saveReassign} disabled={savingReassign}>
+              {savingReassign ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

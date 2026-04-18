@@ -667,6 +667,9 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                       );
                     })()}
                   </td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <Switch
                         checked={(statusMap[u.id] ?? "active") === "active"}
                         onCheckedChange={(checked) => handleToggleStatus(u, checked)}
                       />

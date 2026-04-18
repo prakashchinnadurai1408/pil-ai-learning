@@ -185,7 +185,7 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
                   <Badge
                     key={s.id}
                     variant="outline"
-                    className={`bg-background/50 border-primary/30 ${onStudentClick ? 'cursor-pointer hover:bg-primary/10 hover:border-primary/50' : ''}`}
+                    className={`bg-background/50 border-primary/30 ${onStudentClick ? 'cursor-pointer hover:bg-primary/10 hover:border-primary' : ''}`}
                     title={s.college}
                     onClick={() => onStudentClick?.(s.name)}
                   >

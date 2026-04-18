@@ -43,7 +43,6 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
     label: "Learn",
     items: [
       { key: "modules", label: "Modules", icon: BookOpen },
-      { key: "videos", label: "Videos", icon: Video },
     ],
   },
   {

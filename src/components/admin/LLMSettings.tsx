@@ -175,14 +175,14 @@ const LLMSettings = () => {
               variant="outline"
               className="gap-2"
               onClick={() => {
-                toast.info("Opening secure secret form…", {
-                  description: "Paste your new YouTube Data API v3 key when prompted.",
+                toast.info("Ask Lovable to rotate the YouTube API key", {
+                  description:
+                    "In Lovable chat, send: \"Update the YOUTUBE_API_KEY secret\" — a secure form will appear to paste the new key.",
+                  duration: 9000,
                 });
-                // Trigger Lovable's secret update flow via a custom event the platform listens for.
-                window.dispatchEvent(new CustomEvent("lovable:update-secret", { detail: { name: "YOUTUBE_API_KEY" } }));
               }}
             >
-              <RefreshCw className="h-4 w-4" /> Update YouTube API key
+              <RefreshCw className="h-4 w-4" /> How to update the key
             </Button>
             <a
               href="https://console.cloud.google.com/apis/credentials"

@@ -36,7 +36,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
   const [selectedUser, setSelectedUser] = useState<StudentData | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [newUser, setNewUser] = useState({ name: "", email: "", mobile: "", college: "", location: "", role: "candidate" });
-  const [editUser, setEditUser] = useState({ name: "", email: "", mobile: "", college: "", location: "" });
+  const [editUser, setEditUser] = useState({ name: "", email: "", mobile: "", college: "", location: "", age_group: "" });
   const [newPassword, setNewPassword] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const [statusMap, setStatusMap] = useState<Record<string, string>>({});
@@ -212,6 +212,24 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
     [extraMeta]
   );
 
+  const AGE_BUCKETS = [
+    { key: "10-14", label: "10–14 yrs", color: "hsl(var(--primary))" },
+    { key: "15-18", label: "15–18 yrs", color: "hsl(var(--accent))" },
+    { key: "19-22", label: "19–22 yrs", color: "hsl(var(--success))" },
+    { key: "23+",   label: "23+ yrs",   color: "hsl(var(--warning))" },
+    { key: "",      label: "Unspecified", color: "hsl(var(--muted-foreground))" },
+  ];
+  const ageGroupData = useMemo(() => {
+    const counts: Record<string, number> = { "10-14": 0, "15-18": 0, "19-22": 0, "23+": 0, "": 0 };
+    students.forEach(s => {
+      const k = (extraMeta[s.id]?.age_group || "").trim();
+      counts[k in counts ? k : ""]++;
+    });
+    return AGE_BUCKETS
+      .map(b => ({ key: b.key, name: b.label, value: counts[b.key], color: b.color }))
+      .filter(d => d.value > 0);
+  }, [students, extraMeta]);
+
   // Selection helpers
   const allFilteredSelected = filteredUsers.length > 0 && filteredUsers.every(u => selectedIds.has(u.id));
   const someFilteredSelected = filteredUsers.some(u => selectedIds.has(u.id));
@@ -339,7 +357,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
 
   const openEditDialog = (u: StudentData) => {
     setSelectedUser(u);
-    setEditUser({ name: u.name, email: u.email, mobile: u.mobile, college: u.college, location: u.location });
+    setEditUser({ name: u.name, email: u.email, mobile: u.mobile, college: u.college, location: u.location, age_group: extraMeta[u.id]?.age_group || "" });
     setEditDialogOpen(true);
   };
 
@@ -355,6 +373,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       mobile: editUser.mobile.trim(),
       college: editUser.college.trim(),
       location: editUser.location.trim(),
+      age_group: editUser.age_group || "",
     }).eq("id", selectedUser.id);
     if (error) {
       toast.error("Failed to update user");
@@ -460,8 +479,67 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
         </ResponsiveContainer>
       </div>
 
+      {/* Age Group Distribution */}
+      <div className="bg-card rounded-lg p-6 border border-border shadow-card">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h3 className="font-display font-semibold text-card-foreground">Candidates by Age Group</h3>
+          <p className="text-xs text-muted-foreground">Click a slice to filter the table below</p>
+        </div>
+        {ageGroupData.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">No candidate data yet.</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <PieChart>
+              <Pie
+                data={ageGroupData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={90}
+                label={(e: any) => `${e.name} (${e.value})`}
+                onClick={(e: any) => {
+                  const k = e?.payload?.key ?? e?.key;
+                  if (k === undefined) return;
+                  setAgeGroupFilter(k === "" ? "all" : k);
+                  clearSelection();
+                  document.querySelector("#users-table")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                {ageGroupData.map((entry) => (
+                  <Cell
+                    key={entry.key}
+                    fill={entry.color}
+                    style={{ cursor: "pointer" }}
+                    stroke={(ageGroupFilter === "all" && entry.key === "") || ageGroupFilter === entry.key ? "hsl(var(--foreground))" : "transparent"}
+                    strokeWidth={ageGroupFilter !== "all" && ageGroupFilter === entry.key ? 3 : 1}
+                  />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }}
+                formatter={(value: any, _name: any, item: any) => {
+                  const total = ageGroupData.reduce((a, b) => a + b.value, 0);
+                  const pct = total > 0 ? Math.round((Number(value) / total) * 100) : 0;
+                  return [`${value} (${pct}%)`, item?.payload?.name];
+                }}
+              />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        )}
+        {ageGroupFilter !== "all" && (
+          <div className="mt-3 flex items-center gap-2 text-xs">
+            <Badge variant="secondary">Filtering by age group: {ageGroupFilter} yrs</Badge>
+            <Button size="sm" variant="ghost" className="h-6 text-xs gap-1" onClick={() => setAgeGroupFilter("all")}>
+              <X className="h-3 w-3" /> Clear
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* User Table */}
-      <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
+      <div id="users-table" className="bg-card rounded-lg border border-border shadow-card overflow-hidden scroll-mt-20">
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h3 className="font-display font-semibold text-card-foreground">All Users</h3>
@@ -808,6 +886,19 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
             <div><Label>Mobile</Label><Input maxLength={10} value={editUser.mobile} onChange={(e) => setEditUser({ ...editUser, mobile: e.target.value.replace(/\D/g, "") })} /></div>
             <div><Label>Institute</Label><Input value={editUser.college} onChange={(e) => setEditUser({ ...editUser, college: e.target.value })} /></div>
             <div><Label>Location</Label><Input value={editUser.location} onChange={(e) => setEditUser({ ...editUser, location: e.target.value })} /></div>
+            <div>
+              <Label>Age Group</Label>
+              <Select value={editUser.age_group || "none"} onValueChange={(v) => setEditUser({ ...editUser, age_group: v === "none" ? "" : v })}>
+                <SelectTrigger><SelectValue placeholder="Select age group" /></SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  <SelectItem value="none">Unspecified</SelectItem>
+                  <SelectItem value="10-14">10–14 years</SelectItem>
+                  <SelectItem value="15-18">15–18 years</SelectItem>
+                  <SelectItem value="19-22">19–22 years</SelectItem>
+                  <SelectItem value="23+">23+ years</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>

@@ -416,7 +416,7 @@ const TrainerDashboard = () => {
       case "create-assessment":
         return <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}><AssessmentCreator /></Suspense>;
       case "assessment-analytics":
-        return <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}><AssessmentAnalytics /></Suspense>;
+        return <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}><AssessmentAnalytics key={`aa-${pinnedStudent}`} initialSearch={pinnedStudent} /></Suspense>;
       case "analytics":
         return (
           <div className="grid lg:grid-cols-2 gap-6">
@@ -448,7 +448,7 @@ const TrainerDashboard = () => {
           </div>
         );
       case "projects":
-        return <TrainerProjectReview />;
+        return <TrainerProjectReview key={`pr-${pinnedStudent}`} initialSearch={pinnedStudent} />;
       case "coding":
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><TrainerCodingAnalytics /></Suspense>;
       case "modules":
@@ -462,7 +462,7 @@ const TrainerDashboard = () => {
       case "learning-paths":
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><LearningPathsManager /></Suspense>;
       case "proctoring":
-        return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><ProctoringAnalytics /></Suspense>;
+        return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><ProctoringAnalytics key={`pa-${pinnedStudent}`} initialSearch={pinnedStudent} /></Suspense>;
       case "llm-usage":
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><LLMUsageAnalytics /></Suspense>;
     }

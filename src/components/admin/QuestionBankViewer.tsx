@@ -299,7 +299,8 @@ const QuestionBankViewer = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 };
 

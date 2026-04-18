@@ -169,8 +169,51 @@ export async function createAssessment(assessment: {
     return (inserted as any).id;
   }
 
+  // Mirror to module-wise question bank (skip duplicates by question text)
+  await mirrorToQuestionBank(assessmentData.module_id, questions);
+
   toast.success(`Assessment "${assessment.title}" created with ${questions.length} questions!`);
   return (inserted as any).id;
+}
+
+async function mirrorToQuestionBank(
+  moduleId: number | null,
+  questions: Omit<AssessmentQuestion, "id" | "assessment_id" | "created_at">[]
+) {
+  if (!moduleId || questions.length === 0) return;
+
+  // Get module name
+  const { data: mod } = await supabase
+    .from("admin_modules")
+    .select("title")
+    .eq("id", moduleId)
+    .maybeSingle();
+  const moduleName = (mod as any)?.title || `Module ${moduleId}`;
+
+  // Avoid duplicates: fetch existing question texts for this module
+  const { data: existing } = await supabase
+    .from("quiz_question_bank")
+    .select("question")
+    .eq("module_id", moduleId);
+  const existingSet = new Set(
+    (existing || []).map((r: any) => (r.question || "").trim().toLowerCase().slice(0, 80))
+  );
+
+  const rows = questions
+    .filter((q) => !existingSet.has(q.question.trim().toLowerCase().slice(0, 80)))
+    .map((q) => ({
+      module_id: moduleId,
+      module_name: moduleName,
+      question: q.question,
+      options: q.options,
+      correct: q.correct,
+      explanation: q.explanation || "",
+      source: "assessment",
+    }));
+
+  if (rows.length > 0) {
+    await supabase.from("quiz_question_bank").insert(rows as any);
+  }
 }
 
 export async function updateAssessment(assessmentId: string, assessment: {
@@ -218,6 +261,9 @@ export async function updateAssessment(assessmentId: string, assessment: {
     toast.error("Assessment updated but questions failed to save");
     return false;
   }
+
+  // Mirror to module-wise question bank
+  await mirrorToQuestionBank(assessmentData.module_id, questions);
 
   toast.success(`Assessment "${assessment.title}" updated with ${questions.length} questions!`);
   return true;

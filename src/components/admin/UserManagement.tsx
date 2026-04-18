@@ -502,6 +502,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                       aria-label={`Select ${u.name}`}
                     />
                   </td>
+                  <td className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
                         {u.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}

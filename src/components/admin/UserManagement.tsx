@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { useTrainerData } from "@/hooks/useTrainerData";
 import type { StudentData } from "@/hooks/useTrainerData";
@@ -45,8 +46,15 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
   const [reassignDraft, setReassignDraft] = useState<Set<string>>(new Set());
   const [savingReassign, setSavingReassign] = useState(false);
 
-  // AI path status per candidate: candidate_id -> { generated_at, is_beginner_default, status }
-  const [pathMap, setPathMap] = useState<Record<string, { generated_at: string; is_beginner_default: boolean; status: string }>>({});
+  // AI path status per candidate: candidate_id -> { id, generated_at, is_beginner_default, status, title, rationale, model_used }
+  const [pathMap, setPathMap] = useState<Record<string, { id: string; generated_at: string; is_beginner_default: boolean; status: string; title: string; rationale: string; model_used: string }>>({});
+  const [pathFilter, setPathFilter] = useState<string>("all"); // all | has | none | beginner
+
+  // Path detail side panel
+  const [pathSheetOpen, setPathSheetOpen] = useState(false);
+  const [pathSheetCandidate, setPathSheetCandidate] = useState<StudentData | null>(null);
+  const [pathSheetLoading, setPathSheetLoading] = useState(false);
+  const [pathSheetModules, setPathSheetModules] = useState<Array<{ id: string; module_id: number; module_title: string; sort_order: number; reason: string }>>([]);
 
   // Bulk AI Path generation
   const [collegeFilter, setCollegeFilter] = useState<string>("all");
@@ -84,7 +92,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
         supabase.from("trainers").select("id, name, college").order("name"),
         supabase.from("students").select("id, department, degree"),
         (supabase as any).from("candidate_learning_paths")
-          .select("candidate_id, generated_at, is_beginner_default, status")
+          .select("id, candidate_id, generated_at, is_beginner_default, status, title, rationale, model_used")
           .eq("status", "active")
           .order("generated_at", { ascending: false }),
       ]);
@@ -98,19 +106,39 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       const meta: Record<string, { department: string; degree: string }> = {};
       (stu || []).forEach((s: any) => { meta[s.id] = { department: s.department || "", degree: s.degree || "" }; });
       setExtraMeta(meta);
-      const pmap: Record<string, { generated_at: string; is_beginner_default: boolean; status: string }> = {};
+      const pmap: Record<string, { id: string; generated_at: string; is_beginner_default: boolean; status: string; title: string; rationale: string; model_used: string }> = {};
       (paths || []).forEach((p: any) => {
         if (!pmap[p.candidate_id]) {
           pmap[p.candidate_id] = {
+            id: p.id,
             generated_at: p.generated_at,
             is_beginner_default: !!p.is_beginner_default,
             status: p.status,
+            title: p.title || "",
+            rationale: p.rationale || "",
+            model_used: p.model_used || "",
           };
         }
       });
       setPathMap(pmap);
     })();
   }, [refreshKey]);
+
+  const openPathSheet = async (u: StudentData) => {
+    const p = pathMap[u.id];
+    if (!p) return;
+    setPathSheetCandidate(u);
+    setPathSheetOpen(true);
+    setPathSheetLoading(true);
+    setPathSheetModules([]);
+    const { data } = await (supabase as any)
+      .from("candidate_learning_path_modules")
+      .select("id, module_id, module_title, sort_order, reason")
+      .eq("path_id", p.id)
+      .order("sort_order", { ascending: true });
+    setPathSheetModules(data || []);
+    setPathSheetLoading(false);
+  };
 
   const openReassign = (u: StudentData) => {
     setSelectedUser(u);
@@ -155,10 +183,16 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       const meta = extraMeta[s.id];
       if (departmentFilter !== "all" && (meta?.department || "") !== departmentFilter) return false;
       if (degreeFilter !== "all" && (meta?.degree || "") !== degreeFilter) return false;
+      if (pathFilter !== "all") {
+        const p = pathMap[s.id];
+        if (pathFilter === "has" && !p) return false;
+        if (pathFilter === "none" && p) return false;
+        if (pathFilter === "beginner" && !(p && p.is_beginner_default)) return false;
+      }
       if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase()) && !s.email.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
-  }, [students, searchQuery, collegeFilter, departmentFilter, degreeFilter, extraMeta]);
+  }, [students, searchQuery, collegeFilter, departmentFilter, degreeFilter, extraMeta, pathFilter, pathMap]);
 
   // Distinct dropdown options
   const collegeOptions = useMemo(
@@ -470,7 +504,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
           </div>
 
           {/* Filters Row */}
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-2">
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-5 gap-2">
             <Select value={collegeFilter} onValueChange={(v) => { setCollegeFilter(v); clearSelection(); }}>
               <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="All colleges" /></SelectTrigger>
               <SelectContent className="bg-popover z-50 max-h-72">
@@ -490,6 +524,15 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
               <SelectContent className="bg-popover z-50 max-h-72">
                 <SelectItem value="all">All degrees</SelectItem>
                 {degreeOptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={pathFilter} onValueChange={(v) => { setPathFilter(v); clearSelection(); }}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="AI Path" /></SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                <SelectItem value="all">All AI paths</SelectItem>
+                <SelectItem value="has">Has path</SelectItem>
+                <SelectItem value="none">No path</SelectItem>
+                <SelectItem value="beginner">Beginner default</SelectItem>
               </SelectContent>
             </Select>
             <div className="relative">
@@ -643,16 +686,19 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                         <TooltipProvider delayDuration={150}>
                           <UITooltip>
                             <TooltipTrigger asChild>
-                              <div className="inline-flex flex-col items-start gap-0.5">
+                              <button
+                                onClick={() => openPathSheet(u)}
+                                className="inline-flex flex-col items-start gap-0.5 group cursor-pointer"
+                              >
                                 <Badge
                                   variant={p.is_beginner_default ? "outline" : "secondary"}
-                                  className="gap-1 text-xs"
+                                  className="gap-1 text-xs group-hover:ring-2 group-hover:ring-primary/40 transition-all"
                                 >
                                   <Sparkles className="h-3 w-3 text-primary" />
                                   {p.is_beginner_default ? "Beginner" : "Active"}
                                 </Badge>
                                 <span className="text-[10px] text-muted-foreground">{dateStr}</span>
-                              </div>
+                              </button>
                             </TooltipTrigger>
                             <TooltipContent side="top">
                               <p className="text-xs">
@@ -860,6 +906,89 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AI Path Detail Side Panel */}
+      <Sheet open={pathSheetOpen} onOpenChange={setPathSheetOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              AI Learning Path
+            </SheetTitle>
+            {pathSheetCandidate && (
+              <SheetDescription>
+                {pathSheetCandidate.name} · {pathSheetCandidate.email}
+              </SheetDescription>
+            )}
+          </SheetHeader>
+
+          {pathSheetCandidate && (() => {
+            const p = pathMap[pathSheetCandidate.id];
+            if (!p) {
+              return <p className="text-sm text-muted-foreground mt-6">No active path.</p>;
+            }
+            return (
+              <div className="space-y-5 mt-5">
+                <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant={p.is_beginner_default ? "outline" : "secondary"} className="gap-1">
+                      <Sparkles className="h-3 w-3 text-primary" />
+                      {p.is_beginner_default ? "Beginner default" : "AI personalized"}
+                    </Badge>
+                    {p.model_used && (
+                      <Badge variant="outline" className="text-[10px]">{p.model_used}</Badge>
+                    )}
+                  </div>
+                  <p className="text-sm font-medium text-card-foreground">{p.title || "My Personalized Learning Path"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Generated {new Date(p.generated_at).toLocaleString()}
+                  </p>
+                </div>
+
+                {p.rationale && (
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide mb-2">Rationale</h4>
+                    <p className="text-sm text-card-foreground whitespace-pre-wrap leading-relaxed">{p.rationale}</p>
+                  </div>
+                )}
+
+                <div>
+                  <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide mb-2">
+                    Modules ({pathSheetModules.length})
+                  </h4>
+                  {pathSheetLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="h-14 rounded-md bg-muted animate-pulse" />
+                      ))}
+                    </div>
+                  ) : pathSheetModules.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No modules in this path.</p>
+                  ) : (
+                    <ol className="space-y-2">
+                      {pathSheetModules.map((m, idx) => (
+                        <li key={m.id} className="rounded-md border border-border p-3 bg-card">
+                          <div className="flex items-start gap-3">
+                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
+                              {idx + 1}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-card-foreground">{m.module_title}</p>
+                              {m.reason && (
+                                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{m.reason}</p>
+                              )}
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

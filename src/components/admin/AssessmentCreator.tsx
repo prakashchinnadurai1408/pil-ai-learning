@@ -14,12 +14,14 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminModules } from "@/hooks/useAdminModules";
+import { useModuleGroups } from "@/hooks/useModuleGroups";
 import {
   useAssessments,
   useAssessmentQuestions,
   createAssessment,
   updateAssessment,
 } from "@/hooks/useAssessments";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface QuestionDraft {
   question: string;

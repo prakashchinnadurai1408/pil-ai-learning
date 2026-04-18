@@ -156,11 +156,41 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
       sort_order: i,
     }));
 
-    const { error } = await supabase.from("admin_section_content").insert(rows as any);
+    const { data: inserted, error } = await supabase
+      .from("admin_section_content")
+      .insert(rows as any)
+      .select("id, content");
     if (error) {
       toast.error("Failed to save content");
       setSaving(false);
       return;
+    }
+
+    // Auto-fetch YouTube IDs for newly created video drafts
+    if (activeSection === "videos" && inserted) {
+      const needsId = inserted.filter((r: any) => {
+        const c = r.content as any;
+        return !c?.youtubeId && c?.youtubeQuery;
+      });
+      if (needsId.length > 0) {
+        toast.info(`Fetching YouTube IDs for ${needsId.length} videos…`);
+        await Promise.all(
+          needsId.map(async (r: any) => {
+            try {
+              const c = r.content as any;
+              const { data: yt } = await supabase.functions.invoke("youtube-search", {
+                body: { query: c.youtubeQuery },
+              });
+              if (yt?.videoId) {
+                await supabase
+                  .from("admin_section_content")
+                  .update({ content: { ...c, youtubeId: yt.videoId } } as any)
+                  .eq("id", r.id);
+              }
+            } catch { /* continue */ }
+          })
+        );
+      }
     }
 
     toast.success(`${rows.length} items saved as draft — review before publishing!`);

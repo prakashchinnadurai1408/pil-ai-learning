@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search, UserPlus, Edit, Trash2, Eye, Download, X, KeyRound,
-  Users, GraduationCap, TrendingUp, BarChart3, Ban, CheckCircle, UserCog
+  Users, GraduationCap, TrendingUp, BarChart3, Ban, CheckCircle, UserCog, Sparkles, Loader2
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -44,6 +44,16 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
   const [reassignOpen, setReassignOpen] = useState(false);
   const [reassignDraft, setReassignDraft] = useState<Set<string>>(new Set());
   const [savingReassign, setSavingReassign] = useState(false);
+
+  // Bulk AI Path generation
+  const [collegeFilter, setCollegeFilter] = useState<string>("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [degreeFilter, setDegreeFilter] = useState<string>("all");
+  const [extraMeta, setExtraMeta] = useState<Record<string, { department: string; degree: string }>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
+  const [bulkRunning, setBulkRunning] = useState(false);
 
   useEffect(() => {
     (async () => {

@@ -256,7 +256,15 @@ const ModuleGroupsManager = ({ ownerRole, ownerId, ownerName, scopedStudents = [
               : "Organize modules into bundles for your assigned candidates."}
           </p>
         </div>
-        <Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" /> New Group</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => { setAiSuggestions([]); setAiOpen(true); }} className="gap-2">
+            <Sparkles className="h-4 w-4 text-primary" /> AI Auto-Group
+          </Button>
+          <Button variant="outline" onClick={() => openMove()} className="gap-2" disabled={groups.length < 2}>
+            <ArrowRightLeft className="h-4 w-4" /> Move Module
+          </Button>
+          <Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" /> New Group</Button>
+        </div>
       </div>
 
       {loading ? (

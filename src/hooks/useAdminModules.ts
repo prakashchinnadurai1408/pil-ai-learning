@@ -10,6 +10,8 @@ export interface AdminModule {
   duration: string;
   status: string;
   created_at: string;
+  created_by: string;
+  display_number: number;
   topics: AdminModuleTopic[];
 }
 

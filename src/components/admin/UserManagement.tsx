@@ -183,10 +183,16 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       const meta = extraMeta[s.id];
       if (departmentFilter !== "all" && (meta?.department || "") !== departmentFilter) return false;
       if (degreeFilter !== "all" && (meta?.degree || "") !== degreeFilter) return false;
+      if (pathFilter !== "all") {
+        const p = pathMap[s.id];
+        if (pathFilter === "has" && !p) return false;
+        if (pathFilter === "none" && p) return false;
+        if (pathFilter === "beginner" && !(p && p.is_beginner_default)) return false;
+      }
       if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase()) && !s.email.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
-  }, [students, searchQuery, collegeFilter, departmentFilter, degreeFilter, extraMeta]);
+  }, [students, searchQuery, collegeFilter, departmentFilter, degreeFilter, extraMeta, pathFilter, pathMap]);
 
   // Distinct dropdown options
   const collegeOptions = useMemo(

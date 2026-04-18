@@ -17,7 +17,7 @@ import {
 import {
   Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2,
   LayoutDashboard, ClipboardCheck, BarChart3, Eye, FolderKanban, Route,
-  Brain, Activity,
+  Brain, Activity, UserCheck,
 } from "lucide-react";
 import pluginliveLogo from "@/assets/pluginlive-logo.png";
 
@@ -35,6 +35,7 @@ const TrainerProjectReview = lazy(() => import("@/components/trainer/TrainerProj
 const LearningPathsManager = lazy(() => import("@/components/admin/LearningPathsManager"));
 const LLMSettings = lazy(() => import("@/components/admin/LLMSettings"));
 const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytics"));
+const TrainerAssignments = lazy(() => import("@/components/admin/TrainerAssignments"));
 
 const TabSkeleton = () => (
   <div className="space-y-4 animate-pulse">
@@ -60,6 +61,7 @@ const SECTIONS: { label: string; items: MenuItem[] }[] = [
     label: "Manage",
     items: [
       { key: "users", label: "Users", icon: Users, component: UserManagement },
+      { key: "trainer-assignments", label: "Trainer Assignments", icon: UserCheck, component: TrainerAssignments },
       { key: "subscriptions", label: "Subscriptions", icon: CreditCard, component: SubscriptionManagement },
       { key: "learning-paths", label: "Learning Paths", icon: Route, component: LearningPathsManager },
     ],

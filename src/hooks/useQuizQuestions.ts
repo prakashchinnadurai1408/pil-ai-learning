@@ -91,8 +91,9 @@ export function useQuizQuestions(moduleId: number, moduleName: string) {
 
   const generateAIQuestions = async (): Promise<QuizQuestion[] | null> => {
     try {
+      const difficulty = await computeAdaptiveDifficulty();
       const { data, error } = await supabase.functions.invoke("generate-video-quiz", {
-        body: { videoTitle: moduleName, moduleName, questionCount: 10 },
+        body: { videoTitle: moduleName, moduleName, questionCount: 10, ageGroup, difficulty },
       });
       if (error || !data?.questions) return null;
       return data.questions as QuizQuestion[];

@@ -40,8 +40,10 @@ export function useAdminModules() {
       .select("*")
       .order("sort_order", { ascending: true });
 
-    const mapped: AdminModule[] = (mods || []).map((m: any) => ({
+    const mapped: AdminModule[] = (mods || []).map((m: any, idx: number) => ({
       ...m,
+      created_by: m.created_by || "admin",
+      display_number: idx + 1,
       topics: (topics || []).filter((t: any) => t.module_id === m.id),
     }));
 

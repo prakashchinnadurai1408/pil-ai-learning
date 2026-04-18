@@ -341,6 +341,8 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
     toast.success(`Generated & published ${totalGenerated} ${label} items across ${emptyTopics.length} empty topics!`);
     refetch();
   };
+
+  const handleSaveYoutubeId = async (itemId: string) => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
     const updatedContent = { ...(item.content as any), youtubeId: youtubeIdInput.trim() || null };

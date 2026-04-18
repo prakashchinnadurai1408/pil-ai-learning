@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Save, Loader2, Brain, KeyRound } from "lucide-react";
+import { Sparkles, Save, Loader2, Brain, KeyRound, Youtube, RefreshCw, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 type ProviderKey = "lovable" | "openai" | "anthropic" | "deepseek" | "xai";

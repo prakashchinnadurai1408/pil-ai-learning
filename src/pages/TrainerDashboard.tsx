@@ -343,8 +343,8 @@ const TrainerDashboard = () => {
               </table>
             </div>
           </div>
+          </div>
         );
-      case "assessments":
         return (
           <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
             <div className="p-4 border-b border-border">

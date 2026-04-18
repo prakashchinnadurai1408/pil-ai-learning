@@ -678,6 +678,118 @@ export type Database = {
         }
         Relationships: []
       }
+      module_group_assignments: {
+        Row: {
+          college: string
+          created_at: string
+          degree: string
+          department: string
+          group_id: string
+          id: string
+          scope_type: string
+          student_id: string | null
+        }
+        Insert: {
+          college?: string
+          created_at?: string
+          degree?: string
+          department?: string
+          group_id: string
+          id?: string
+          scope_type?: string
+          student_id?: string | null
+        }
+        Update: {
+          college?: string
+          created_at?: string
+          degree?: string
+          department?: string
+          group_id?: string
+          id?: string
+          scope_type?: string
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "module_group_assignments_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "module_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      module_group_items: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          module_id: number
+          module_title: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          module_id: number
+          module_title?: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          module_id?: number
+          module_title?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "module_group_items_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "module_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      module_groups: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          name: string
+          owner_id: string
+          owner_name: string
+          owner_role: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+          owner_id?: string
+          owner_name?: string
+          owner_role?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          owner_name?: string
+          owner_role?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       path_regeneration_settings: {
         Row: {
           day_of_month: number
@@ -834,6 +946,57 @@ export type Database = {
           student_id?: string
           student_name?: string
           tab_switch_count?: number
+        }
+        Relationships: []
+      }
+      project_assignments: {
+        Row: {
+          assigner_id: string
+          assigner_name: string
+          assigner_role: string
+          created_at: string
+          description: string
+          due_date: string | null
+          id: string
+          source_type: string
+          status: string
+          stream_id: string
+          student_id: string
+          student_name: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigner_id?: string
+          assigner_name?: string
+          assigner_role?: string
+          created_at?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          source_type?: string
+          status?: string
+          stream_id?: string
+          student_id: string
+          student_name?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigner_id?: string
+          assigner_name?: string
+          assigner_role?: string
+          created_at?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          source_type?: string
+          status?: string
+          stream_id?: string
+          student_id?: string
+          student_name?: string
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }

@@ -289,5 +289,38 @@ export async function submitAssessmentAttempt(attempt: {
     toast.error("Failed to submit assessment");
     return false;
   }
+
+  // Mirror the assessment's questions to the module question bank
+  // (covers older assessments created before mirroring at create-time existed).
+  try {
+    const { data: assessment } = await supabase
+      .from("assessments")
+      .select("module_id")
+      .eq("id", attempt.assessment_id)
+      .maybeSingle();
+    const modId = (assessment as any)?.module_id as number | null;
+    if (modId) {
+      const { data: aqs } = await supabase
+        .from("assessment_questions")
+        .select("question, options, correct, explanation")
+        .eq("assessment_id", attempt.assessment_id);
+      if (aqs && aqs.length > 0) {
+        await mirrorToQuestionBank(
+          modId,
+          aqs.map((q: any) => ({
+            question: q.question,
+            options: Array.isArray(q.options) ? q.options : JSON.parse(q.options),
+            correct: q.correct,
+            explanation: q.explanation || "",
+            sort_order: 0,
+            source: "assessment",
+          }))
+        );
+      }
+    }
+  } catch (e) {
+    console.warn("Question bank mirror skipped:", e);
+  }
+
   return true;
 }

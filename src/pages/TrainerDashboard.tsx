@@ -33,7 +33,7 @@ import {
 const TrainerCodingAnalytics = lazy(() => import("@/components/trainer/TrainerCodingAnalytics"));
 const AssessmentCreator = lazy(() => import("@/components/admin/AssessmentCreator"));
 const AssessmentAnalytics = lazy(() => import("@/components/admin/AssessmentAnalytics"));
-const AIModuleCreator = lazy(() => import("@/components/admin/AIModuleCreator"));
+const ModulesAndVideos = lazy(() => import("@/components/admin/ModulesAndVideos"));
 const ContentManager = lazy(() => import("@/components/admin/ContentManager"));
 const QuestionBankViewer = lazy(() => import("@/components/admin/QuestionBankViewer"));
 const CodingChallengeManager = lazy(() => import("@/components/admin/CodingChallengeManager"));
@@ -80,7 +80,7 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
   {
     label: "Content",
     items: [
-      { key: "modules", label: "Modules", icon: BookOpen },
+      { key: "modules", label: "Modules & Videos", icon: BookOpen },
       { key: "content", label: "Section Content", icon: Layers },
       { key: "question-bank", label: "Question Bank", icon: Database },
       { key: "coding-bank", label: "Coding Challenges", icon: Code2 },
@@ -506,7 +506,7 @@ const TrainerDashboard = () => {
       case "coding":
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><TrainerCodingAnalytics /></Suspense>;
       case "modules":
-        return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><AIModuleCreator /></Suspense>;
+        return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><ModulesAndVideos /></Suspense>;
       case "content":
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><ContentManager /></Suspense>;
       case "question-bank":

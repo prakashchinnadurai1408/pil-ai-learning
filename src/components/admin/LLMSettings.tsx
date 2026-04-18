@@ -7,10 +7,33 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Save, Loader2, Brain, KeyRound, Youtube, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Sparkles, Save, Loader2, Brain, KeyRound, Youtube, RefreshCw, CheckCircle2, Sliders } from "lucide-react";
 import { toast } from "sonner";
 
 type ProviderKey = "lovable" | "openai" | "anthropic" | "deepseek" | "xai";
+type Difficulty = "easy" | "medium" | "hard";
+type AgeKey = "10-14" | "15-18" | "19-22" | "23+";
+
+const AGE_GROUPS: { key: AgeKey; label: string }[] = [
+  { key: "10-14", label: "10–14 years" },
+  { key: "15-18", label: "15–18 years" },
+  { key: "19-22", label: "19–22 years" },
+  { key: "23+",   label: "23+ years" },
+];
+
+const DIFFICULTY_RANK: Record<Difficulty, number> = { easy: 0, medium: 1, hard: 2 };
+const DIFFICULTY_OPTIONS: { value: Difficulty; label: string }[] = [
+  { value: "easy", label: "Easy" },
+  { value: "medium", label: "Medium" },
+  { value: "hard", label: "Hard" },
+];
+
+const DEFAULT_OVERRIDES: Record<AgeKey, { floor: Difficulty; ceiling: Difficulty }> = {
+  "10-14": { floor: "easy", ceiling: "easy" },
+  "15-18": { floor: "easy", ceiling: "medium" },
+  "19-22": { floor: "easy", ceiling: "hard" },
+  "23+":   { floor: "easy", ceiling: "hard" },
+};
 
 const PROVIDERS: {
   key: ProviderKey;
@@ -86,6 +109,7 @@ interface LLMRow {
   default_model: string;
   enabled_providers: Record<string, boolean>;
   provider_models: Record<string, string>;
+  age_group_difficulty_overrides: Record<AgeKey, { floor: Difficulty; ceiling: Difficulty }>;
 }
 
 const LLMSettings = () => {
@@ -123,12 +147,18 @@ const LLMSettings = () => {
     (async () => {
       const { data } = await supabase.from("llm_settings").select("*").limit(1).maybeSingle();
       if (data) {
+        const overridesRaw = (data as any).age_group_difficulty_overrides as
+          | Record<AgeKey, { floor: Difficulty; ceiling: Difficulty }>
+          | null;
         setRow({
           id: data.id,
           default_provider: data.default_provider,
           default_model: data.default_model,
           enabled_providers: (data.enabled_providers as Record<string, boolean>) || {},
           provider_models: (data.provider_models as Record<string, string>) || {},
+          age_group_difficulty_overrides: overridesRaw && Object.keys(overridesRaw).length
+            ? overridesRaw
+            : DEFAULT_OVERRIDES,
         });
       }
       setLoading(false);
@@ -153,9 +183,10 @@ const LLMSettings = () => {
       default_model: row.default_model,
       enabled_providers: row.enabled_providers,
       provider_models: row.provider_models,
+      age_group_difficulty_overrides: row.age_group_difficulty_overrides as any,
       updated_at: new Date().toISOString(),
       updated_by: sessionStorage.getItem("adminEmail") || "admin",
-    }).eq("id", row.id);
+    } as any).eq("id", row.id);
     setSaving(false);
     if (error) {
       toast.error("Failed to save: " + error.message);
@@ -340,6 +371,99 @@ const LLMSettings = () => {
           );
         })}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sliders className="h-5 w-5 text-primary" /> Adaptive Difficulty by Age Group
+          </CardTitle>
+          <CardDescription>
+            Override the floor and ceiling difficulty the Adaptive AI Agent will use when picking
+            quiz/coding challenge difficulty for each age group. The agent starts at the floor and
+            ramps up to the ceiling as scores improve. To lock an age group at one difficulty, set
+            floor and ceiling to the same value.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3">
+            {AGE_GROUPS.map((g) => {
+              const ov = row.age_group_difficulty_overrides[g.key] || DEFAULT_OVERRIDES[g.key];
+              const invalid = DIFFICULTY_RANK[ov.floor] > DIFFICULTY_RANK[ov.ceiling];
+              return (
+                <div
+                  key={g.key}
+                  className={`grid sm:grid-cols-3 gap-3 items-end rounded-lg border p-3 ${
+                    invalid ? "border-destructive/50 bg-destructive/5" : "border-border"
+                  }`}
+                >
+                  <div>
+                    <Label className="text-sm font-medium">{g.label}</Label>
+                    {invalid && (
+                      <p className="text-xs text-destructive mt-1">
+                        Floor must be ≤ ceiling
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Floor (start at)</Label>
+                    <Select
+                      value={ov.floor}
+                      onValueChange={(v: Difficulty) =>
+                        setRow({
+                          ...row,
+                          age_group_difficulty_overrides: {
+                            ...row.age_group_difficulty_overrides,
+                            [g.key]: { ...ov, floor: v },
+                          },
+                        })
+                      }
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {DIFFICULTY_OPTIONS.map((d) => (
+                          <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Ceiling (max)</Label>
+                    <Select
+                      value={ov.ceiling}
+                      onValueChange={(v: Difficulty) =>
+                        setRow({
+                          ...row,
+                          age_group_difficulty_overrides: {
+                            ...row.age_group_difficulty_overrides,
+                            [g.key]: { ...ov, ceiling: v },
+                          },
+                        })
+                      }
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {DIFFICULTY_OPTIONS.map((d) => (
+                          <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setRow({ ...row, age_group_difficulty_overrides: DEFAULT_OVERRIDES })
+            }
+          >
+            Reset to defaults
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving} className="gap-2">

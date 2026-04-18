@@ -567,6 +567,7 @@ export type Database = {
       }
       llm_settings: {
         Row: {
+          age_group_difficulty_overrides: Json
           default_model: string
           default_provider: string
           enabled_providers: Json
@@ -576,6 +577,7 @@ export type Database = {
           updated_by: string
         }
         Insert: {
+          age_group_difficulty_overrides?: Json
           default_model?: string
           default_provider?: string
           enabled_providers?: Json
@@ -585,6 +587,7 @@ export type Database = {
           updated_by?: string
         }
         Update: {
+          age_group_difficulty_overrides?: Json
           default_model?: string
           default_provider?: string
           enabled_providers?: Json

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { Video, MessageSquare, FlaskConical, ClipboardCheck, FolderKanban, Users, GraduationCap, Code2, Database, UserCheck } from "lucide-react";
+import { Video, MessageSquare, FlaskConical, ClipboardCheck, FolderKanban, Users, GraduationCap, Code2, Database, UserCheck, Brain } from "lucide-react";
 
 interface ContentCount {
   section_type: string;
@@ -43,6 +43,7 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
   const [questionCount, setQuestionCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [ageGroups, setAgeGroups] = useState<Record<string, number>>({});
+  const [adaptiveStats, setAdaptiveStats] = useState<Record<string, { attempts: number; avg: number; passRate: number }>>({});
 
   // Trainer-scoped panel state
   const [trainers, setTrainers] = useState<Trainer[]>([]);
@@ -89,6 +90,36 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
         if (k && ageMap[k] !== undefined) ageMap[k]++;
       });
       setAgeGroups(ageMap);
+
+      // Adaptive agent calibration: pass rate + avg score per age group (passing = score >= 70)
+      const PASS_THRESHOLD = 70;
+      const studentAgeMap = new Map<string, string>();
+      const { data: studentsForAge } = await supabase
+        .from("students").select("id, age_group");
+      ((studentsForAge as any[]) || []).forEach((s) => {
+        if (s.age_group) studentAgeMap.set(s.id, s.age_group);
+      });
+      const { data: scoresData } = await supabase
+        .from("student_assessment_scores").select("student_id, score");
+      const acc: Record<string, { sum: number; count: number; passed: number }> = {};
+      AGE_BUCKETS.forEach(b => { acc[b.key] = { sum: 0, count: 0, passed: 0 }; });
+      ((scoresData as any[]) || []).forEach((r) => {
+        const ag = studentAgeMap.get(r.student_id);
+        if (!ag || !acc[ag]) return;
+        acc[ag].sum += r.score || 0;
+        acc[ag].count += 1;
+        if ((r.score || 0) >= PASS_THRESHOLD) acc[ag].passed += 1;
+      });
+      const stats: Record<string, { attempts: number; avg: number; passRate: number }> = {};
+      Object.entries(acc).forEach(([k, v]) => {
+        stats[k] = {
+          attempts: v.count,
+          avg: v.count > 0 ? Math.round(v.sum / v.count) : 0,
+          passRate: v.count > 0 ? Math.round((v.passed / v.count) * 100) : 0,
+        };
+      });
+      setAdaptiveStats(stats);
+
       setLoading(false);
     };
     fetchAll();
@@ -192,6 +223,60 @@ const DashboardOverview = ({ onStudentClick }: DashboardOverviewProps) => {
               </div>
             );
           })()}
+        </CardContent>
+      </Card>
+
+      {/* Adaptive Agent Calibration */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Brain className="h-5 w-5 text-primary" />
+            Adaptive Agent — Calibration by Age Group
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Quiz pass rate (≥70%) and average score per age group. Use this to verify the
+            adaptive difficulty floor/ceiling are calibrated correctly. Healthy target: 60–85% pass rate.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            {AGE_BUCKETS.map((b) => {
+              const s = adaptiveStats[b.key] || { attempts: 0, avg: 0, passRate: 0 };
+              const calibrated = s.attempts >= 3 && s.passRate >= 60 && s.passRate <= 85;
+              const tooHard = s.attempts >= 3 && s.passRate < 60;
+              const status = s.attempts < 3
+                ? { label: "Insufficient data", tone: "text-muted-foreground" }
+                : calibrated
+                ? { label: "Well calibrated", tone: "text-green-600" }
+                : tooHard
+                ? { label: "Too hard — lower ceiling", tone: "text-destructive" }
+                : { label: "Too easy — raise floor", tone: "text-yellow-600" };
+              return (
+                <div key={b.key} className="rounded-lg border border-border bg-card p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium text-foreground">{b.label}</p>
+                    <Badge variant="outline" className="text-[10px]">
+                      {s.attempts} attempt{s.attempts === 1 ? "" : "s"}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase">Pass rate</p>
+                      <p className="text-xl font-bold text-foreground">{s.passRate}%</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase">Avg score</p>
+                      <p className="text-xl font-bold text-foreground">{s.avg}%</p>
+                    </div>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded overflow-hidden mb-1">
+                    <div className="h-full bg-primary" style={{ width: `${Math.min(100, s.passRate)}%` }} />
+                  </div>
+                  <p className={`text-[11px] mt-1 ${status.tone}`}>{status.label}</p>
+                </div>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
 

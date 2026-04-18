@@ -355,6 +355,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
       mobile: editUser.mobile.trim(),
       college: editUser.college.trim(),
       location: editUser.location.trim(),
+      age_group: editUser.age_group || "",
     }).eq("id", selectedUser.id);
     if (error) {
       toast.error("Failed to update user");

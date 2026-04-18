@@ -38,6 +38,17 @@ export function useTrainerData() {
 
   async function fetchData() {
     setLoading(true);
+    const trainerId = typeof window !== "undefined" ? sessionStorage.getItem("trainerId") : null;
+
+    let allowedStudentIds: Set<string> | null = null;
+    if (trainerId) {
+      const { data: assignments } = await (supabase as any)
+        .from("trainer_students")
+        .select("student_id")
+        .eq("trainer_id", trainerId);
+      allowedStudentIds = new Set((assignments || []).map((a: any) => a.student_id));
+    }
+
     const [{ data: studentsRaw }, { data: progressRaw }, { data: scoresRaw }] = await Promise.all([
       supabase.from("students").select("*"),
       supabase.from("student_module_progress").select("*"),
@@ -45,6 +56,10 @@ export function useTrainerData() {
     ]);
 
     if (!studentsRaw) { setLoading(false); return; }
+
+    const visibleStudents = allowedStudentIds
+      ? studentsRaw.filter((s: any) => allowedStudentIds!.has(s.id))
+      : studentsRaw;
 
     const mapped: StudentData[] = studentsRaw.map((s: any) => {
       const prog = (progressRaw || []).filter((p: any) => p.student_id === s.id);

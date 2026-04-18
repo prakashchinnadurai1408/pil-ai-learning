@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Layers, BookOpen, Building2, User, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, Layers, BookOpen, Building2, User, Users, Sparkles, ArrowRightLeft, Loader2 } from "lucide-react";
 
 interface ModuleGroupsManagerProps {
   /** "admin" or "trainer". If trainer, ownerId/ownerName must be set + can only assign to their students. */
@@ -147,6 +147,102 @@ const ModuleGroupsManager = ({ ownerRole, ownerId, ownerName, scopedStudents = [
     setSelectedStudentIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   };
 
+  // ----- AI Auto-Group -----
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiHint, setAiHint] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<{ name: string; description: string; module_ids: number[] }[]>([]);
+  const [aiAccept, setAiAccept] = useState<Set<number>>(new Set());
+
+  const runAISuggest = async () => {
+    setAiLoading(true);
+    try {
+      const { data, error } = await (supabase as any).functions.invoke("ai-group-modules", {
+        body: { modules: allModules, hint: aiHint },
+      });
+      if (error) throw error;
+      const sugs = (data?.groups || []).filter((g: any) => Array.isArray(g.module_ids) && g.module_ids.length);
+      if (sugs.length === 0) { toast.error("AI returned no groups"); return; }
+      setAiSuggestions(sugs);
+      setAiAccept(new Set(sugs.map((_: any, i: number) => i)));
+    } catch (e: any) {
+      toast.error(e.message || "AI grouping failed");
+    } finally { setAiLoading(false); }
+  };
+
+  const applyAISuggestions = async () => {
+    const accepted = aiSuggestions.filter((_, i) => aiAccept.has(i));
+    if (accepted.length === 0) { toast.error("Select at least one group"); return; }
+    setAiLoading(true);
+    try {
+      for (const sug of accepted) {
+        const { data, error } = await (supabase as any).from("module_groups").insert({
+          name: sug.name, description: sug.description || "",
+          owner_role: ownerRole, owner_id: ownerId, owner_name: ownerName, status: "published",
+        }).select("id").single();
+        if (error) throw error;
+        const gid = data.id;
+        const items = sug.module_ids.map((mid, i) => {
+          const mod = allModules.find((m) => m.id === mid);
+          return { group_id: gid, module_id: mid, module_title: mod?.title || `Module ${mid}`, sort_order: i };
+        });
+        await (supabase as any).from("module_group_items").insert(items);
+        // Default cohort = visible to all (admin) — trainer can edit later
+        if (ownerRole === "admin") {
+          await (supabase as any).from("module_group_assignments").insert({ group_id: gid, scope_type: "cohort" });
+        }
+      }
+      toast.success(`Created ${accepted.length} group(s) from AI suggestions`);
+      setAiOpen(false); setAiSuggestions([]); setAiAccept(new Set()); setAiHint("");
+      refetch();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to apply suggestions");
+    } finally { setAiLoading(false); }
+  };
+
+  // ----- Manual Move -----
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [moveSrcGroupId, setMoveSrcGroupId] = useState("");
+  const [moveModuleId, setMoveModuleId] = useState<string>("");
+  const [moveDstGroupId, setMoveDstGroupId] = useState("");
+
+  const openMove = (srcGroupId?: string) => {
+    setMoveSrcGroupId(srcGroupId || "");
+    setMoveModuleId(""); setMoveDstGroupId("");
+    setMoveOpen(true);
+  };
+
+  const performMove = async () => {
+    if (!moveSrcGroupId || !moveModuleId || !moveDstGroupId) {
+      toast.error("Select source group, module, and destination group");
+      return;
+    }
+    if (moveSrcGroupId === moveDstGroupId) { toast.error("Source and destination must differ"); return; }
+    const mid = Number(moveModuleId);
+    const src = groups.find((g) => g.id === moveSrcGroupId);
+    const dst = groups.find((g) => g.id === moveDstGroupId);
+    const item = src?.items.find((i) => i.module_id === mid);
+    if (!item) { toast.error("Module not found in source"); return; }
+    if (dst?.items.some((i) => i.module_id === mid)) {
+      toast.error("Module already exists in destination group");
+      return;
+    }
+    try {
+      // Delete from source, insert into destination
+      await (supabase as any).from("module_group_items").delete().eq("id", item.id);
+      const nextOrder = (dst?.items.length || 0);
+      await (supabase as any).from("module_group_items").insert({
+        group_id: moveDstGroupId, module_id: mid, module_title: item.module_title, sort_order: nextOrder,
+      });
+      toast.success("Module moved");
+      setMoveOpen(false);
+      refetch();
+    } catch (e: any) {
+      toast.error(e.message || "Move failed");
+    }
+  };
+
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -160,7 +256,15 @@ const ModuleGroupsManager = ({ ownerRole, ownerId, ownerName, scopedStudents = [
               : "Organize modules into bundles for your assigned candidates."}
           </p>
         </div>
-        <Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" /> New Group</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => { setAiSuggestions([]); setAiOpen(true); }} className="gap-2">
+            <Sparkles className="h-4 w-4 text-primary" /> AI Auto-Group
+          </Button>
+          <Button variant="outline" onClick={() => openMove()} className="gap-2" disabled={groups.length < 2}>
+            <ArrowRightLeft className="h-4 w-4" /> Move Module
+          </Button>
+          <Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" /> New Group</Button>
+        </div>
       </div>
 
       {loading ? (
@@ -188,6 +292,9 @@ const ModuleGroupsManager = ({ ownerRole, ownerId, ownerName, scopedStudents = [
                     {g.description && <p className="text-xs text-muted-foreground mt-1">{g.description}</p>}
                   </div>
                   <div className="flex gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => openMove(g.id)} title="Move a module to another group">
+                      <ArrowRightLeft className="h-4 w-4" />
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => openEdit(g)}><Pencil className="h-4 w-4" /></Button>
                     <Button size="sm" variant="ghost" className="text-destructive" onClick={() => remove(g.id)}>
                       <Trash2 className="h-4 w-4" />
@@ -302,6 +409,124 @@ const ModuleGroupsManager = ({ ownerRole, ownerId, ownerName, scopedStudents = [
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={save} disabled={saving}>{saving ? "Saving..." : editing ? "Update" : "Create"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Auto-Group Dialog */}
+      <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" /> AI Auto-Group Modules
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              The AI agent will analyze all {allModules.length} modules and propose themed bundles.
+              Review and accept the ones you want to create.
+            </p>
+            <div>
+              <label className="text-sm font-medium">Optional hint (audience, focus, semester structure...)</label>
+              <Textarea value={aiHint} onChange={(e) => setAiHint(e.target.value)} rows={2}
+                placeholder="e.g. Group by difficulty for B.Tech CSE 1st-year students" />
+            </div>
+            {aiSuggestions.length === 0 ? (
+              <Button onClick={runAISuggest} disabled={aiLoading} className="w-full gap-2">
+                {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {aiLoading ? "Analyzing..." : "Generate Suggestions"}
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">{aiSuggestions.length} group(s) suggested. Uncheck any you want to skip.</p>
+                {aiSuggestions.map((sug, i) => (
+                  <Card key={i} className={aiAccept.has(i) ? "border-primary/40" : "opacity-60"}>
+                    <CardContent className="p-3">
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          checked={aiAccept.has(i)}
+                          onCheckedChange={(v) => {
+                            const next = new Set(aiAccept);
+                            if (v) next.add(i); else next.delete(i);
+                            setAiAccept(next);
+                          }}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{sug.name}</p>
+                          {sug.description && <p className="text-xs text-muted-foreground mb-1">{sug.description}</p>}
+                          <div className="flex flex-wrap gap-1">
+                            {sug.module_ids.map((mid) => {
+                              const mod = allModules.find((m) => m.id === mid);
+                              return <Badge key={mid} variant="secondary" className="text-[10px]">{mod?.title || `#${mid}`}</Badge>;
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setAiOpen(false); setAiSuggestions([]); }}>Cancel</Button>
+            {aiSuggestions.length > 0 && (
+              <>
+                <Button variant="outline" onClick={runAISuggest} disabled={aiLoading}>Regenerate</Button>
+                <Button onClick={applyAISuggestions} disabled={aiLoading}>
+                  {aiLoading ? "Creating..." : `Create ${aiAccept.size} Group(s)`}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move Module Dialog */}
+      <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-5 w-5" /> Move Module Between Groups
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">From Group</label>
+              <Select value={moveSrcGroupId} onValueChange={(v) => { setMoveSrcGroupId(v); setMoveModuleId(""); }}>
+                <SelectTrigger><SelectValue placeholder="Source group" /></SelectTrigger>
+                <SelectContent>
+                  {groups.map((g) => <SelectItem key={g.id} value={g.id}>{g.name} ({g.items.length})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Module</label>
+              <Select value={moveModuleId} onValueChange={setMoveModuleId} disabled={!moveSrcGroupId}>
+                <SelectTrigger><SelectValue placeholder="Pick module" /></SelectTrigger>
+                <SelectContent>
+                  {groups.find((g) => g.id === moveSrcGroupId)?.items.map((it) => (
+                    <SelectItem key={it.id} value={String(it.module_id)}>{it.module_title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">To Group</label>
+              <Select value={moveDstGroupId} onValueChange={setMoveDstGroupId}>
+                <SelectTrigger><SelectValue placeholder="Destination group" /></SelectTrigger>
+                <SelectContent>
+                  {groups.filter((g) => g.id !== moveSrcGroupId).map((g) => (
+                    <SelectItem key={g.id} value={g.id}>{g.name} ({g.items.length})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMoveOpen(false)}>Cancel</Button>
+            <Button onClick={performMove}>Move</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

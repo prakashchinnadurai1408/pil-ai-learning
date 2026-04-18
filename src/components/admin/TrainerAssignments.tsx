@@ -203,6 +203,20 @@ const TrainerAssignments = () => {
             <Button variant="ghost" size="sm" onClick={clearAllVisible}>Clear</Button>
           </div>
 
+          <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30 border border-border">
+            <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Bulk add by college:</span>
+            <Select value={bulkCollege} onValueChange={setBulkCollege}>
+              <SelectTrigger className="h-8 flex-1 text-xs"><SelectValue placeholder="Select a college..." /></SelectTrigger>
+              <SelectContent>
+                {colleges.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button size="sm" variant="secondary" onClick={addCollegeStudents} disabled={!bulkCollege}>
+              Add all
+            </Button>
+          </div>
+
           <p className="text-xs text-muted-foreground">{draft.size} selected • {filteredStudents.length} shown</p>
 
           <div className="flex-1 overflow-y-auto border border-border rounded-md divide-y divide-border">

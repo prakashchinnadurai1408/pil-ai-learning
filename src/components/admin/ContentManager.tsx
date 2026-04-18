@@ -546,23 +546,29 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                   const mod = adminModules.find(m => m.id === Number(selectedModuleId));
                   if (!mod || mod.topics.length === 0) return null;
                   const moduleItems = items.filter(i => i.module_id === mod.id && i.status === "published");
-                  const countForTopic = (title: string) => {
-                    const q = title.toLowerCase();
-                    return moduleItems.filter(i => {
-                      if (i.title?.toLowerCase().includes(q)) return true;
-                      const c: any = i.content;
-                      const blob = `${c?.title || ""} ${c?.youtubeQuery || ""} ${c?.description || ""}`.toLowerCase();
-                      return blob.includes(q);
-                    }).length;
-                  };
+                  const countForTopic = (topicId: string) =>
+                    moduleItems.filter(i => (i as any).topic_id === topicId).length;
+                  const emptyCount = mod.topics.filter(t => countForTopic(t.id) === 0).length;
                   return (
                     <div className="rounded-lg border border-border bg-card/50 p-3 space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Topics in {mod.title} ({mod.topics.length})
-                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Topics in {mod.title} ({mod.topics.length})
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-xs h-7"
+                          onClick={() => handleGenerateForEmptyTopics(mod)}
+                          disabled={generating || generatingAllTopics || generatingEmpty || emptyCount === 0}
+                        >
+                          {generatingEmpty ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                          Generate for {emptyCount} empty topic{emptyCount === 1 ? "" : "s"}
+                        </Button>
+                      </div>
                       <div className="space-y-1.5 max-h-64 overflow-y-auto">
                         {mod.topics.map(t => {
-                          const count = countForTopic(t.title);
+                          const count = countForTopic(t.id);
                           return (
                             <div key={t.id} className="flex items-center justify-between gap-2 p-2 rounded-md hover:bg-muted/50">
                               <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -582,8 +588,8 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                                 size="sm"
                                 variant="outline"
                                 className="gap-1.5 text-xs h-7 shrink-0"
-                                onClick={() => { setTopic(t.title); setTimeout(() => handleGenerate(), 0); }}
-                                disabled={generating || generatingAllTopics}
+                                onClick={() => { setTopic(t.title); setSelectedTopicId(t.id); setTimeout(() => handleGenerate(), 0); }}
+                                disabled={generating || generatingAllTopics || generatingEmpty}
                               >
                                 <Sparkles className="h-3 w-3" />
                                 Generate
@@ -593,7 +599,7 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                         })}
                       </div>
                       <p className="text-[11px] text-muted-foreground">
-                        Click a topic to auto-fill and generate {section.label.toLowerCase()} for it. Badges show published items matching each topic.
+                        Badges show published items linked to each topic. Click a topic to auto-fill and generate, or use the bulk button for all empty topics.
                       </p>
                     </div>
                   );

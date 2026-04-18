@@ -504,7 +504,7 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
           </div>
 
           {/* Filters Row */}
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-2">
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-5 gap-2">
             <Select value={collegeFilter} onValueChange={(v) => { setCollegeFilter(v); clearSelection(); }}>
               <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="All colleges" /></SelectTrigger>
               <SelectContent className="bg-popover z-50 max-h-72">

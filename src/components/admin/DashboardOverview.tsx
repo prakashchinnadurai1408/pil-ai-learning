@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { Video, MessageSquare, FlaskConical, ClipboardCheck, FolderKanban, Users, GraduationCap, Code2, Database } from "lucide-react";
+import { Video, MessageSquare, FlaskConical, ClipboardCheck, FolderKanban, Users, GraduationCap, Code2, Database, UserCheck } from "lucide-react";
 
 interface ContentCount {
   section_type: string;
@@ -9,6 +11,9 @@ interface ContentCount {
   published: number;
   draft: number;
 }
+
+interface Trainer { id: string; name: string; college: string }
+interface Student { id: string; name: string; college: string }
 
 const SECTION_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   videos: { label: "Videos", icon: Video, color: "text-red-500" },
@@ -27,20 +32,26 @@ const DashboardOverview = () => {
   const [questionCount, setQuestionCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Trainer-scoped panel state
+  const [trainers, setTrainers] = useState<Trainer[]>([]);
+  const [selectedTrainerId, setSelectedTrainerId] = useState<string>("");
+  const [assignedStudents, setAssignedStudents] = useState<Student[]>([]);
+  const [scopeLoading, setScopeLoading] = useState(false);
+
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
 
-      const [sectRes, studRes, trainRes, modRes, chalRes, qRes] = await Promise.all([
+      const [sectRes, studRes, trainRes, modRes, chalRes, qRes, trainersListRes] = await Promise.all([
         supabase.from("admin_section_content").select("section_type, status"),
         supabase.from("students").select("id", { count: "exact", head: true }),
         supabase.from("trainers").select("id", { count: "exact", head: true }),
         supabase.from("admin_modules").select("id", { count: "exact", head: true }),
         supabase.from("coding_challenges").select("id", { count: "exact", head: true }),
         supabase.from("quiz_question_bank").select("id", { count: "exact", head: true }),
+        supabase.from("trainers").select("id, name, college").order("name"),
       ]);
 
-      // Aggregate section content counts
       const map: Record<string, { total: number; published: number; draft: number }> = {};
       (sectRes.data || []).forEach((r: any) => {
         if (!map[r.section_type]) map[r.section_type] = { total: 0, published: 0, draft: 0 };
@@ -57,10 +68,32 @@ const DashboardOverview = () => {
       setModuleCount(modRes.count || 0);
       setChallengeCount(chalRes.count || 0);
       setQuestionCount(qRes.count || 0);
+      setTrainers((trainersListRes.data as Trainer[]) || []);
       setLoading(false);
     };
     fetchAll();
   }, []);
+
+  // Load assigned students when a trainer is selected
+  useEffect(() => {
+    if (!selectedTrainerId) { setAssignedStudents([]); return; }
+    (async () => {
+      setScopeLoading(true);
+      const { data: assigns } = await (supabase as any)
+        .from("trainer_students").select("student_id").eq("trainer_id", selectedTrainerId);
+      const ids = (assigns || []).map((a: any) => a.student_id);
+      if (ids.length === 0) { setAssignedStudents([]); setScopeLoading(false); return; }
+      const { data: students } = await supabase
+        .from("students").select("id, name, college").in("id", ids).order("name");
+      setAssignedStudents((students as Student[]) || []);
+      setScopeLoading(false);
+    })();
+  }, [selectedTrainerId]);
+
+  const selectedTrainer = useMemo(
+    () => trainers.find(t => t.id === selectedTrainerId) || null,
+    [trainers, selectedTrainerId]
+  );
 
   if (loading) {
     return (
@@ -100,6 +133,65 @@ const DashboardOverview = () => {
           );
         })}
       </div>
+
+      {/* Trainer-scoped Assigned Students */}
+      <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-primary" />
+              Trainer's Assigned Students
+            </CardTitle>
+            <div className="w-full md:w-72">
+              <Select value={selectedTrainerId} onValueChange={setSelectedTrainerId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a trainer to view assignments" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  {trainers.map(t => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name} {t.college ? `· ${t.college}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!selectedTrainerId ? (
+            <p className="text-sm text-muted-foreground">Select a trainer above to see their assigned students.</p>
+          ) : scopeLoading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : assignedStudents.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No students assigned to <span className="font-medium text-foreground">{selectedTrainer?.name}</span> yet.
+              Use Trainer Assignments to map students.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-sm">
+                <Badge variant="secondary">{assignedStudents.length} students</Badge>
+                <span className="text-muted-foreground">
+                  assigned to <span className="font-medium text-foreground">{selectedTrainer?.name}</span>
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {assignedStudents.map(s => (
+                  <Badge
+                    key={s.id}
+                    variant="outline"
+                    className="bg-background/50 border-primary/30"
+                    title={s.college}
+                  >
+                    {s.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <h2 className="text-lg font-semibold text-foreground">Content by Section</h2>
 

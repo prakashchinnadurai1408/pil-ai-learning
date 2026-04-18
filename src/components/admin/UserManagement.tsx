@@ -387,36 +387,85 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              <Button
+                size="sm"
+                className="gap-1 bg-gradient-to-r from-accent to-primary border-0 text-primary-foreground"
+                onClick={() => setBulkOpen(true)}
+                disabled={selectedIds.size === 0}
+                title={selectedIds.size === 0 ? "Select at least one candidate" : `Generate AI paths for ${selectedIds.size} candidate(s)`}
+              >
+                <Sparkles className="h-3 w-3" /> Generate AI Path
+                {selectedIds.size > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{selectedIds.size}</Badge>
+                )}
+              </Button>
               <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={exportCSV}>
                 <Download className="h-3 w-3" /> Export
               </Button>
             </div>
           </div>
-          <div className="mt-3 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search users by name or email..." 
-              className="pl-9 h-9" 
-              value={searchQuery} 
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                if (!e.target.value && onClearSearch) onClearSearch();
-              }} 
-            />
-            {initialSearch && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-7 text-xs"
-                onClick={() => {
-                  setSearchQuery("");
-                  onClearSearch?.();
+
+          {/* Filters Row */}
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-2">
+            <Select value={collegeFilter} onValueChange={(v) => { setCollegeFilter(v); clearSelection(); }}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="All colleges" /></SelectTrigger>
+              <SelectContent className="bg-popover z-50 max-h-72">
+                <SelectItem value="all">All colleges</SelectItem>
+                {collegeOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={departmentFilter} onValueChange={(v) => { setDepartmentFilter(v); clearSelection(); }}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="All departments" /></SelectTrigger>
+              <SelectContent className="bg-popover z-50 max-h-72">
+                <SelectItem value="all">All departments</SelectItem>
+                {departmentOptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={degreeFilter} onValueChange={(v) => { setDegreeFilter(v); clearSelection(); }}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="All degrees" /></SelectTrigger>
+              <SelectContent className="bg-popover z-50 max-h-72">
+                <SelectItem value="all">All degrees</SelectItem>
+                {degreeOptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or email..."
+                className="pl-9 h-9 text-xs"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (!e.target.value && onClearSearch) onClearSearch();
                 }}
-              >
-                Clear
-              </Button>
-            )}
+              />
+              {initialSearch && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 text-xs"
+                  onClick={() => { setSearchQuery(""); onClearSearch?.(); }}
+                >Clear</Button>
+              )}
+            </div>
           </div>
+
+          {/* Selection summary */}
+          {(selectedIds.size > 0 || collegeFilter !== "all" || departmentFilter !== "all" || degreeFilter !== "all") && (
+            <div className="mt-3 flex items-center justify-between flex-wrap gap-2 text-xs">
+              <div className="text-muted-foreground">
+                Showing <span className="font-medium text-foreground">{filteredUsers.length}</span> candidate(s)
+                {selectedIds.size > 0 && (
+                  <> · <span className="font-medium text-primary">{selectedIds.size}</span> selected</>
+                )}
+              </div>
+              {selectedIds.size > 0 && (
+                <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={clearSelection}>
+                  <X className="h-3 w-3" /> Clear selection
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="overflow-x-auto">

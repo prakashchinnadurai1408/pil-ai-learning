@@ -40,7 +40,7 @@ serve(async (req) => {
     const sb = createClient(url, key);
 
     // Fetch candidate
-    const { data: candidate } = await sb.from("students").select("id, name, college, department, degree, subscription_tier").eq("id", candidateId).single();
+    const { data: candidate } = await sb.from("students").select("id, name, college, department, degree, subscription_tier, age_group").eq("id", candidateId).single();
     if (!candidate) {
       return new Response(JSON.stringify({ error: "Candidate not found" }), {
         status: 404,
@@ -113,7 +113,12 @@ serve(async (req) => {
     const avgAssessmentScore = attempts.length ? Math.round(attempts.reduce((s: number, x: any) => s + x.score, 0) / attempts.length) : 0;
     const codingLanguages = [...new Set(coding.map((c: any) => c.language))];
 
+    const ageGroup = (candidate as any).age_group || "";
+    const ageProfile = getAgeProfile(ageGroup);
+
     const summary = {
+      age_group: ageGroup || "unspecified",
+      age_profile: ageProfile,
       completed_module_ids: completedModuleIds,
       in_progress_modules: inProgressModules.map((p: any) => ({ module_id: p.module_id, progress: p.progress_percent })),
       module_quiz_avg_score: avgQuizScore,
@@ -137,16 +142,18 @@ serve(async (req) => {
     const { data: llmSettings } = await sb.from("llm_settings").select("default_model").maybeSingle();
     const model = llmSettings?.default_model || "google/gemini-2.5-flash";
 
-    const systemPrompt = `You are an adaptive learning path advisor for an AI training platform. You analyze a candidate's learning data and recommend a personalized, ordered learning path.
+    const systemPrompt = `You are an adaptive learning path advisor for an AI training platform serving Indian students aged 10 to 23+. You analyze a candidate's learning data AND age group to recommend a personalized, age-appropriate, ordered learning path.
 
 Rules:
-1. Recommend modules in optimal order — prerequisites first, then progression based on weak areas.
-2. SKIP modules already completed with score >= 70%, but you may include them as "review" if scores are low.
-3. Prioritize modules where the candidate showed weakness (low quiz/assessment scores).
-4. If coding activity is low, include foundational modules. If coding is strong, accelerate to advanced topics.
-5. If a diagnostic quiz result is provided, use the topic_breakdown to identify weak topics and prioritize related modules first.
-6. Provide a concise per-module reason (max 20 words).
-7. Provide an overall rationale explaining your strategy (max 80 words). If diagnostic was used, mention it.
+1. ALWAYS adapt vocabulary, examples, and pacing to the candidate's age_profile (provided). Younger learners need simpler language and shorter steps; older learners can handle dense content.
+2. Start with EASIER foundational modules and ramp up. Only accelerate to advanced modules when quiz/assessment scores demonstrate readiness (>= 70%).
+3. Recommend modules in optimal order — prerequisites first, then progression based on weak areas.
+4. SKIP modules already completed with score >= 70%, but include as "review" if scores are low.
+5. Prioritize modules where the candidate showed weakness (low quiz/assessment scores).
+6. If coding activity is low, include foundational modules. If coding is strong, accelerate to advanced topics.
+7. If a diagnostic quiz result is provided, use the topic_breakdown to identify weak topics and prioritize related modules first.
+8. Provide a concise per-module reason (max 20 words) using language appropriate to the age group.
+9. Provide an overall rationale (max 90 words) explaining your strategy. EXPLICITLY mention how you tailored it to the candidate's age group and current skill level.
 
 Respond with ONLY valid JSON in this exact shape:
 {

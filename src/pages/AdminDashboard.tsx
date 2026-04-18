@@ -19,7 +19,7 @@ import {
   LayoutDashboard, ClipboardCheck, BarChart3, Eye, FolderKanban, Route,
   Brain, Activity, UserCheck,
 } from "lucide-react";
-import pluginliveLogo from "@/assets/pluginlive-logo.png";
+import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 
 // Pass-through wrapper that accepts forwarded props for deep-linking
 const UserManagement = lazy(() => import("@/components/admin/UserManagement"));
@@ -176,7 +176,7 @@ const AdminDashboard = () => {
             <div className="px-6 h-14 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <SidebarTrigger />
-                <img src={pluginliveLogo} alt="PluginLive" className="h-7" />
+                <img src={pluginliveLogo} alt="AI Upskill Hub" className="h-7" />
                 <div className="flex items-center gap-1.5">
                   <Shield className="h-4 w-4 text-primary" />
                   <span className="font-display font-bold text-gradient-primary">Admin Panel</span>

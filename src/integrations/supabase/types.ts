@@ -1197,6 +1197,27 @@ export type Database = {
         }
         Relationships: []
       }
+      trainer_students: {
+        Row: {
+          created_at: string
+          id: string
+          student_id: string
+          trainer_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          student_id: string
+          trainer_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          student_id?: string
+          trainer_id?: string
+        }
+        Relationships: []
+      }
       trainers: {
         Row: {
           college: string

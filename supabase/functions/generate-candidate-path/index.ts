@@ -288,3 +288,86 @@ async function createPath(
 
   return { ...pathRow, modules: opts.modules };
 }
+
+// ============= Age-aware adaptive helpers =============
+function getAgeProfile(ageGroup: string) {
+  const g = (ageGroup || "").trim();
+  if (g === "10-14") {
+    return {
+      key: "10-14",
+      label: "10–14 years",
+      reading_level: "grade 5-7 (very simple words, short sentences)",
+      examples: "everyday school, games, mobile apps, cartoons",
+      tone: {
+        welcome: "Hey there!",
+        tailoredFor: "designed for younger learners with simple words and fun examples",
+        firstStepReason: "Start here — easy AI ideas explained the simple way.",
+      },
+      beginnerTitle: "My First AI Adventure",
+      difficulty_ceiling: "easy",
+      pacing: "small bite-sized steps; lots of encouragement",
+    };
+  }
+  if (g === "15-18") {
+    return {
+      key: "15-18",
+      label: "15–18 years",
+      reading_level: "grade 8-10 (clear, conversational)",
+      examples: "school projects, social media, smartphones, video editing",
+      tone: {
+        welcome: "Welcome!",
+        tailoredFor: "shaped for high-school learners with relatable examples",
+        firstStepReason: "Start here — foundational AI concepts in plain language.",
+      },
+      beginnerTitle: "Your AI Foundations Journey",
+      difficulty_ceiling: "easy-to-medium initially",
+      pacing: "moderate steps; balance theory and hands-on",
+    };
+  }
+  if (g === "19-22") {
+    return {
+      key: "19-22",
+      label: "19–22 years",
+      reading_level: "college-level (technical vocabulary OK)",
+      examples: "college projects, internships, startups, real APIs",
+      tone: {
+        welcome: "Welcome!",
+        tailoredFor: "built for college students aiming at internships and projects",
+        firstStepReason: "Start here — foundational AI concepts every student needs.",
+      },
+      beginnerTitle: "Your College AI Learning Path",
+      difficulty_ceiling: "medium initially, scale to hard with strong scores",
+      pacing: "standard pace; project-oriented",
+    };
+  }
+  if (g === "23+") {
+    return {
+      key: "23+",
+      label: "23+ years",
+      reading_level: "professional / postgraduate",
+      examples: "workplace use cases, automation, business outcomes, ROI",
+      tone: {
+        welcome: "Welcome!",
+        tailoredFor: "tailored for working professionals and postgraduate learners",
+        firstStepReason: "Start here — quick foundational refresher before advanced topics.",
+      },
+      beginnerTitle: "Your Professional AI Roadmap",
+      difficulty_ceiling: "medium-to-hard; accelerate when scores are strong",
+      pacing: "efficient pace; emphasis on applied outcomes",
+    };
+  }
+  return {
+    key: "unspecified",
+    label: "unspecified",
+    reading_level: "general adult learner",
+    examples: "broad real-world examples",
+    tone: {
+      welcome: "Welcome!",
+      tailoredFor: "designed for general learners",
+      firstStepReason: "Start here — foundational AI concepts everyone needs.",
+    },
+    beginnerTitle: "Beginner's AI Learning Journey",
+    difficulty_ceiling: "adaptive based on performance",
+    pacing: "standard pace",
+  };
+}

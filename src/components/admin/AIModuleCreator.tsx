@@ -4,7 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Plus, Trash2, GripVertical, Video, Loader2, Check, Edit, Save, AlertTriangle } from "lucide-react";
+import { Sparkles, Plus, Trash2, GripVertical, Video, Loader2, Check, Edit, Save, AlertTriangle, FileQuestion, FolderKanban } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useAdminSectionContent } from "@/hooks/useAdminSectionContent";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +31,7 @@ interface GeneratedTopic {
 
 const AIModuleCreator = () => {
   const { adminModules, loading, refetch } = useAdminModules();
+  const { items: allSectionContent } = useAdminSectionContent();
   const [moduleTitle, setModuleTitle] = useState("");
   const [moduleDescription, setModuleDescription] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -37,6 +40,10 @@ const AIModuleCreator = () => {
   const [saving, setSaving] = useState(false);
   const [publishConfirmId, setPublishConfirmId] = useState<number | null>(null);
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [expandedModuleId, setExpandedModuleId] = useState<number | null>(null);
+
+  const countByTopic = (topicId: string, sectionType: string) =>
+    allSectionContent.filter(c => c.topic_id === topicId && c.section_type === sectionType && c.status === "published").length;
 
   const handleGenerate = async () => {
     if (!moduleTitle.trim()) {
@@ -311,33 +318,68 @@ Return ONLY valid JSON in this exact format, no other text:
                   : new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
               )
               .map((m, idx) => (
-                <div key={m.id} className="bg-card rounded-lg border border-border p-4 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0">
-                      {idx + 1}
+                <div key={m.id} className="bg-card rounded-lg border border-border overflow-hidden">
+                  <div className="p-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0">
+                        {idx + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="font-medium text-sm text-card-foreground block truncate">{m.title}</span>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {m.topics.length} topics · {m.duration} · Created {new Date(m.created_at).toLocaleDateString()} by {m.created_by || "admin"}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <span className="font-medium text-sm text-card-foreground block truncate">{m.title}</span>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {m.topics.length} topics · {m.duration} · Created {new Date(m.created_at).toLocaleDateString()} by {m.created_by || "admin"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      m.status === "published" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
-                    }`}>
-                      {m.status === "published" ? "Published" : "Draft"}
-                    </span>
-                    {m.status === "draft" && (
-                      <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setPublishConfirmId(m.id)}>
-                        <Check className="h-3 w-3" /> Review & Publish
+                    <div className="flex items-center gap-2 shrink-0">
+                      {m.topics.length > 0 && (
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setExpandedModuleId(expandedModuleId === m.id ? null : m.id)}>
+                          {expandedModuleId === m.id ? "Hide topics" : "Show topics"}
+                        </Button>
+                      )}
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        m.status === "published" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+                      }`}>
+                        {m.status === "published" ? "Published" : "Draft"}
+                      </span>
+                      {m.status === "draft" && (
+                        <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setPublishConfirmId(m.id)}>
+                          <Check className="h-3 w-3" /> Review & Publish
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDeleteModule(m.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
-                    )}
-                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDeleteModule(m.id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    </div>
                   </div>
+                  {expandedModuleId === m.id && m.topics.length > 0 && (
+                    <div className="border-t border-border bg-muted/30 px-4 py-3 space-y-2">
+                      {m.topics.map((t, ti) => {
+                        const v = countByTopic(t.id, "videos");
+                        const q = countByTopic(t.id, "quizzes");
+                        const p = countByTopic(t.id, "projects");
+                        return (
+                          <div key={t.id} className="flex items-center justify-between gap-2 text-xs">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span className="text-muted-foreground w-5">{ti + 1}.</span>
+                              <span className="text-card-foreground truncate">{t.title}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <Badge variant="outline" className={`gap-1 ${v === 0 ? "border-warning/40 text-warning" : "border-success/40 text-success"}`}>
+                                <Video className="h-3 w-3" /> {v}
+                              </Badge>
+                              <Badge variant="outline" className={`gap-1 ${q === 0 ? "border-warning/40 text-warning" : "border-success/40 text-success"}`}>
+                                <FileQuestion className="h-3 w-3" /> {q}
+                              </Badge>
+                              <Badge variant="outline" className={`gap-1 ${p === 0 ? "border-warning/40 text-warning" : "border-success/40 text-success"}`}>
+                                <FolderKanban className="h-3 w-3" /> {p}
+                              </Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               ))}
           </div>

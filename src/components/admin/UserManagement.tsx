@@ -526,7 +526,15 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                 {degreeOptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
               </SelectContent>
             </Select>
-            <div className="relative">
+            <Select value={pathFilter} onValueChange={(v) => { setPathFilter(v); clearSelection(); }}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="AI Path" /></SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                <SelectItem value="all">All AI paths</SelectItem>
+                <SelectItem value="has">Has path</SelectItem>
+                <SelectItem value="none">No path</SelectItem>
+                <SelectItem value="beginner">Beginner default</SelectItem>
+              </SelectContent>
+            </Select>
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name or email..."

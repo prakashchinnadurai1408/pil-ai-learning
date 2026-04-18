@@ -9,7 +9,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { videoTitle, moduleName, questionCount = 5 } = await req.json();
+    const { videoTitle, moduleName, questionCount = 5, ageGroup = "", difficulty = "" } = await req.json();
 
     if (!videoTitle || !moduleName) {
       return new Response(JSON.stringify({ error: "videoTitle and moduleName are required" }), {
@@ -26,15 +26,31 @@ serve(async (req) => {
       });
     }
 
-    const prompt = `You are a quiz generator for an AI learning platform. Generate exactly ${questionCount} multiple-choice questions specifically about the topic "${videoTitle}" from the module "${moduleName}".
+    // ===== Age-aware adaptive guidance =====
+    const ageGuide = getAgeQuizGuide(ageGroup);
+    const diff = (difficulty || ageGuide.defaultDifficulty).toLowerCase();
+    const diffGuide = getDifficultyGuide(diff);
+
+    const prompt = `You are an adaptive quiz generator for an Indian AI learning platform.
+
+LEARNER AGE GROUP: ${ageGuide.label}
+- Reading level: ${ageGuide.readingLevel}
+- Tone & examples: ${ageGuide.toneAndExamples}
+
+TARGET DIFFICULTY: ${diff.toUpperCase()}
+- ${diffGuide}
+
+Generate exactly ${questionCount} multiple-choice questions specifically about the topic "${videoTitle}" from the module "${moduleName}".
 
 Each question must:
-- Be directly relevant to the specific video lesson topic "${videoTitle}", NOT generic module-level questions
+- Be directly relevant to the specific topic "${videoTitle}", NOT generic module-level questions
+- Use vocabulary, sentence length and examples appropriate to the LEARNER AGE GROUP above
+- Match the TARGET DIFFICULTY above
 - Have exactly 4 options
 - Have exactly 1 correct answer
-- Include a brief explanation
+- Include a brief, age-appropriate explanation
 
-IMPORTANT: Generate DIFFERENT questions each time. Vary the difficulty, angles, and specific sub-topics covered.
+IMPORTANT: Generate DIFFERENT questions each time. Vary angles and sub-topics covered.
 
 Respond ONLY with valid JSON in this exact format, no markdown:
 [

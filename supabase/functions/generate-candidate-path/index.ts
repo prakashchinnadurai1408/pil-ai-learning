@@ -78,12 +78,15 @@ serve(async (req) => {
 
     // ===== New candidate WITHOUT diagnostic: default beginner path =====
     if (!hasActivity && !diagnosticData) {
+      const ageGroup = (candidate as any).age_group || "";
+      const ageProfile = getAgeProfile(ageGroup);
+      const tone = ageProfile.tone;
       const path = await createPath(sb, {
         candidateId,
         candidateName: candidate.name,
-        title: "Beginner's AI Learning Journey",
+        title: ageProfile.beginnerTitle,
         rationale:
-          "Welcome! You haven't completed any modules or assessments yet, so we've created a beginner-friendly journey. Start with Module 1 to build a solid foundation, then progress through prompt engineering and LLM basics before tackling advanced topics like RAG and fine-tuning.",
+          `${tone.welcome} You haven't completed any modules or assessments yet, so we've created a beginner-friendly journey ${tone.tailoredFor}. Start with Module 1 to build a solid foundation, then progress through prompt engineering and LLM basics before tackling advanced topics like RAG and fine-tuning. The AI Agent will increase difficulty automatically as your scores improve.`,
         modules: DEFAULT_BEGINNER_ORDER.map((id, i) => {
           const m = CORE_MODULES.find((x) => x.id === id)!;
           return {
@@ -92,16 +95,16 @@ serve(async (req) => {
             sort_order: i,
             reason:
               i === 0
-                ? "Start here — foundational AI concepts everyone needs."
+                ? tone.firstStepReason
                 : i < 3
                 ? "Builds directly on the previous module."
                 : "Advance your skills once basics are solid.",
           };
         }),
         isBeginnerDefault: true,
-        modelUsed: "default-beginner",
+        modelUsed: `default-beginner:${ageProfile.key}`,
       });
-      return new Response(JSON.stringify({ success: true, path, beginnerDefault: true }), {
+      return new Response(JSON.stringify({ success: true, path, beginnerDefault: true, ageGroup }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

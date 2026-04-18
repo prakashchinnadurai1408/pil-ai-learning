@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Layers, BookOpen, Building2, User, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, Layers, BookOpen, Building2, User, Users, Sparkles, ArrowRightLeft, Loader2 } from "lucide-react";
 
 interface ModuleGroupsManagerProps {
   /** "admin" or "trainer". If trainer, ownerId/ownerName must be set + can only assign to their students. */

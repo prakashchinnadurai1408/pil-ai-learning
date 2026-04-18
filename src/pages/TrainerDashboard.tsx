@@ -41,7 +41,7 @@ import AssignProjectDialog from "@/components/shared/AssignProjectDialog";
 
 type TabKey =
   | "students" | "assessments" | "create-assessment" | "assessment-analytics"
-  | "analytics" | "projects" | "coding"
+  | "analytics" | "projects" | "assigned-projects" | "coding"
   | "modules" | "content" | "question-bank" | "coding-bank" | "learning-paths"
   | "module-groups"
   | "proctoring" | "llm-usage";
@@ -90,6 +90,7 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
     label: "Reviews",
     items: [
       { key: "projects", label: "Projects", icon: FolderKanban },
+      { key: "assigned-projects", label: "Assigned Projects", icon: FolderKanban },
     ],
   },
 ];

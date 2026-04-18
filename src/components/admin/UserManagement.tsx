@@ -179,20 +179,65 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
   };
   const clearSelection = () => setSelectedIds(new Set());
 
+  const pollBulkProgress = (ids: string[], startedAt: string, expectedTotal: number) => {
+    if (expectedTotal <= 0) return;
+    const toastId = toast.loading(`Generating AI paths… 0/${expectedTotal} completed`);
+    const startMs = Date.now();
+    const MAX_MS = 10 * 60 * 1000; // 10 min cap
+    const interval = window.setInterval(async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from("candidate_learning_paths")
+          .select("candidate_id, generated_at")
+          .in("candidate_id", ids)
+          .gte("generated_at", startedAt);
+        if (error) throw error;
+        const doneIds = new Set((data || []).map((r: any) => r.candidate_id));
+        const done = doneIds.size;
+        if (done >= expectedTotal) {
+          window.clearInterval(interval);
+          toast.success(`AI paths generated: ${done}/${expectedTotal} completed`, { id: toastId });
+          return;
+        }
+        if (Date.now() - startMs > MAX_MS) {
+          window.clearInterval(interval);
+          toast.warning(`Bulk generation taking longer than expected: ${done}/${expectedTotal} completed. Polling stopped.`, { id: toastId });
+          return;
+        }
+        toast.loading(`Generating AI paths… ${done}/${expectedTotal} completed`, { id: toastId });
+      } catch (e) {
+        // keep polling on transient errors
+        console.error("poll error", e);
+      }
+    }, 4000);
+  };
+
   const runBulkGenerate = async () => {
     if (selectedIds.size === 0) {
       toast.error("Select at least one candidate");
       return;
     }
     setBulkRunning(true);
+    const ids = Array.from(selectedIds);
+    const startedAt = new Date().toISOString();
     try {
       const { data, error } = await supabase.functions.invoke("bulk-generate-candidate-paths", {
-        body: { candidateIds: Array.from(selectedIds), overwrite: overwriteExisting },
+        body: { candidateIds: ids, overwrite: overwriteExisting },
       });
       if (error) throw error;
-      toast.success(data?.message || `Started generating paths for ${selectedIds.size} candidate(s)`);
+      const queued: number = data?.queued ?? ids.length;
+      const skipped: number = data?.skipped ?? 0;
+      toast.success(data?.message || `Started generating paths for ${queued} candidate(s)`);
       setBulkOpen(false);
       clearSelection();
+      if (queued > 0) {
+        // Only poll for candidates actually being processed (exclude skipped ones)
+        // We don't know which were skipped server-side, so poll for all selected and
+        // expect `queued` new generations after startedAt.
+        pollBulkProgress(ids, startedAt, queued);
+      } else if (skipped > 0) {
+        toast.info(`All ${skipped} candidate(s) already had paths. Nothing to generate.`);
+      }
     } catch (e: any) {
       toast.error(`Failed to start: ${e.message || "Unknown error"}`);
     } finally {

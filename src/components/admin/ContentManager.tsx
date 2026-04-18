@@ -471,30 +471,55 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                 {selectedModuleId && (() => {
                   const mod = adminModules.find(m => m.id === Number(selectedModuleId));
                   if (!mod || mod.topics.length === 0) return null;
+                  const moduleItems = items.filter(i => i.module_id === mod.id && i.status === "published");
+                  const countForTopic = (title: string) => {
+                    const q = title.toLowerCase();
+                    return moduleItems.filter(i => {
+                      if (i.title?.toLowerCase().includes(q)) return true;
+                      const c: any = i.content;
+                      const blob = `${c?.title || ""} ${c?.youtubeQuery || ""} ${c?.description || ""}`.toLowerCase();
+                      return blob.includes(q);
+                    }).length;
+                  };
                   return (
                     <div className="rounded-lg border border-border bg-card/50 p-3 space-y-2">
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Topics in {mod.title} ({mod.topics.length})
                       </p>
                       <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                        {mod.topics.map(t => (
-                          <div key={t.id} className="flex items-center justify-between gap-2 p-2 rounded-md hover:bg-muted/50">
-                            <span className="text-sm text-card-foreground truncate flex-1">{t.title}</span>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1.5 text-xs h-7 shrink-0"
-                              onClick={() => { setTopic(t.title); setTimeout(() => handleGenerate(), 0); }}
-                              disabled={generating || generatingAllTopics}
-                            >
-                              <Sparkles className="h-3 w-3" />
-                              Generate {section.label}
-                            </Button>
-                          </div>
-                        ))}
+                        {mod.topics.map(t => {
+                          const count = countForTopic(t.title);
+                          return (
+                            <div key={t.id} className="flex items-center justify-between gap-2 p-2 rounded-md hover:bg-muted/50">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <span className="text-sm text-card-foreground truncate">{t.title}</span>
+                                <span
+                                  className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
+                                    count === 0
+                                      ? "bg-warning/15 text-warning"
+                                      : "bg-success/15 text-success"
+                                  }`}
+                                  title={`${count} published ${section.label.toLowerCase()}`}
+                                >
+                                  {count} {section.label.toLowerCase()}
+                                </span>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1.5 text-xs h-7 shrink-0"
+                                onClick={() => { setTopic(t.title); setTimeout(() => handleGenerate(), 0); }}
+                                disabled={generating || generatingAllTopics}
+                              >
+                                <Sparkles className="h-3 w-3" />
+                                Generate
+                              </Button>
+                            </div>
+                          );
+                        })}
                       </div>
                       <p className="text-[11px] text-muted-foreground">
-                        Click a topic to auto-fill and generate {section.label.toLowerCase()} for it.
+                        Click a topic to auto-fill and generate {section.label.toLowerCase()} for it. Badges show published items matching each topic.
                       </p>
                     </div>
                   );

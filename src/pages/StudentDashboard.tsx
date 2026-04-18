@@ -37,6 +37,7 @@ const AICoachWidget = lazy(() => import("@/components/dashboard/AICoachWidget"))
 const MyAILearningPath = lazy(() => import("@/components/dashboard/MyAILearningPath"));
 const StudentModulesView = lazy(() => import("@/components/dashboard/StudentModulesView"));
 const MyAssignedProjects = lazy(() => import("@/components/dashboard/MyAssignedProjects"));
+const MyModuleGroups = lazy(() => import("@/components/dashboard/MyModuleGroups"));
 
 type TabKey = keyof MenuAccessConfig;
 
@@ -162,17 +163,30 @@ const StudentDashboard = () => {
             </Suspense>
           </ErrorBoundary>
         ) : (
-          <Suspense fallback={<ContentSkeleton />}>
-            <StudentModulesView
-              studentId={studentId}
-              college={studentCollege}
-              department={studentDepartment}
-              degree={studentDegree}
-              filteredModules={filteredModules}
-              filteredAdminModules={filteredAdminModules}
-              onOpenModule={(id) => setSelectedModuleId(id)}
-            />
-          </Suspense>
+          <div className="space-y-4">
+            {studentId && (
+              <Suspense fallback={null}>
+                <MyModuleGroups
+                  studentId={studentId}
+                  college={studentCollege}
+                  department={studentDepartment}
+                  degree={studentDegree}
+                  onOpenModule={(id) => setSelectedModuleId(id)}
+                />
+              </Suspense>
+            )}
+            <Suspense fallback={<ContentSkeleton />}>
+              <StudentModulesView
+                studentId={studentId}
+                college={studentCollege}
+                department={studentDepartment}
+                degree={studentDegree}
+                filteredModules={filteredModules}
+                filteredAdminModules={filteredAdminModules}
+                onOpenModule={(id) => setSelectedModuleId(id)}
+              />
+            </Suspense>
+          </div>
         );
       case "videos":
         return <Suspense fallback={<ContentSkeleton />}><VideoLearning /></Suspense>;

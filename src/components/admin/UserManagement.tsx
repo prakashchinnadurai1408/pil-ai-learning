@@ -1004,6 +1004,16 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
           })()}
         </SheetContent>
       </Sheet>
+
+      <AssignProjectDialog
+        open={assignProjectOpen}
+        onOpenChange={setAssignProjectOpen}
+        students={filteredUsers.filter(u => selectedIds.has(u.id)).map(u => ({ id: u.id, name: u.name }))}
+        assignerRole="admin"
+        assignerId="admin"
+        assignerName="Admin"
+        onAssigned={() => clearSelection()}
+      />
     </div>
   );
 };

@@ -438,6 +438,38 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                   </Button>
                 )}
 
+                {selectedModuleId && (() => {
+                  const mod = adminModules.find(m => m.id === Number(selectedModuleId));
+                  if (!mod || mod.topics.length === 0) return null;
+                  return (
+                    <div className="rounded-lg border border-border bg-card/50 p-3 space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Topics in {mod.title} ({mod.topics.length})
+                      </p>
+                      <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                        {mod.topics.map(t => (
+                          <div key={t.id} className="flex items-center justify-between gap-2 p-2 rounded-md hover:bg-muted/50">
+                            <span className="text-sm text-card-foreground truncate flex-1">{t.title}</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1.5 text-xs h-7 shrink-0"
+                              onClick={() => { setTopic(t.title); setTimeout(() => handleGenerate(), 0); }}
+                              disabled={generating || generatingAllTopics}
+                            >
+                              <Sparkles className="h-3 w-3" />
+                              Generate {section.label}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Click a topic to auto-fill and generate {section.label.toLowerCase()} for it.
+                      </p>
+                    </div>
+                  );
+                })()}
+
                 {generatedContent && generatedContent.length > 0 && (
                   <div className="space-y-3 mt-4">
                     <h4 className="font-display font-semibold text-sm text-card-foreground">

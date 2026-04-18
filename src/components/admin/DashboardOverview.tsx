@@ -12,6 +12,13 @@ interface ContentCount {
   draft: number;
 }
 
+const AGE_BUCKETS = [
+  { key: "10-14", label: "10–14 yrs" },
+  { key: "15-18", label: "15–18 yrs" },
+  { key: "19-22", label: "19–22 yrs" },
+  { key: "23+",   label: "23+ yrs" },
+];
+
 interface Trainer { id: string; name: string; college: string }
 interface Student { id: string; name: string; college: string }
 

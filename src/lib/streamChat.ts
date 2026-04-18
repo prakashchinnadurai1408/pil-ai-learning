@@ -1,4 +1,8 @@
-type Msg = { role: "user" | "assistant"; content: string };
+type ContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+type Msg = { role: "user" | "assistant"; content: string | ContentPart[] };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 

@@ -280,9 +280,22 @@ Return ONLY valid JSON in this exact format, no other text:
 
       {/* Existing Modules */}
       <div>
-        <h3 className="font-display font-semibold text-card-foreground mb-4">
-          All Modules ({loading ? "..." : adminModules.length})
-        </h3>
+        <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+          <h3 className="font-display font-semibold text-card-foreground">
+            All Modules ({loading ? "..." : adminModules.length})
+          </h3>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Sort by date:</Label>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as "newest" | "oldest")}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+          </div>
+        </div>
         {loading ? (
           <div className="text-sm text-muted-foreground">Loading modules...</div>
         ) : adminModules.length === 0 ? (
@@ -291,34 +304,42 @@ Return ONLY valid JSON in this exact format, no other text:
           </div>
         ) : (
           <div className="grid gap-3">
-            {adminModules.map((m) => (
-              <div key={m.id} className="bg-card rounded-lg border border-border p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
-                    {m.id}
+            {[...adminModules]
+              .sort((a, b) =>
+                sortOrder === "newest"
+                  ? new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                  : new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              )
+              .map((m, idx) => (
+                <div key={m.id} className="bg-card rounded-lg border border-border p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0">
+                      {idx + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-medium text-sm text-card-foreground block truncate">{m.title}</span>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {m.topics.length} topics · {m.duration} · Created {new Date(m.created_at).toLocaleDateString()} by {m.created_by || "admin"}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-medium text-sm text-card-foreground">{m.title}</span>
-                    <p className="text-xs text-muted-foreground">{m.topics.length} topics · {m.duration}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    m.status === "published" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
-                  }`}>
-                    {m.status === "published" ? "Published" : "Draft"}
-                  </span>
-                  {m.status === "draft" && (
-                    <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setPublishConfirmId(m.id)}>
-                      <Check className="h-3 w-3" /> Review & Publish
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      m.status === "published" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+                    }`}>
+                      {m.status === "published" ? "Published" : "Draft"}
+                    </span>
+                    {m.status === "draft" && (
+                      <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setPublishConfirmId(m.id)}>
+                        <Check className="h-3 w-3" /> Review & Publish
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDeleteModule(m.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
-                  )}
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDeleteModule(m.id)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         )}
       </div>

@@ -41,6 +41,32 @@ const AIModuleCreator = () => {
   const [publishConfirmId, setPublishConfirmId] = useState<number | null>(null);
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [expandedModuleId, setExpandedModuleId] = useState<number | null>(null);
+  const [trainers, setTrainers] = useState<Array<{ id: string; name: string }>>([]);
+  const [scopeBusyId, setScopeBusyId] = useState<number | null>(null);
+
+  const isAdmin = typeof window !== "undefined" && !!sessionStorage.getItem("adminEmail");
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    supabase.from("trainers").select("id,name").then(({ data }) => {
+      setTrainers((data as any) || []);
+    });
+  }, [isAdmin]);
+
+  const trainerNameById = (id: string | null) =>
+    id ? (trainers.find(t => t.id === id)?.name || "Trainer") : "Admin (Global)";
+
+  const handleChangeScope = async (moduleId: number, newTrainerId: string | null) => {
+    setScopeBusyId(moduleId);
+    const { error } = await supabase
+      .from("admin_modules")
+      .update({ trainer_id: newTrainerId } as any)
+      .eq("id", moduleId);
+    setScopeBusyId(null);
+    if (error) { toast.error("Failed to update module scope"); return; }
+    toast.success(newTrainerId ? "Module scoped to trainer" : "Module promoted to global");
+    refetch();
+  };
 
   const countByTopic = (topicId: string, sectionType: string) =>
     allSectionContent.filter(c => c.topic_id === topicId && c.section_type === sectionType && c.status === "published").length;

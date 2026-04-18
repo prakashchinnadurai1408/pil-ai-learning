@@ -21,8 +21,8 @@ const StudentLogin = () => {
   const [newPassword, setNewPassword] = useState({ password: "", confirm: "" });
 
   const handleRegisterSendOTP = async () => {
-    if (!form.name || !form.email || !form.mobile || !form.college || !form.location || !form.password) {
-      toast.error("Please fill all fields");
+    if (!form.name || !form.email || !form.mobile || !form.college || !form.location || !form.password || !form.age_group) {
+      toast.error("Please fill all fields including your age group");
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {

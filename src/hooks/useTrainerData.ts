@@ -61,7 +61,7 @@ export function useTrainerData() {
       ? studentsRaw.filter((s: any) => allowedStudentIds!.has(s.id))
       : studentsRaw;
 
-    const mapped: StudentData[] = studentsRaw.map((s: any) => {
+    const mapped: StudentData[] = visibleStudents.map((s: any) => {
       const prog = (progressRaw || []).filter((p: any) => p.student_id === s.id);
       const scores = (scoresRaw || []).filter((sc: any) => sc.student_id === s.id);
       const modulesCompleted = prog.filter((p: any) => p.completed).length;

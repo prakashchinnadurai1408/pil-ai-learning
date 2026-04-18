@@ -6,8 +6,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Search, Database, Trash2, Filter, HelpCircle, CheckSquare } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, Database, Trash2, Filter, HelpCircle, CheckSquare, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import AIQuestionBankGenerator from "./AIQuestionBankGenerator";
 
 interface BankQuestion {
   id: string;
@@ -116,7 +118,17 @@ const QuestionBankViewer = () => {
   }, [questions]);
 
   return (
-    <div className="space-y-6">
+    <Tabs defaultValue="browse" className="space-y-6">
+      <TabsList>
+        <TabsTrigger value="browse" className="gap-2"><Database className="h-4 w-4" /> Browse Bank</TabsTrigger>
+        <TabsTrigger value="generate" className="gap-2"><Sparkles className="h-4 w-4" /> AI Generate</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="generate">
+        <AIQuestionBankGenerator onGenerated={fetchQuestions} />
+      </TabsContent>
+
+      <TabsContent value="browse" className="space-y-6">
       {/* Stats */}
       <div className="grid sm:grid-cols-3 gap-4">
         <div className="bg-card rounded-lg border border-border p-5 shadow-card flex items-center gap-4">

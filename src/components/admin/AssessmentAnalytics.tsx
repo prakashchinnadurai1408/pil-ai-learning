@@ -44,6 +44,7 @@ const AssessmentAnalytics = ({ initialSearch = "" }: { initialSearch?: string } 
   const [exportingPDF, setExportingPDF] = useState(false);
   const [studentsMap, setStudentsMap] = useState<Record<string, StudentInfo>>({});
   const [analyticsView, setAnalyticsView] = useState<string>("overall");
+  const [reviewAttempt, setReviewAttempt] = useState<AssessmentAttempt | null>(null);
 
   // Fetch students for degree/dept data
   useEffect(() => {

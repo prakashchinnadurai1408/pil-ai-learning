@@ -8,6 +8,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
+import LLMUsageCohortPanel from "./LLMUsageCohortPanel";
 
 interface UsageRow {
   id: string;
@@ -147,6 +148,9 @@ const LLMUsageAnalytics = () => {
           );
         })}
       </div>
+
+      {/* Cohort / college aggregation with per-feature sparklines */}
+      <LLMUsageCohortPanel />
 
       {/* Time-series usage by model */}
       <Card>

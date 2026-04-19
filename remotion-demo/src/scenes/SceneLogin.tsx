@@ -8,8 +8,8 @@ export const SceneLogin: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const cardScale = spring({ frame, fps, config: { damping: 14, stiffness: 120 } });
-  const mobileChars = "9876543210".slice(0, Math.floor(interpolate(frame, [25, 55], [0, 10], { extrapolateRight: "clamp" })));
-  const pwdChars = "•".repeat(Math.floor(interpolate(frame, [60, 85], [0, 8], { extrapolateRight: "clamp" })));
+  const mobileChars = "9876543210".slice(0, Math.max(0, Math.floor(interpolate(frame, [25, 55], [0, 10], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }))));
+  const pwdChars = "•".repeat(Math.max(0, Math.floor(interpolate(frame, [60, 85], [0, 8], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }))));
   return (
     <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
       <BrowserFrame url="aiupskillhub.com/student-login">

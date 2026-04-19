@@ -493,6 +493,8 @@ const TrainerAssignments = () => {
               />
             </div>
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTrainer(null)} disabled={savingEdit}>Cancel</Button>
             <Button className="bg-gradient-primary border-0 text-primary-foreground" onClick={saveEdit} disabled={savingEdit}>
               {savingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save changes"}
             </Button>

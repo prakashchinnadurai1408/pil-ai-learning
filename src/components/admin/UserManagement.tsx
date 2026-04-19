@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,16 @@ import {
   PieChart, Pie, Cell, Legend, LineChart, Line
 } from "recharts";
 import AssignProjectDialog from "@/components/shared/AssignProjectDialog";
+
+// Forward-ref button wrapper for TooltipTrigger asChild usage
+const TooltipButton = forwardRef<HTMLButtonElement, { children: React.ReactNode; onClick?: () => void; className?: string }>(
+  ({ children, onClick, className }, ref) => (
+    <button ref={ref} onClick={onClick} className={className} type="button">
+      {children}
+    </button>
+  )
+);
+TooltipButton.displayName = "TooltipButton";
 
 const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: string; onClearSearch?: () => void }) => {
   const { students, loading, totalStudents, avgProgress, avgOverallScore, moduleStats, scoreDistribution } = useTrainerData();
@@ -754,34 +764,34 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                         .map(id => trainersList.find(t => t.id === id)?.name)
                         .filter(Boolean) as string[];
                       return (
-                        <TooltipProvider delayDuration={150}>
-                          <UITooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => openReassign(u)}
-                                className="inline-flex items-center gap-1 group"
-                              >
-                                <Badge variant={assignedIds.length > 0 ? "secondary" : "outline"} className="gap-1">
-                                  <UserCog className="h-3 w-3" /> {assignedIds.length}
-                                </Badge>
-                                <span className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">Edit</span>
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              {assignedNames.length === 0 ? (
-                                <p className="text-xs">No trainers assigned. Click to assign.</p>
-                              ) : (
-                                <div className="space-y-1">
-                                  <p className="text-xs font-semibold">Assigned trainers:</p>
-                                  <ul className="text-xs space-y-0.5">
-                                    {assignedNames.map(n => <li key={n}>• {n}</li>)}
-                                  </ul>
-                                  <p className="text-[10px] text-muted-foreground pt-1">Click to reassign</p>
-                                </div>
-                              )}
-                            </TooltipContent>
-                          </UITooltip>
-                        </TooltipProvider>
+                      <TooltipProvider delayDuration={150}>
+                        <UITooltip>
+                          <TooltipTrigger asChild>
+                            <TooltipButton
+                              onClick={() => openReassign(u)}
+                              className="inline-flex items-center gap-1 group"
+                            >
+                              <Badge variant={assignedIds.length > 0 ? "secondary" : "outline"} className="gap-1">
+                                <UserCog className="h-3 w-3" /> {assignedIds.length}
+                              </Badge>
+                              <span className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">Edit</span>
+                            </TooltipButton>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs">
+                            {assignedNames.length === 0 ? (
+                              <p className="text-xs">No trainers assigned. Click to assign.</p>
+                            ) : (
+                              <div className="space-y-1">
+                                <p className="text-xs font-semibold">Assigned trainers:</p>
+                                <ul className="text-xs space-y-0.5">
+                                  {assignedNames.map(n => <li key={n}>• {n}</li>)}
+                                </ul>
+                                <p className="text-[10px] text-muted-foreground pt-1">Click to reassign</p>
+                              </div>
+                            )}
+                          </TooltipContent>
+                        </UITooltip>
+                      </TooltipProvider>
                       );
                     })()}
                   </td>
@@ -796,33 +806,33 @@ const UserManagement = ({ initialSearch, onClearSearch }: { initialSearch?: stri
                       const date = new Date(p.generated_at);
                       const dateStr = date.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "2-digit" });
                       return (
-                        <TooltipProvider delayDuration={150}>
-                          <UITooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => openPathSheet(u)}
-                                className="inline-flex flex-col items-start gap-0.5 group cursor-pointer"
+                      <TooltipProvider delayDuration={150}>
+                        <UITooltip>
+                          <TooltipTrigger asChild>
+                            <TooltipButton
+                              onClick={() => openPathSheet(u)}
+                              className="inline-flex flex-col items-start gap-0.5 group cursor-pointer"
+                            >
+                              <Badge
+                                variant={p.is_beginner_default ? "outline" : "secondary"}
+                                className="gap-1 text-xs group-hover:ring-2 group-hover:ring-primary/40 transition-all"
                               >
-                                <Badge
-                                  variant={p.is_beginner_default ? "outline" : "secondary"}
-                                  className="gap-1 text-xs group-hover:ring-2 group-hover:ring-primary/40 transition-all"
-                                >
-                                  <Sparkles className="h-3 w-3 text-primary" />
-                                  {p.is_beginner_default ? "Beginner" : "Active"}
-                                </Badge>
-                                <span className="text-[10px] text-muted-foreground">{dateStr}</span>
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                              <p className="text-xs">
-                                {p.is_beginner_default ? "Beginner default path" : "AI-personalized path"}
-                              </p>
-                              <p className="text-[10px] text-muted-foreground">
-                                Generated {date.toLocaleString()}
-                              </p>
-                            </TooltipContent>
-                          </UITooltip>
-                        </TooltipProvider>
+                                <Sparkles className="h-3 w-3 text-primary" />
+                                {p.is_beginner_default ? "Beginner" : "Active"}
+                              </Badge>
+                              <span className="text-[10px] text-muted-foreground">{dateStr}</span>
+                            </TooltipButton>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <p className="text-xs">
+                              {p.is_beginner_default ? "Beginner default path" : "AI-personalized path"}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              Generated {date.toLocaleString()}
+                            </p>
+                          </TooltipContent>
+                        </UITooltip>
+                      </TooltipProvider>
                       );
                     })()}
                   </td>

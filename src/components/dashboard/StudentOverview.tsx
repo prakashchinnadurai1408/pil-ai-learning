@@ -56,6 +56,16 @@ interface UsageCounts {
   quizzes: number;
 }
 
+type Spark = number[]; // 7 numbers, oldest → newest
+interface UsageSparks {
+  aiChat: Spark;
+  aiTools: Spark;
+  prompts: Spark;
+  coding: Spark;
+  modules: Spark;
+  quizzes: Spark;
+}
+
 interface AssessmentStat {
   attempts: number;
   avgScore: number;

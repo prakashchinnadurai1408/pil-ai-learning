@@ -57,6 +57,7 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterModuleId, setFilterModuleId] = useState<string>("all");
+  const [filterTopicId, setFilterTopicId] = useState<string>("all");
   const [generatingAllTopics, setGeneratingAllTopics] = useState(false);
   const [editingYoutubeId, setEditingYoutubeId] = useState<string | null>(null);
   const [youtubeIdInput, setYoutubeIdInput] = useState("");
@@ -217,6 +218,13 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
     return items.filter(item => {
       if (filterStatus !== "all" && item.status !== filterStatus) return false;
       if (filterModuleId !== "all" && String(item.module_id) !== filterModuleId) return false;
+      if (filterTopicId !== "all") {
+        if (filterTopicId === "__untagged__") {
+          if ((item as any).topic_id) return false;
+        } else if ((item as any).topic_id !== filterTopicId) {
+          return false;
+        }
+      }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const contentStr = typeof item.content === "object" ? JSON.stringify(item.content) : "";
@@ -224,7 +232,7 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
       }
       return true;
     });
-  }, [items, searchQuery, filterStatus, filterModuleId]);
+  }, [items, searchQuery, filterStatus, filterModuleId, filterTopicId]);
 
   const draftItems = filteredItems.filter(i => i.status === "draft");
   const allDraftsSelected = draftItems.length > 0 && draftItems.every(i => selectedIds.has(i.id));
@@ -643,7 +651,7 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
 
   return (
     <div className="space-y-6">
-      <Tabs value={activeSection} onValueChange={(v) => { setActiveSection(v); setGeneratedContent(null); setTopic(""); setSelectedIds(new Set()); setSearchQuery(""); setFilterStatus("all"); setFilterModuleId("all"); }}>
+      <Tabs value={activeSection} onValueChange={(v) => { setActiveSection(v); setGeneratedContent(null); setTopic(""); setSelectedIds(new Set()); setSearchQuery(""); setFilterStatus("all"); setFilterModuleId("all"); setFilterTopicId("all"); }}>
         <TabsList className="bg-muted p-1 mb-6">
           {SECTION_TYPES.map(s => {
             const Icon = s.icon;
@@ -875,7 +883,7 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                     <SelectItem value="published">Published</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={filterModuleId} onValueChange={setFilterModuleId}>
+                <Select value={filterModuleId} onValueChange={(v) => { setFilterModuleId(v); setFilterTopicId("all"); }}>
                   <SelectTrigger className="w-[160px] h-9 text-sm">
                     <SelectValue placeholder="Module" />
                   </SelectTrigger>
@@ -886,6 +894,25 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                     ))}
                   </SelectContent>
                 </Select>
+                {section.id === "videos" && (
+                  <Select value={filterTopicId} onValueChange={setFilterTopicId}>
+                    <SelectTrigger className="w-[180px] h-9 text-sm">
+                      <SelectValue placeholder="Topic" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Topics</SelectItem>
+                      <SelectItem value="__untagged__">⚠ Untagged only</SelectItem>
+                      {(filterModuleId !== "all"
+                        ? (adminModules.find(m => String(m.id) === filterModuleId)?.topics || [])
+                        : adminModules.flatMap(m => m.topics.map(t => ({ ...t, _mod: m.title })))
+                      ).map((t: any) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {filterModuleId === "all" && t._mod ? `${t._mod} • ${t.title}` : t.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="flex items-center justify-between mb-4">

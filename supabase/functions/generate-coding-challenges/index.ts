@@ -11,7 +11,7 @@ serve(async (req) => {
 
   try {
     const { category, difficulty, count, ageGroup = "" } = await req.json();
-    const numChallenges = Math.min(count || 5, 20);
+    const numChallenges = Math.min(Math.max(count || 5, 1), 5);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
@@ -57,6 +57,8 @@ Return ONLY the JSON array, no markdown, no explanation.`;
     if (!aiRes.ok) {
       const errText = await aiRes.text();
       console.error("AI error:", aiRes.status, errText);
+      if (aiRes.status === 429) throw new Error("AI rate limit reached. Please wait and try again.");
+      if (aiRes.status === 402) throw new Error("AI credits exhausted. Please top up Lovable AI credits.");
       throw new Error(`AI service error: ${aiRes.status}`);
     }
 

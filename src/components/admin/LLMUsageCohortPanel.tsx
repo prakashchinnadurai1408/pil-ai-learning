@@ -91,6 +91,19 @@ const LLMUsageCohortPanel = () => {
     });
   }, [scopedLogs]);
 
+  const leaderboard = useMemo(() => {
+    const counts = new Map<string, number>();
+    scopedLogs.forEach((l) => counts.set(l.user_id, (counts.get(l.user_id) || 0) + 1));
+    const nameMap = new Map(students.map((s) => [s.id, s]));
+    return Array.from(counts.entries())
+      .map(([uid, calls]) => {
+        const s = nameMap.get(uid);
+        return { uid, calls, name: s?.name || "Unknown", college: s?.college || "—" };
+      })
+      .sort((a, b) => b.calls - a.calls)
+      .slice(0, 10);
+  }, [scopedLogs, students]);
+
   const scopeStudentCount = scope.type === "all" ? students.length : scopedUserIds.size;
 
   if (loading) {
@@ -157,6 +170,41 @@ const LLMUsageCohortPanel = () => {
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-semibold text-card-foreground">Top 10 most active students</h4>
+            <span className="text-[10px] text-muted-foreground">by total LLM calls (7d)</span>
+          </div>
+          {leaderboard.length === 0 ? (
+            <div className="text-center text-xs text-muted-foreground py-6 border border-dashed border-border rounded-lg">
+              No usage in this scope yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-xs text-muted-foreground">
+                  <tr>
+                    <th className="p-2 text-left font-medium w-10">#</th>
+                    <th className="p-2 text-left font-medium">Student</th>
+                    <th className="p-2 text-left font-medium">College</th>
+                    <th className="p-2 text-right font-medium">Calls</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {leaderboard.map((r, i) => (
+                    <tr key={r.uid} className="hover:bg-muted/30">
+                      <td className="p-2 text-xs text-muted-foreground">{i + 1}</td>
+                      <td className="p-2 text-xs font-medium">{r.name}</td>
+                      <td className="p-2 text-xs text-muted-foreground">{r.college}</td>
+                      <td className="p-2 text-xs text-right font-mono">{r.calls.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

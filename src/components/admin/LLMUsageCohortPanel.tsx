@@ -2,11 +2,22 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, MessageSquare, Wrench, Sparkles, Code2, BookOpen, ClipboardCheck } from "lucide-react";
 
 type Scope = { type: "all" | "college" | "cohort"; college?: string; degree?: string; department?: string };
 
-interface UsageRow { user_id: string; feature: string; created_at: string; }
+interface UsageRow {
+  user_id: string;
+  feature: string;
+  created_at: string;
+  model?: string;
+  provider?: string;
+  total_tokens?: number;
+  latency_ms?: number;
+  status?: string;
+}
 
 const FEATURES = [
   { key: "chat", label: "AI Chat", icon: MessageSquare, match: (f: string) => f === "chat" },
@@ -35,12 +46,14 @@ const LLMUsageCohortPanel = () => {
   const [logs, setLogs] = useState<UsageRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [scope, setScope] = useState<Scope>({ type: "all" });
+  const [drillUid, setDrillUid] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       const [s, l] = await Promise.all([
         supabase.from("students").select("id,name,college,degree,department"),
-        supabase.from("llm_usage_logs").select("user_id,feature,created_at")
+        supabase.from("llm_usage_logs")
+          .select("user_id,feature,created_at,model,provider,total_tokens,latency_ms,status")
           .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
           .limit(50000),
       ]);

@@ -7,9 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Loader2, Search, Users, UserCheck, Building2, UserPlus } from "lucide-react";
+import { Loader2, Search, Users, UserCheck, Building2, UserPlus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { TIERS, TIER_META, type Tier } from "@/hooks/useMenuAccessControls";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Trainer { id: string; name: string; email: string; college: string; subscription_tier?: string; }
 interface Student { id: string; name: string; email: string; college: string; }

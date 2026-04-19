@@ -491,6 +491,16 @@ Format the response in clean markdown with headers and bullet points.`
 
       {/* Question-Level Analytics */}
       <QuestionLevelAnalytics assessments={assessments} attempts={filteredAttempts} onStatsReady={setQuestionStatsForExport} />
+
+      {/* Per-attempt review dialog */}
+      <AttemptReviewDialog
+        open={!!reviewAttempt}
+        onOpenChange={(v) => !v && setReviewAttempt(null)}
+        attempt={reviewAttempt}
+        assessmentTitle={assessments.find(a => a.id === reviewAttempt?.assessment_id)?.title || ""}
+        passingScore={assessments.find(a => a.id === reviewAttempt?.assessment_id)?.passing_score || 60}
+        onSaved={() => { refetchAttempts(); setReviewAttempt(null); }}
+      />
     </div>
   );
 };

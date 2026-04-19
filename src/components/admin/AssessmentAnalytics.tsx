@@ -34,7 +34,7 @@ interface StudentInfo {
 
 const AssessmentAnalytics = ({ initialSearch = "" }: { initialSearch?: string } = {}) => {
   const { assessments } = useAssessments();
-  const { attempts, loading } = useAssessmentAttempts();
+  const { attempts, loading, refetch: refetchAttempts } = useAssessmentAttempts();
   const { allowedNames } = useTrainerScope();
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState(initialSearch);

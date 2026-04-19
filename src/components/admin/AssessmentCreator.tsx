@@ -674,6 +674,18 @@ const AssessmentCreator = () => {
           </CardContent>
         </Card>
 
+        {/* Step 4: Review preview */}
+        <AssessmentMixPreview
+          questions={questions}
+          difficulty={aiDifficulty}
+          plannedMix={{
+            mcq: parseInt(mixMcq) || 0,
+            descriptive: parseInt(mixDescriptive) || 0,
+            video: parseInt(mixVideo) || 0,
+            coding: parseInt(mixCoding) || 0,
+          }}
+        />
+
         <div className="flex items-center justify-between p-4 bg-muted rounded-lg sticky bottom-0">
           <p className="text-sm"><strong>{questions.filter(q => q.question.trim()).length}</strong> questions ready</p>
           <Button onClick={handleCreate} disabled={creating} className="gap-2 bg-gradient-primary border-0 text-primary-foreground">

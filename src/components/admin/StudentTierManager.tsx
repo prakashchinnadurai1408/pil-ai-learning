@@ -37,6 +37,8 @@ const StudentTierManager = () => {
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkTier, setBulkTier] = useState<TierKey>("beginner");
+  const [studentMenus, setStudentMenus] = useState<MenuRow[]>([]);
+  const [trainerMenus, setTrainerMenus] = useState<MenuRow[]>([]);
 
   const fetchStudents = async () => {
     const { data } = await supabase
@@ -47,7 +49,11 @@ const StudentTierManager = () => {
     setLoading(false);
   };
 
-  useEffect(() => { fetchStudents(); }, []);
+  useEffect(() => {
+    fetchStudents();
+    fetchMenuRows("student").then(setStudentMenus);
+    fetchMenuRows("trainer").then(setTrainerMenus);
+  }, []);
 
   const updateTier = async (studentId: string, newTier: string) => {
     const { error } = await supabase

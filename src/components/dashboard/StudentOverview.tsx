@@ -481,12 +481,12 @@ const StudentOverview = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <UsageTile icon={MessageSquare} label="AI Chat" value={usage.aiChat} onClick={() => onNavigate("playground")} />
-          <UsageTile icon={FlaskConical} label="AI Tools" value={usage.aiTools} onClick={() => onNavigate("tools")} />
-          <UsageTile icon={Pencil} label="Prompts" value={usage.prompts} onClick={() => onNavigate("prompts")} />
-          <UsageTile icon={Code2} label="Coding" value={usage.coding} onClick={() => onNavigate("coding")} />
-          <UsageTile icon={BookOpen} label="Modules" value={usage.modulesAccessed} onClick={() => onNavigate("modules")} />
-          <UsageTile icon={Trophy} label="Quizzes" value={usage.quizzes} onClick={() => onNavigate("modules")} />
+          <UsageTile icon={MessageSquare} label="AI Chat" value={usage.aiChat} spark={sparks.aiChat} onClick={() => onNavigate("playground")} />
+          <UsageTile icon={FlaskConical} label="AI Tools" value={usage.aiTools} spark={sparks.aiTools} onClick={() => onNavigate("tools")} />
+          <UsageTile icon={Pencil} label="Prompts" value={usage.prompts} spark={sparks.prompts} onClick={() => onNavigate("prompts")} />
+          <UsageTile icon={Code2} label="Coding" value={usage.coding} spark={sparks.coding} onClick={() => onNavigate("coding")} />
+          <UsageTile icon={BookOpen} label="Modules" value={usage.modulesAccessed} spark={sparks.modules} onClick={() => onNavigate("modules")} />
+          <UsageTile icon={Trophy} label="Quizzes" value={usage.quizzes} spark={sparks.quizzes} onClick={() => onNavigate("modules")} />
         </CardContent>
       </Card>
 
@@ -609,11 +609,28 @@ const KPI = ({ icon: Icon, label, value }: { icon: typeof BookOpen; label: strin
   </Card>
 );
 
-const UsageTile = ({ icon: Icon, label, value, onClick }: { icon: typeof BookOpen; label: string; value: number; onClick: () => void }) => (
+const Sparkline = ({ data }: { data: number[] }) => {
+  const max = Math.max(1, ...data);
+  return (
+    <div className="flex items-end justify-between gap-[2px] h-5 mt-1.5" aria-label="Last 7 days activity">
+      {data.map((v, i) => (
+        <div
+          key={i}
+          className="flex-1 bg-primary/30 rounded-sm"
+          style={{ height: `${Math.max(8, (v / max) * 100)}%`, opacity: v === 0 ? 0.25 : 1 }}
+          title={`${v} on day ${i + 1}`}
+        />
+      ))}
+    </div>
+  );
+};
+
+const UsageTile = ({ icon: Icon, label, value, spark, onClick }: { icon: typeof BookOpen; label: string; value: number; spark?: number[]; onClick: () => void }) => (
   <button onClick={onClick} className="text-center p-3 rounded-lg border border-border hover:bg-muted/30 hover:border-primary/30 transition-colors">
     <Icon className="h-4 w-4 text-primary mx-auto mb-1" />
     <p className="text-base font-display font-bold text-card-foreground">{value}</p>
     <p className="text-[10px] text-muted-foreground">{label}</p>
+    {spark && <Sparkline data={spark} />}
   </button>
 );
 

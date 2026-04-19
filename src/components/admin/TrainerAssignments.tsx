@@ -42,7 +42,7 @@ const TrainerAssignments = () => {
     name: "", email: "", mobile: "", college: "", location: "", password: "", subscription_tier: "free" as Tier,
   });
   const [editTrainer, setEditTrainer] = useState<Trainer | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", email: "", mobile: "", college: "", location: "" });
+  const [editForm, setEditForm] = useState({ name: "", email: "", mobile: "", college: "", location: "", password: "" });
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Trainer | null>(null);
   const [deleting, setDeleting] = useState(false);

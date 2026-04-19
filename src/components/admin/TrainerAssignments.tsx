@@ -294,7 +294,10 @@ const TrainerAssignments = () => {
             </Button>
           </div>
 
-          <p className="text-xs text-muted-foreground">{draft.size} selected • {filteredStudents.length} shown</p>
+          <p className="text-xs text-muted-foreground">
+            {draft.size} selected • {filteredStudents.length} unassigned shown
+            {assignedToOthers.size > 0 && ` • ${assignedToOthers.size} hidden (already assigned to other trainers)`}
+          </p>
 
           <div className="flex-1 overflow-y-auto border border-border rounded-md divide-y divide-border">
             {filteredStudents.length === 0 ? (

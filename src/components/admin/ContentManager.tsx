@@ -803,7 +803,7 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                           AI Auto-Link Agent
                         </h4>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Scans every existing video and uses keyword matching against module topic titles to assign
+                          Scans videos and uses AI/keyword matching against module topic titles to assign
                           the best-fit topic automatically. {selectedModuleId
                             ? "Currently scoped to the selected module."
                             : "Currently scoped to all modules."} Preview the proposed changes before applying.
@@ -842,6 +842,16 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                           : selectedModuleId
                             ? "Auto-Link Videos in Module"
                             : "Auto-Link All Videos to Topics"}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        className="gap-2 text-sm border-dashed border-warning/50 text-warning-foreground hover:bg-warning/10"
+                        onClick={handleRelinkUntaggedVideos}
+                        disabled={relinkingVideos || previewingRelink}
+                        title="One-click: Only process videos without a topic assigned"
+                      >
+                        {relinkingVideos ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                        Auto-Link Untagged Only
                       </Button>
                     </div>
                   </div>

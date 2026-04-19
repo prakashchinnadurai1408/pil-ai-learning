@@ -47,6 +47,18 @@ const TrainerAssignments = () => {
   const [deleteTarget, setDeleteTarget] = useState<Trainer | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [unassignedOpen, setUnassignedOpen] = useState(false);
+  const [quickAssigning, setQuickAssigning] = useState<string | null>(null);
+
+  const quickAssign = async (studentId: string, trainerId: string) => {
+    setQuickAssigning(studentId);
+    const { error } = await (supabase as any).from("trainer_students")
+      .insert({ trainer_id: trainerId, student_id: studentId });
+    setQuickAssigning(null);
+    if (error) { toast.error(error.message); return; }
+    const trainer = trainers.find(t => t.id === trainerId);
+    toast.success(`Assigned to ${trainer?.name || "trainer"}`);
+    await load();
+  };
 
   const load = async () => {
     setLoading(true);
@@ -579,9 +591,31 @@ const TrainerAssignments = () => {
                       </div>
                       <div className="divide-y divide-border">
                         {grouped[college].map(s => (
-                          <div key={s.id} className="px-3 py-2 hover:bg-muted/30">
-                            <p className="text-sm font-medium text-card-foreground truncate">{s.name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{s.email}</p>
+                          <div key={s.id} className="px-3 py-2 hover:bg-muted/30 flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-card-foreground truncate">{s.name}</p>
+                              <p className="text-xs text-muted-foreground truncate">{s.email}</p>
+                            </div>
+                            <Select
+                              value=""
+                              disabled={quickAssigning === s.id || trainers.length === 0}
+                              onValueChange={(trainerId) => quickAssign(s.id, trainerId)}
+                            >
+                              <SelectTrigger className="h-8 w-[180px] text-xs">
+                                {quickAssigning === s.id
+                                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                                  : <SelectValue placeholder="Quick assign…" />}
+                              </SelectTrigger>
+                              <SelectContent className="bg-popover z-[60]">
+                                {trainers.length === 0 ? (
+                                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No trainers available</div>
+                                ) : trainers.map(tr => (
+                                  <SelectItem key={tr.id} value={tr.id} className="text-xs">
+                                    {tr.name} <span className="text-muted-foreground ml-1">· {tr.college}</span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                         ))}
                       </div>

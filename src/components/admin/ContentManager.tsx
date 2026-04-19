@@ -883,7 +883,7 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                     <SelectItem value="published">Published</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={filterModuleId} onValueChange={setFilterModuleId}>
+                <Select value={filterModuleId} onValueChange={(v) => { setFilterModuleId(v); setFilterTopicId("all"); }}>
                   <SelectTrigger className="w-[160px] h-9 text-sm">
                     <SelectValue placeholder="Module" />
                   </SelectTrigger>
@@ -894,6 +894,25 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                     ))}
                   </SelectContent>
                 </Select>
+                {section.id === "videos" && (
+                  <Select value={filterTopicId} onValueChange={setFilterTopicId}>
+                    <SelectTrigger className="w-[180px] h-9 text-sm">
+                      <SelectValue placeholder="Topic" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Topics</SelectItem>
+                      <SelectItem value="__untagged__">⚠ Untagged only</SelectItem>
+                      {(filterModuleId !== "all"
+                        ? (adminModules.find(m => String(m.id) === filterModuleId)?.topics || [])
+                        : adminModules.flatMap(m => m.topics.map(t => ({ ...t, _mod: m.title })))
+                      ).map((t: any) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {filterModuleId === "all" && t._mod ? `${t._mod} • ${t.title}` : t.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="flex items-center justify-between mb-4">

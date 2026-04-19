@@ -6,7 +6,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Search, Users, UserCheck, Building2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Loader2, Search, Users, UserCheck, Building2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { TIERS, TIER_META, type Tier } from "@/hooks/useMenuAccessControls";
 

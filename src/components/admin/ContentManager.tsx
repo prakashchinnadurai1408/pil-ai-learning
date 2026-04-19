@@ -214,6 +214,107 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
     }
   };
 
+  const computeRelinkUntaggedPlan = async () => {
+    const targetModuleId = selectedModuleId ? Number(selectedModuleId) : null;
+    const modulesToProcess = targetModuleId
+      ? adminModules.filter(m => m.id === targetModuleId)
+      : adminModules;
+    const eligibleModules = modulesToProcess.filter(m => m.topics.length > 0);
+    if (eligibleModules.length === 0) {
+      toast.error("Pick a module that has topics, or add topics first.");
+      return;
+    }
+
+    setPreviewingRelink(true);
+    const { bestTopicId } = await import("@/lib/topicMatch");
+    const changes: NonNullable<typeof relinkPreview>["changes"] = [];
+    let scanned = 0;
+
+    try {
+      for (const mod of eligibleModules) {
+        const topicById = new Map(mod.topics.map(t => [t.id, t.title]));
+        const { data: videos } = await supabase
+          .from("admin_section_content")
+          .select("id, title, content, topic_id")
+          .eq("section_type", "videos")
+          .eq("module_id", mod.id)
+          .is("topic_id", null);
+        if (!videos) continue;
+
+        for (const v of videos) {
+          scanned++;
+          const c = (v.content as any) || {};
+          const text = `${v.title || ""} ${c.title || ""} ${c.youtubeQuery || ""} ${c.description || ""}`;
+          const newTopicId = bestTopicId(text, mod.topics);
+          if (newTopicId) {
+            changes.push({
+              id: v.id,
+              videoTitle: v.title || c.title || "(untitled)",
+              moduleTitle: mod.title,
+              fromTopic: "(unassigned)",
+              toTopic: topicById.get(newTopicId) || "(unknown)",
+              newTopicId,
+            });
+          }
+        }
+      }
+      setRelinkPreview({ changes, scanned, moduleCount: eligibleModules.length });
+    } catch {
+      toast.error("Preview failed. Please try again.");
+    } finally {
+      setPreviewingRelink(false);
+    }
+  };
+
+  const handleRelinkUntaggedVideos = async () => {
+    const targetModuleId = selectedModuleId ? Number(selectedModuleId) : null;
+    const modulesToProcess = targetModuleId
+      ? adminModules.filter(m => m.id === targetModuleId)
+      : adminModules;
+    const eligibleModules = modulesToProcess.filter(m => m.topics.length > 0);
+    if (eligibleModules.length === 0) {
+      toast.error("Pick a module that has topics, or add topics first.");
+      return;
+    }
+
+    setRelinkingVideos(true);
+    const { bestTopicId } = await import("@/lib/topicMatch");
+    let updated = 0;
+    let scanned = 0;
+
+    try {
+      for (const mod of eligibleModules) {
+        const { data: videos } = await supabase
+          .from("admin_section_content")
+          .select("id, title, content, topic_id")
+          .eq("section_type", "videos")
+          .eq("module_id", mod.id)
+          .is("topic_id", null);
+        if (!videos) continue;
+
+        for (const v of videos) {
+          scanned++;
+          const c = (v.content as any) || {};
+          const text = `${v.title || ""} ${c.title || ""} ${c.youtubeQuery || ""} ${c.description || ""}`;
+          const newTopicId = bestTopicId(text, mod.topics);
+          if (newTopicId) {
+            const { error } = await supabase
+              .from("admin_section_content")
+              .update({ topic_id: newTopicId } as any)
+              .eq("id", v.id);
+            if (!error) updated++;
+          }
+        }
+      }
+      toast.success(`Linked ${updated} of ${scanned} untagged video${scanned === 1 ? "" : "s"}.`);
+      refetch();
+    } catch {
+      toast.error("Auto-link failed. Please try again.");
+    } finally {
+      setRelinkingVideos(false);
+    }
+  };
+
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       if (filterStatus !== "all" && item.status !== filterStatus) return false;
@@ -725,7 +826,7 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                           AI Auto-Link Agent
                         </h4>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Scans every existing video and uses keyword matching against module topic titles to assign
+                          Scans videos and uses AI/keyword matching against module topic titles to assign
                           the best-fit topic automatically. {selectedModuleId
                             ? "Currently scoped to the selected module."
                             : "Currently scoped to all modules."} Preview the proposed changes before applying.
@@ -764,6 +865,16 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                           : selectedModuleId
                             ? "Auto-Link Videos in Module"
                             : "Auto-Link All Videos to Topics"}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        className="gap-2 text-sm border-dashed border-warning/50 text-warning-foreground hover:bg-warning/10"
+                        onClick={handleRelinkUntaggedVideos}
+                        disabled={relinkingVideos || previewingRelink}
+                        title="One-click: Only process videos without a topic assigned"
+                      >
+                        {relinkingVideos ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                        Auto-Link Untagged Only
                       </Button>
                     </div>
                   </div>

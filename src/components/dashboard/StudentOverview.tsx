@@ -188,6 +188,31 @@ const StudentOverview = ({
       quizzes: assessScoresRes.data?.length || 0,
     });
 
+    // 7-day sparklines (oldest → newest). Bucket each event into the day index.
+    const dayMs = 86400000;
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const startTs = startOfToday.getTime() - 6 * dayMs; // 7 buckets total
+    const empty = (): Spark => [0, 0, 0, 0, 0, 0, 0];
+    const bucket = (arr: Spark, isoOrTs: string | number | null | undefined) => {
+      if (!isoOrTs) return;
+      const ts = typeof isoOrTs === "number" ? isoOrTs : new Date(isoOrTs).getTime();
+      const idx = Math.floor((ts - startTs) / dayMs);
+      if (idx >= 0 && idx < 7) arr[idx]++;
+    };
+    const sChat = empty(), sTools = empty(), sPrompts = empty();
+    chatLogs.forEach((l: any) => {
+      if (l.feature === "chat") bucket(sChat, l.created_at);
+      else if (l.feature === "prompt_lab") bucket(sPrompts, l.created_at);
+      else if (String(l.feature || "").startsWith("tool")) bucket(sTools, l.created_at);
+    });
+    const sCoding = empty();
+    (codingRes.data || []).forEach((c: any) => bucket(sCoding, c.solved_at));
+    const sModules = empty();
+    modProg.forEach((m: any) => bucket(sModules, m.last_accessed));
+    const sQuizzes = empty();
+    (assessScoresRes.data || []).forEach((q: any) => bucket(sQuizzes, q.attempted_at));
+    setSparks({ aiChat: sChat, aiTools: sTools, prompts: sPrompts, coding: sCoding, modules: sModules, quizzes: sQuizzes });
+
     // Assessments
     const attempts = (assessAttemptsRes.data || []).filter((a: any) => a.completed_at);
     const avgScore = attempts.length ? Math.round(attempts.reduce((s: number, a: any) => s + (a.score || 0), 0) / attempts.length) : 0;

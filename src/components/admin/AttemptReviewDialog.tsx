@@ -32,7 +32,7 @@ const typeIcon = (t: string) => {
   }
 };
 
-const AttemptReviewDialog = ({ open, onOpenChange, attempt, assessmentTitle, passingScore, onSaved }: Props) => {
+const AttemptReviewDialog = ({ open, onOpenChange, attempt, assessmentTitle, passingScore, onSaved, siblingAttempts = [], onSwitchAttempt }: Props) => {
   const [questions, setQuestions] = useState<AssessmentQuestion[]>([]);
   const [grading, setGrading] = useState<Grading>({});
   const [overrides, setOverrides] = useState<Record<string, string>>({}); // raw input strings

@@ -166,9 +166,7 @@ const StudentDashboard = () => {
   const filteredModules = allowedModuleIds === null ? modules : modules.filter((m) => allowedModuleIds.includes(m.id));
   const filteredAdminModules = allowedModuleIds === null ? publishedAdminModules : publishedAdminModules.filter((m) => allowedModuleIds.includes(m.id));
 
-  // Header / inline gates for non-sidebar menus
-  const showAIPath = isAllowed(menuAccess, "ai_path", userTier);
-  const showModuleGroups = isAllowed(menuAccess, "module_groups", userTier);
+  // Header gates for non-sidebar buttons
   const showNotifications = isAllowed(menuAccess, "notifications", userTier);
   const showProfileBtn = isAllowed(menuAccess, "profile", userTier);
 

@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Database, Trash2, Filter, HelpCircle, CheckSquare, Sparkles } from "lucide-react";
+import { Search, Database, Trash2, Filter, HelpCircle, CheckSquare, Sparkles, FolderTree } from "lucide-react";
 import { toast } from "sonner";
 import AIQuestionBankGenerator from "./AIQuestionBankGenerator";
+import { useModuleGroups } from "@/hooks/useModuleGroups";
 
 interface BankQuestion {
   id: string;
@@ -28,8 +29,10 @@ const QuestionBankViewer = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterModule, setFilterModule] = useState("all");
+  const [filterGroup, setFilterGroup] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const { groups } = useModuleGroups();
 
   const fetchQuestions = async () => {
     setLoading(true);
@@ -57,16 +60,23 @@ const QuestionBankViewer = () => {
     return Array.from(map.entries()).sort((a, b) => a[0] - b[0]);
   }, [questions]);
 
+  const groupModuleIds = useMemo(() => {
+    if (filterGroup === "all") return null;
+    const g = groups.find((x) => x.id === filterGroup);
+    return g ? new Set(g.items.map((i) => i.module_id)) : new Set<number>();
+  }, [filterGroup, groups]);
+
   const filtered = useMemo(() => {
     return questions.filter((q) => {
       if (filterModule !== "all" && q.module_id !== Number(filterModule)) return false;
+      if (groupModuleIds && !groupModuleIds.has(q.module_id)) return false;
       if (search) {
         const s = search.toLowerCase();
         return q.question.toLowerCase().includes(s) || q.explanation.toLowerCase().includes(s);
       }
       return true;
     });
-  }, [questions, search, filterModule]);
+  }, [questions, search, filterModule, groupModuleIds]);
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("quiz_question_bank").delete().eq("id", id);
@@ -180,6 +190,20 @@ const QuestionBankViewer = () => {
             {moduleList.map(([id, name]) => (
               <SelectItem key={id} value={String(id)}>
                 Module {id}: {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterGroup} onValueChange={setFilterGroup}>
+          <SelectTrigger className="w-[220px]">
+            <FolderTree className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+            <SelectValue placeholder="Filter by module group" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Module Groups</SelectItem>
+            {groups.map((g) => (
+              <SelectItem key={g.id} value={g.id}>
+                {g.name} ({g.items.length})
               </SelectItem>
             ))}
           </SelectContent>

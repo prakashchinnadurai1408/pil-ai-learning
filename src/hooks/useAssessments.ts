@@ -233,7 +233,7 @@ export async function createAssessment(assessment: CreateAssessmentInput) {
 
 async function mirrorToQuestionBank(
   moduleId: number | null,
-  questions: Omit<AssessmentQuestion, "id" | "assessment_id" | "created_at">[]
+  questions: Omit<AssessmentQuestion, "id" | "assessment_id" | "created_at" | "sort_order">[]
 ) {
   if (!moduleId || questions.length === 0) return;
 

@@ -695,8 +695,18 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                     <Button
                       variant="outline"
                       className="gap-2 text-sm"
+                      onClick={computeRelinkPlan}
+                      disabled={previewingRelink || relinkingVideos}
+                      title="Preview proposed topic re-assignments without applying them"
+                    >
+                      {previewingRelink ? <Loader2 className="h-4 w-4 animate-spin" /> : <GitCompare className="h-4 w-4" />}
+                      {previewingRelink ? "Computing preview..." : "Preview Re-link Changes"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gap-2 text-sm"
                       onClick={handleRelinkAllVideos}
-                      disabled={relinkingVideos}
+                      disabled={relinkingVideos || previewingRelink}
                       title={selectedModuleId ? "Re-run topic matcher for videos in the selected module" : "Re-run topic matcher across every module"}
                     >
                       {relinkingVideos ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}

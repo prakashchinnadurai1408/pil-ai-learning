@@ -405,7 +405,7 @@ const StudentDashboard = () => {
                   <Progress value={overallProgress} className="h-2" />
                 </div>
 
-                {studentId && (
+                {studentId && activeTab === "overview" && (
                   <div className="mb-8">
                     <ErrorBoundary>
                       <Suspense fallback={<ContentSkeleton />}>
@@ -413,19 +413,6 @@ const StudentDashboard = () => {
                           studentId={studentId}
                           studentName={studentName}
                           onOpenChat={() => setActiveTab("playground")}
-                        />
-                      </Suspense>
-                    </ErrorBoundary>
-                  </div>
-                )}
-
-                {studentId && showAIPath && activeTab === "modules" && !selectedModuleId && (
-                  <div className="mb-8">
-                    <ErrorBoundary>
-                      <Suspense fallback={<ContentSkeleton />}>
-                        <MyAILearningPath
-                          candidateId={studentId}
-                          onOpenModule={(id) => setSelectedModuleId(id)}
                         />
                       </Suspense>
                     </ErrorBoundary>

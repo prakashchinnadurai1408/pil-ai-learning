@@ -181,17 +181,6 @@ const StudentDashboard = () => {
           </ErrorBoundary>
         ) : (
           <div className="space-y-4">
-            {studentId && showModuleGroups && (
-              <Suspense fallback={null}>
-                <MyModuleGroups
-                  studentId={studentId}
-                  college={studentCollege}
-                  department={studentDepartment}
-                  degree={studentDegree}
-                  onOpenModule={(id) => setSelectedModuleId(id)}
-                />
-              </Suspense>
-            )}
             <Suspense fallback={<ContentSkeleton />}>
               <StudentModulesView
                 studentId={studentId}

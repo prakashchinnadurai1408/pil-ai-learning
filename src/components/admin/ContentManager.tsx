@@ -89,7 +89,7 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
     }
 
     setPreviewingRelink(true);
-    const { bestTopicId } = await import("@/lib/topicMatch");
+    const { bestTopicIdsAI } = await import("@/lib/topicMatch");
     const changes: NonNullable<typeof relinkPreview>["changes"] = [];
     let scanned = 0;
 
@@ -103,11 +103,19 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
           .eq("module_id", mod.id);
         if (!videos) continue;
 
+        const itemsForAI = videos.map((v) => {
+          const c = (v.content as any) || {};
+          return {
+            key: v.id,
+            text: `${v.title || ""} ${c.title || ""} ${c.youtubeQuery || ""} ${c.description || ""}`,
+          };
+        });
+        const matches = await bestTopicIdsAI(itemsForAI, mod.topics);
+
         for (const v of videos) {
           scanned++;
           const c = (v.content as any) || {};
-          const text = `${v.title || ""} ${c.title || ""} ${c.youtubeQuery || ""} ${c.description || ""}`;
-          const newTopicId = bestTopicId(text, mod.topics);
+          const newTopicId = matches[v.id] || null;
           if (newTopicId && newTopicId !== v.topic_id) {
             changes.push({
               id: v.id,
@@ -162,7 +170,7 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
     }
 
     setRelinkingVideos(true);
-    const { bestTopicId } = await import("@/lib/topicMatch");
+    const { bestTopicIdsAI } = await import("@/lib/topicMatch");
     let updated = 0;
     let scanned = 0;
 
@@ -175,11 +183,18 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
           .eq("module_id", mod.id);
         if (!videos) continue;
 
+        const itemsForAI = videos.map((v) => {
+          const c = (v.content as any) || {};
+          return {
+            key: v.id,
+            text: `${v.title || ""} ${c.title || ""} ${c.youtubeQuery || ""} ${c.description || ""}`,
+          };
+        });
+        const matches = await bestTopicIdsAI(itemsForAI, mod.topics);
+
         for (const v of videos) {
           scanned++;
-          const c = (v.content as any) || {};
-          const text = `${v.title || ""} ${c.title || ""} ${c.youtubeQuery || ""} ${c.description || ""}`;
-          const newTopicId = bestTopicId(text, mod.topics);
+          const newTopicId = matches[v.id] || null;
           if (newTopicId && newTopicId !== v.topic_id) {
             const { error } = await supabase
               .from("admin_section_content")

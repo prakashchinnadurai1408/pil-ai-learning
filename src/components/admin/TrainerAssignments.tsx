@@ -32,6 +32,11 @@ const TrainerAssignments = () => {
   const [draft, setDraft] = useState<Set<string>>(new Set());
   const [bulkCollege, setBulkCollege] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newTrainer, setNewTrainer] = useState({
+    name: "", email: "", mobile: "", college: "", location: "", password: "", subscription_tier: "free" as Tier,
+  });
 
   const load = async () => {
     setLoading(true);

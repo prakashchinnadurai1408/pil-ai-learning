@@ -450,8 +450,18 @@ Format the response in clean markdown with headers and bullet points.`
                       </td>
                       <td className="p-3 text-sm text-muted-foreground">{r.avgScore}%</td>
                       <td className="p-3 text-sm text-muted-foreground">{r.attempts}</td>
+                      <td className="p-3">
+                        <Button
+                          variant="ghost" size="sm" className="h-7 px-2 gap-1"
+                          disabled={!latest}
+                          onClick={() => latest && setReviewAttempt(latest)}
+                        >
+                          <Eye className="h-3.5 w-3.5" /> Review
+                        </Button>
+                      </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

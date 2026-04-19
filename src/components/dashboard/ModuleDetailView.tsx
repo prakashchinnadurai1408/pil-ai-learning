@@ -198,7 +198,12 @@ const StaticModuleDetail = ({ mod, content, moduleId, onBack, studentId, student
 
             <TabsContent value="videos" className="mt-3">
               <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
-                <ModuleVideosPanel moduleId={moduleId} />
+                <ModuleVideosPanel
+                  moduleId={moduleId}
+                  topics={content.lessons.map((l) => ({ id: String(l.id), title: l.title }))}
+                  activeTopicId={String(activeLesson.id)}
+                  activeTopicTitle={activeLesson.title}
+                />
               </div>
             </TabsContent>
 
@@ -349,7 +354,12 @@ const AdminModuleDetailView = ({ mod, moduleId, onBack, studentId, studentName }
 
             <TabsContent value="videos" className="mt-3">
               <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
-                <ModuleVideosPanel moduleId={moduleId} />
+                <ModuleVideosPanel
+                  moduleId={moduleId}
+                  topics={topics.map((t) => ({ id: t.id, title: t.title }))}
+                  activeTopicId={activeTopic?.id ?? null}
+                  activeTopicTitle={activeTopic?.title ?? null}
+                />
               </div>
             </TabsContent>
 

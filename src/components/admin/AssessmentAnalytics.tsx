@@ -418,8 +418,12 @@ Format the response in clean markdown with headers and bullet points.`
                 </thead>
                 <tbody className="divide-y divide-border">
                   {rankings.length === 0 ? (
-                    <tr><td colSpan={8} className="p-8 text-center text-sm text-muted-foreground">No assessment data yet</td></tr>
-                  ) : rankings.map((r, i) => (
+                    <tr><td colSpan={9} className="p-8 text-center text-sm text-muted-foreground">No assessment data yet</td></tr>
+                  ) : rankings.map((r, i) => {
+                    const latest = filteredAttempts
+                      .filter(a => a.student_name === r.name)
+                      .sort((a, b) => new Date(b.completed_at || b.started_at).getTime() - new Date(a.completed_at || a.started_at).getTime())[0];
+                    return (
                     <tr key={r.name} className="hover:bg-muted/30">
                       <td className="p-3">
                         {i < 3 ? (

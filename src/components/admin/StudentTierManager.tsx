@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Crown, Zap, Search, Users, Sparkles, Rocket, Building2 } from "lucide-react";
 import { toast } from "sonner";
+import { fetchMenuRows, type MenuRow, type Tier } from "@/hooks/useMenuAccessControls";
 
 interface Student {
   id: string;
@@ -36,6 +37,8 @@ const StudentTierManager = () => {
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkTier, setBulkTier] = useState<TierKey>("beginner");
+  const [studentMenus, setStudentMenus] = useState<MenuRow[]>([]);
+  const [trainerMenus, setTrainerMenus] = useState<MenuRow[]>([]);
 
   const fetchStudents = async () => {
     const { data } = await supabase
@@ -46,7 +49,11 @@ const StudentTierManager = () => {
     setLoading(false);
   };
 
-  useEffect(() => { fetchStudents(); }, []);
+  useEffect(() => {
+    fetchStudents();
+    fetchMenuRows("student").then(setStudentMenus);
+    fetchMenuRows("trainer").then(setTrainerMenus);
+  }, []);
 
   const updateTier = async (studentId: string, newTier: string) => {
     const { error } = await supabase
@@ -124,11 +131,18 @@ const StudentTierManager = () => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {TIERS.map(t => {
             const Icon = t.icon;
+            const studentMenuCount = studentMenus.filter(r => r[t.key as Tier]).length;
+            const trainerMenuCount = trainerMenus.filter(r => r[t.key as Tier]).length;
             return (
-              <div key={t.key} className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm ${t.cls}`}>
-                <Icon className="h-3.5 w-3.5" />
-                <span className="text-xs">{t.label}</span>
-                <span className="ml-auto font-semibold">{counts[t.key] || 0}</span>
+              <div key={t.key} className={`flex flex-col gap-1 px-3 py-2 rounded-md text-sm ${t.cls}`}>
+                <div className="flex items-center gap-2">
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="text-xs">{t.label}</span>
+                  <span className="ml-auto font-semibold">{counts[t.key] || 0}</span>
+                </div>
+                <div className="text-[10px] opacity-80 leading-tight">
+                  {studentMenuCount}/{studentMenus.length} student · {trainerMenuCount}/{trainerMenus.length} trainer menus
+                </div>
               </div>
             );
           })}

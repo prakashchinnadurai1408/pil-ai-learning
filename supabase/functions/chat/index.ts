@@ -67,7 +67,7 @@ serve(async (req) => {
   const startedAt = Date.now();
 
   try {
-    const { messages, tool, studentContext, userMeta, modelOverride } = await req.json();
+    const { messages, tool, studentContext, userMeta, modelOverride, featureTag } = await req.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: "No messages provided" }), {
@@ -194,7 +194,7 @@ When the student asks for help, adapt your explanations to their level. If they 
         provider, model, promptTokens: 0, completionTokens: 0,
         latencyMs: Date.now() - startedAt, status: `error_${response.status}`,
         userRole: userMeta?.role || "student", userName: userMeta?.name || "",
-        userId: userMeta?.id || "", feature: typeof tool === "string" ? tool : "chat",
+        userId: userMeta?.id || "", feature: (typeof featureTag === "string" && featureTag) ? featureTag : (typeof tool === "string" ? tool : "chat"),
       });
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
@@ -265,7 +265,7 @@ When the student asks for help, adapt your explanations to their level. If they 
         provider, model, promptTokens, completionTokens,
         latencyMs: Date.now() - startedAt, status: "success",
         userRole: userMeta?.role || "student", userName: userMeta?.name || "",
-        userId: userMeta?.id || "", feature: typeof tool === "string" ? tool : "chat",
+        userId: userMeta?.id || "", feature: (typeof featureTag === "string" && featureTag) ? featureTag : (typeof tool === "string" ? tool : "chat"),
       });
     })();
 

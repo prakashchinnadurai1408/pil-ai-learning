@@ -592,15 +592,31 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                 </Button>
 
                 {section.id === "videos" && (
-                  <Button
-                    variant="outline"
-                    className="gap-2 text-sm"
-                    onClick={handleBulkFetchYoutubeIds}
-                    disabled={fetchingYoutubeIds}
-                  >
-                    {fetchingYoutubeIds ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                    {fetchingYoutubeIds ? "Fetching IDs..." : "Auto-Fetch YouTube IDs"}
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      className="gap-2 text-sm"
+                      onClick={handleBulkFetchYoutubeIds}
+                      disabled={fetchingYoutubeIds}
+                    >
+                      {fetchingYoutubeIds ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                      {fetchingYoutubeIds ? "Fetching IDs..." : "Auto-Fetch YouTube IDs"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gap-2 text-sm"
+                      onClick={handleRelinkAllVideos}
+                      disabled={relinkingVideos}
+                      title={selectedModuleId ? "Re-run topic matcher for videos in the selected module" : "Re-run topic matcher across every module"}
+                    >
+                      {relinkingVideos ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      {relinkingVideos
+                        ? "Re-linking..."
+                        : selectedModuleId
+                          ? "Re-link Videos in Module"
+                          : "Re-link All Videos"}
+                    </Button>
+                  </>
                 )}
 
                 {selectedModuleId && (() => {

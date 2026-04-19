@@ -60,16 +60,23 @@ const QuestionBankViewer = () => {
     return Array.from(map.entries()).sort((a, b) => a[0] - b[0]);
   }, [questions]);
 
+  const groupModuleIds = useMemo(() => {
+    if (filterGroup === "all") return null;
+    const g = groups.find((x) => x.id === filterGroup);
+    return g ? new Set(g.items.map((i) => i.module_id)) : new Set<number>();
+  }, [filterGroup, groups]);
+
   const filtered = useMemo(() => {
     return questions.filter((q) => {
       if (filterModule !== "all" && q.module_id !== Number(filterModule)) return false;
+      if (groupModuleIds && !groupModuleIds.has(q.module_id)) return false;
       if (search) {
         const s = search.toLowerCase();
         return q.question.toLowerCase().includes(s) || q.explanation.toLowerCase().includes(s);
       }
       return true;
     });
-  }, [questions, search, filterModule]);
+  }, [questions, search, filterModule, groupModuleIds]);
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("quiz_question_bank").delete().eq("id", id);

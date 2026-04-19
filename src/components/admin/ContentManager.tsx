@@ -149,15 +149,27 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
     if (!generatedContent || generatedContent.length === 0) return;
     setSaving(true);
 
-    const rows = generatedContent.map((item, i) => ({
-      module_id: Number(selectedModuleId),
-      topic_id: selectedTopicId,
-      section_type: activeSection,
-      title: item.title || item.prompt || item.question || `${topic} - Item ${i + 1}`,
-      content: item,
-      status: "draft",
-      sort_order: i,
-    }));
+    // Auto-link each video to a topic when admin didn't pick one explicitly.
+    const moduleTopics = adminModules.find(m => m.id === Number(selectedModuleId))?.topics || [];
+    const { bestTopicId } = await import("@/lib/topicMatch");
+
+    const rows = generatedContent.map((item, i) => {
+      const itemTitle = item.title || item.prompt || item.question || `${topic} - Item ${i + 1}`;
+      const resolvedTopicId =
+        selectedTopicId
+        ?? (activeSection === "videos" && moduleTopics.length
+              ? bestTopicId(`${itemTitle} ${item.youtubeQuery || ""}`, moduleTopics)
+              : null);
+      return {
+        module_id: Number(selectedModuleId),
+        topic_id: resolvedTopicId,
+        section_type: activeSection,
+        title: itemTitle,
+        content: item,
+        status: "draft",
+        sort_order: i,
+      };
+    });
 
     const { data: inserted, error } = await supabase
       .from("admin_section_content")

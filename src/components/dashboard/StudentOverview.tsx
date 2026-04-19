@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, forwardRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -595,19 +595,22 @@ const StudentOverview = ({
   );
 };
 
-const KPI = ({ icon: Icon, label, value }: { icon: typeof BookOpen; label: string; value: string }) => (
-  <Card>
-    <CardContent className="p-3 flex items-center gap-3">
-      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-        <Icon className="h-4 w-4 text-primary" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-lg font-display font-bold text-card-foreground leading-tight">{value}</p>
-        <p className="text-[10px] text-muted-foreground truncate">{label}</p>
-      </div>
-    </CardContent>
-  </Card>
+const KPI = forwardRef<HTMLDivElement, { icon: typeof BookOpen; label: string; value: string }>(
+  ({ icon: Icon, label, value }, ref) => (
+    <Card ref={ref}>
+      <CardContent className="p-3 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <Icon className="h-4 w-4 text-primary" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-lg font-display font-bold text-card-foreground leading-tight">{value}</p>
+          <p className="text-[10px] text-muted-foreground truncate">{label}</p>
+        </div>
+      </CardContent>
+    </Card>
+  ),
 );
+KPI.displayName = "KPI";
 
 const Sparkline = ({ data }: { data: number[] }) => {
   const max = Math.max(1, ...data);

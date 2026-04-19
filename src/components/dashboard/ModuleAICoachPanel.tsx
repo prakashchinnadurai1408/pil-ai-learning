@@ -62,6 +62,8 @@ const ModuleAICoachPanel = ({ studentId, studentName, moduleId, moduleTitle }: P
     try {
       const { data, error } = await supabase.functions.invoke("chat", {
         body: {
+          nonStream: true,
+          featureTag: "module_coach",
           messages: [
             { role: "system", content: `You are an AI Coach helping ${studentName} learn the module "${moduleTitle}". Be concise, friendly, and module-focused. Keep replies under 120 words.` },
             ...messages.map((m) => ({ role: m.role, content: m.content })),
@@ -70,10 +72,15 @@ const ModuleAICoachPanel = ({ studentId, studentName, moduleId, moduleTitle }: P
         },
       });
       if (error) throw error;
-      const reply = data?.choices?.[0]?.message?.content || data?.text || "Sorry, I couldn't generate a response.";
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+      const reply = data?.reply || data?.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
     } catch (e: any) {
-      toast.error("Coach unavailable right now");
+      console.error("Coach error:", e);
+      toast.error("Coach unavailable right now. Please try again.");
     } finally {
       setSending(false);
     }

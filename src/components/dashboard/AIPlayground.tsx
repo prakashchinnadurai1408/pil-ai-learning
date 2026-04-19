@@ -144,21 +144,21 @@ const AIPlayground = () => {
   }, [input, isLoading, messages, lang]);
 
   return (
-    <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden" role="region" aria-label="AI Chat Playground">
-      <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+    <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden w-full max-w-full" role="region" aria-label="AI Chat Playground">
+      <div className="p-3 sm:p-4 border-b border-border flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center flex-shrink-0">
             <Sparkles className="h-4 w-4 text-primary-foreground" aria-hidden="true" />
           </div>
-          <div>
-            <h3 className="font-display font-semibold text-card-foreground">Prakash — AI Coach</h3>
-            <p className="text-xs text-muted-foreground">Multilingual AI coach with voice — remembers your conversation</p>
+          <div className="min-w-0">
+            <h3 className="font-display font-semibold text-card-foreground text-sm sm:text-base truncate">Prakash — AI Coach</h3>
+            <p className="text-xs text-muted-foreground truncate hidden sm:block">Multilingual AI coach with voice — remembers your conversation</p>
           </div>
         </div>
         <ChatLanguageSelector value={lang} onChange={setLang} />
       </div>
 
-      <div ref={scrollRef} className="h-[400px] overflow-y-auto p-4 space-y-4" role="log" aria-label="Chat messages" aria-live="polite">
+      <div ref={scrollRef} className="h-[380px] sm:h-[420px] overflow-y-auto p-3 sm:p-4 space-y-4" role="log" aria-label="Chat messages" aria-live="polite">
         {messages.map((msg, i) => (
           <ChatMessage key={i} msg={msg} index={i} lang={lang} />
         ))}
@@ -179,26 +179,28 @@ const AIPlayground = () => {
         )}
       </div>
 
-      <div className="px-4 py-2 border-t border-border flex gap-2 overflow-x-auto" role="group" aria-label="Prompt suggestions">
-        <Lightbulb className="h-4 w-4 text-warning flex-shrink-0 mt-1" aria-hidden="true" />
-        {promptSuggestions.map((s) => (
-          <button
-            key={s}
-            onClick={() => handleSend(s)}
-            className="text-xs px-3 py-1.5 rounded-full border border-border bg-muted/50 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors whitespace-nowrap flex-shrink-0"
-          >
-            {s}
-          </button>
-        ))}
+      <div className="px-3 sm:px-4 py-2 border-t border-border flex items-center gap-2 overflow-x-auto" role="group" aria-label="Prompt suggestions">
+        <Lightbulb className="h-4 w-4 text-warning flex-shrink-0" aria-hidden="true" />
+        <div className="flex gap-2 min-w-0">
+          {promptSuggestions.map((s) => (
+            <button
+              key={s}
+              onClick={() => handleSend(s)}
+              className="text-xs px-3 py-1.5 rounded-full border border-border bg-muted/50 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors whitespace-nowrap flex-shrink-0"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="p-4 border-t border-border flex gap-2">
+      <div className="p-3 sm:p-4 border-t border-border flex gap-2 items-center">
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder="Type or speak your question..."
-          className="flex-1"
+          className="flex-1 min-w-0"
           aria-label="Type your message"
         />
         <ChatVoiceInput
@@ -209,7 +211,7 @@ const AIPlayground = () => {
         <Button
           onClick={() => handleSend()}
           disabled={isLoading || !input.trim()}
-          className="bg-gradient-primary border-0 text-primary-foreground"
+          className="bg-gradient-primary border-0 text-primary-foreground flex-shrink-0"
           aria-label="Send message"
         >
           <Send className="h-4 w-4" aria-hidden="true" />

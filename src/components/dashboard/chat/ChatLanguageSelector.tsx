@@ -25,10 +25,10 @@ interface Props {
 }
 
 const ChatLanguageSelector = ({ value, onChange }: Props) => (
-  <div className="flex items-center gap-2">
+  <div className="flex items-center gap-1.5 flex-shrink-0">
     <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
     <Select value={value} onValueChange={(v) => onChange(v as LanguageCode)}>
-      <SelectTrigger className="h-8 w-[180px] text-xs">
+      <SelectTrigger className="h-8 w-[140px] sm:w-[170px] text-xs">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

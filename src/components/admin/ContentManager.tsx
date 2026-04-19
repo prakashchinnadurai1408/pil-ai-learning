@@ -12,8 +12,11 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Sparkles, Video, MessageSquare, FlaskConical, ClipboardCheck, FolderKanban,
-  Loader2, Trash2, Check, AlertTriangle, Eye, Search, X
+  Loader2, Trash2, Check, AlertTriangle, Eye, Search, X, ArrowRight, GitCompare
 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminSectionContent } from "@/hooks/useAdminSectionContent";

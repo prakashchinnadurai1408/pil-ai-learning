@@ -243,9 +243,22 @@ const TrainerAssignments = () => {
           <h2 className="text-xl font-display font-semibold text-card-foreground">Trainer ↔ Student Assignments</h2>
           <p className="text-sm text-muted-foreground">Assign which candidates each trainer can see and manage.</p>
         </div>
-        <Button className="gap-2 bg-gradient-primary border-0 text-primary-foreground" onClick={() => setAddOpen(true)}>
-          <UserPlus className="h-4 w-4" /> Add Trainer
-        </Button>
+        <div className="flex items-center gap-2">
+          {(() => {
+            const mapped = new Set<string>();
+            Object.values(assignments).forEach(set => set.forEach(id => mapped.add(id)));
+            const unassigned = students.filter(s => !mapped.has(s.id)).length;
+            return (
+              <Badge variant={unassigned > 0 ? "destructive" : "secondary"} className="gap-1 h-9 px-3">
+                <Users className="h-3.5 w-3.5" />
+                {unassigned} unassigned student{unassigned === 1 ? "" : "s"}
+              </Badge>
+            );
+          })()}
+          <Button className="gap-2 bg-gradient-primary border-0 text-primary-foreground" onClick={() => setAddOpen(true)}>
+            <UserPlus className="h-4 w-4" /> Add Trainer
+          </Button>
+        </div>
       </div>
 
       <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">

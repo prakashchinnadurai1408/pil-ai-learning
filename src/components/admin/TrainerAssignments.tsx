@@ -185,9 +185,14 @@ const TrainerAssignments = () => {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-display font-semibold text-card-foreground">Trainer ↔ Student Assignments</h2>
-        <p className="text-sm text-muted-foreground">Assign which candidates each trainer can see and manage.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-display font-semibold text-card-foreground">Trainer ↔ Student Assignments</h2>
+          <p className="text-sm text-muted-foreground">Assign which candidates each trainer can see and manage.</p>
+        </div>
+        <Button className="gap-2 bg-gradient-primary border-0 text-primary-foreground" onClick={() => setAddOpen(true)}>
+          <UserPlus className="h-4 w-4" /> Add Trainer
+        </Button>
       </div>
 
       <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">

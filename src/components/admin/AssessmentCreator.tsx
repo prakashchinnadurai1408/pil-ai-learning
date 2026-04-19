@@ -23,6 +23,7 @@ import {
 } from "@/hooks/useAssessments";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import TypedQuestionEditor, { emptyQuestion, type QuestionDraft } from "./TypedQuestionEditor";
+import AssessmentMixPreview from "./AssessmentMixPreview";
 
 const toLocalInput = (iso: string | null) => {
   if (!iso) return "";

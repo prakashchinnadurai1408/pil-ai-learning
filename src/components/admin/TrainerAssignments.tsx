@@ -321,6 +321,70 @@ const TrainerAssignments = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" /> Add New Trainer
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Name *</Label>
+                <Input value={newTrainer.name} onChange={e => setNewTrainer(p => ({ ...p, name: e.target.value }))} placeholder="Full name" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Mobile *</Label>
+                <Input value={newTrainer.mobile} onChange={e => setNewTrainer(p => ({ ...p, mobile: e.target.value }))} placeholder="10-digit mobile" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Email *</Label>
+              <Input type="email" value={newTrainer.email} onChange={e => setNewTrainer(p => ({ ...p, email: e.target.value }))} placeholder="trainer@institute.com" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Institute *</Label>
+                <Input value={newTrainer.college} onChange={e => setNewTrainer(p => ({ ...p, college: e.target.value }))} placeholder="College / Org" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Location *</Label>
+                <Input value={newTrainer.location} onChange={e => setNewTrainer(p => ({ ...p, location: e.target.value }))} placeholder="City" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Initial password</Label>
+              <Input value={newTrainer.password} onChange={e => setNewTrainer(p => ({ ...p, password: e.target.value }))} placeholder="Default: trainer123" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Subscription Plan</Label>
+              <Select value={newTrainer.subscription_tier} onValueChange={(v) => setNewTrainer(p => ({ ...p, subscription_tier: v as Tier }))}>
+                <SelectTrigger className={TIER_META[newTrainer.subscription_tier].color}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  {TIERS.map(tt => (
+                    <SelectItem key={tt} value={tt}>
+                      <span className={TIER_META[tt].color}>{TIER_META[tt].label}</span>
+                      <span className="text-muted-foreground ml-2 text-xs">{TIER_META[tt].price}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)} disabled={adding}>Cancel</Button>
+            <Button className="bg-gradient-primary border-0 text-primary-foreground" onClick={addTrainer} disabled={adding}>
+              {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add Trainer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

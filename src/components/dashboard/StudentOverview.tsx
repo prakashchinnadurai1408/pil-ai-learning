@@ -136,7 +136,7 @@ const StudentOverview = ({
     }
 
     // Diagnostic
-    setDiag(diagRes.data?.[0] || null);
+    setDiag((diagRes.data?.[0] as any) || null);
 
     // Module Groups
     const groupIds = [...new Set((groupAssignsRes.data || []).map((a: any) => a.group_id))];

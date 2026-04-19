@@ -23,6 +23,7 @@ import {
 } from "@/hooks/useAssessments";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import TypedQuestionEditor, { emptyQuestion, type QuestionDraft } from "./TypedQuestionEditor";
+import AssessmentMixPreview from "./AssessmentMixPreview";
 
 const toLocalInput = (iso: string | null) => {
   if (!iso) return "";
@@ -672,6 +673,18 @@ const AssessmentCreator = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Step 4: Review preview */}
+        <AssessmentMixPreview
+          questions={questions}
+          difficulty={aiDifficulty}
+          plannedMix={{
+            mcq: parseInt(mixMcq) || 0,
+            descriptive: parseInt(mixDescriptive) || 0,
+            video: parseInt(mixVideo) || 0,
+            coding: parseInt(mixCoding) || 0,
+          }}
+        />
 
         <div className="flex items-center justify-between p-4 bg-muted rounded-lg sticky bottom-0">
           <p className="text-sm"><strong>{questions.filter(q => q.question.trim()).length}</strong> questions ready</p>

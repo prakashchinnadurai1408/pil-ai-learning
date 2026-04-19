@@ -157,34 +157,75 @@ const AssessmentCreator = () => {
 
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-assessment-questions", {
-        body: {
-          source_mode: sourceMode,
-          topic_or_skills: topicOrSkills,
-          jd_text: jdText,
-          mix,
-          module_id: selectedModuleIds[0] || null,
-          difficulty: aiDifficulty,
-          language: aiCodingLang,
-        },
-      });
-      if (error) throw error;
-      const aiQs: QuestionDraft[] = (data?.questions || []).map((q: any) => ({
-        question: q.question,
-        options: q.options || [],
-        correct: typeof q.correct === "number" ? q.correct : null,
-        explanation: q.explanation || "",
-        source: "ai",
-        question_type: q.question_type,
-        expected_answer: q.expected_answer || "",
-        max_score: q.max_score ?? 1,
-        time_limit_seconds: q.time_limit_seconds ?? null,
-        starter_code: q.starter_code || "",
-        language: q.language || "",
-      }));
-      if (aiQs.length === 0) { toast.error("AI returned no questions"); return; }
-      setQuestions(prev => [...prev.filter(q => q.question.trim()), ...aiQs]);
-      toast.success(`Generated ${aiQs.length} AI question(s)!`);
+      // Split the requested mix into batches of up to 5 questions per call
+      // (across all types) to stay within the edge function's ~25s window.
+      const BATCH_SIZE = 5;
+      const buildBatches = (m: typeof mix): Array<typeof mix> => {
+        const batches: Array<typeof mix> = [];
+        const remaining = { ...m };
+        while (remaining.mcq + remaining.descriptive + remaining.video + remaining.coding > 0) {
+          const batch = { mcq: 0, descriptive: 0, video: 0, coding: 0 };
+          let budget = BATCH_SIZE;
+          (["mcq", "descriptive", "video", "coding"] as const).forEach((k) => {
+            if (budget <= 0) return;
+            const take = Math.min(remaining[k], budget);
+            batch[k] = take;
+            remaining[k] -= take;
+            budget -= take;
+          });
+          batches.push(batch);
+        }
+        return batches;
+      };
+
+      const batches = buildBatches(mix);
+      const allQs: QuestionDraft[] = [];
+      let lastError = "";
+
+      for (let i = 0; i < batches.length; i++) {
+        const b = batches[i];
+        toast.info(`Generating batch ${i + 1} of ${batches.length}…`);
+        try {
+          const { data, error } = await supabase.functions.invoke("generate-assessment-questions", {
+            body: {
+              source_mode: sourceMode,
+              topic_or_skills: topicOrSkills,
+              jd_text: jdText,
+              mix: b,
+              module_id: selectedModuleIds[0] || null,
+              difficulty: aiDifficulty,
+              language: aiCodingLang,
+            },
+          });
+          if (error || data?.error) {
+            lastError = data?.error || error?.message || "Failed";
+            continue;
+          }
+          const aiQs: QuestionDraft[] = (data?.questions || []).map((q: any) => ({
+            question: q.question,
+            options: q.options || [],
+            correct: typeof q.correct === "number" ? q.correct : null,
+            explanation: q.explanation || "",
+            source: "ai",
+            question_type: q.question_type,
+            expected_answer: q.expected_answer || "",
+            max_score: q.max_score ?? 1,
+            time_limit_seconds: q.time_limit_seconds ?? null,
+            starter_code: q.starter_code || "",
+            language: q.language || "",
+          }));
+          allQs.push(...aiQs);
+        } catch (e: any) {
+          lastError = e?.message || "Failed";
+        }
+      }
+
+      if (allQs.length === 0) {
+        toast.error("AI generation failed: " + (lastError || "no questions returned"));
+        return;
+      }
+      setQuestions(prev => [...prev.filter(q => q.question.trim()), ...allQs]);
+      toast.success(`Generated ${allQs.length} AI question(s) across ${batches.length} batch(es)!`);
     } catch (err: any) {
       console.error(err);
       toast.error("AI generation failed: " + (err?.message || ""));

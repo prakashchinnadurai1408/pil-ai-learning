@@ -54,25 +54,47 @@ const AIQuestionBankGenerator = ({ onGenerated }: Props) => {
     const targets = publishedModules.filter((m) => selectedIds.has(m.id));
     const batchResults: typeof results = [];
 
+    // Batch in chunks of 5 per module to avoid edge function timeouts
+    const BATCH = 5;
+
     for (let i = 0; i < targets.length; i++) {
       const m = targets[i];
       setProgress({ done: i, total: targets.length, current: m.title });
-      try {
-        const { data, error } = await supabase.functions.invoke("generate-question-bank", {
-          body: { moduleId: m.id, moduleName: m.title, count, difficulty },
-        });
-        if (error || data?.error) {
-          batchResults.push({ moduleName: m.title, inserted: 0, skipped: 0, error: data?.error || error?.message });
-        } else {
-          batchResults.push({
-            moduleName: m.title,
-            inserted: data?.inserted || 0,
-            skipped: data?.duplicatesSkipped || 0,
-          });
-        }
-      } catch (e: any) {
-        batchResults.push({ moduleName: m.title, inserted: 0, skipped: 0, error: e?.message || "Failed" });
+
+      const chunks: number[] = [];
+      let remaining = count;
+      while (remaining > 0) {
+        const take = Math.min(BATCH, remaining);
+        chunks.push(take);
+        remaining -= take;
       }
+
+      let inserted = 0;
+      let skipped = 0;
+      let lastError: string | undefined;
+
+      for (let c = 0; c < chunks.length; c++) {
+        try {
+          const { data, error } = await supabase.functions.invoke("generate-question-bank", {
+            body: { moduleId: m.id, moduleName: m.title, count: chunks[c], difficulty },
+          });
+          if (error || data?.error) {
+            lastError = data?.error || error?.message || "Failed";
+          } else {
+            inserted += data?.inserted || 0;
+            skipped += data?.duplicatesSkipped || 0;
+          }
+        } catch (e: any) {
+          lastError = e?.message || "Failed";
+        }
+      }
+
+      batchResults.push({
+        moduleName: m.title,
+        inserted,
+        skipped,
+        error: inserted === 0 && lastError ? lastError : undefined,
+      });
       setResults([...batchResults]);
     }
 

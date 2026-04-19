@@ -131,11 +131,18 @@ const StudentTierManager = () => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {TIERS.map(t => {
             const Icon = t.icon;
+            const studentMenuCount = studentMenus.filter(r => r[t.key as Tier]).length;
+            const trainerMenuCount = trainerMenus.filter(r => r[t.key as Tier]).length;
             return (
-              <div key={t.key} className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm ${t.cls}`}>
-                <Icon className="h-3.5 w-3.5" />
-                <span className="text-xs">{t.label}</span>
-                <span className="ml-auto font-semibold">{counts[t.key] || 0}</span>
+              <div key={t.key} className={`flex flex-col gap-1 px-3 py-2 rounded-md text-sm ${t.cls}`}>
+                <div className="flex items-center gap-2">
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="text-xs">{t.label}</span>
+                  <span className="ml-auto font-semibold">{counts[t.key] || 0}</span>
+                </div>
+                <div className="text-[10px] opacity-80 leading-tight">
+                  {studentMenuCount}/{studentMenus.length} student · {trainerMenuCount}/{trainerMenus.length} trainer menus
+                </div>
               </div>
             );
           })}

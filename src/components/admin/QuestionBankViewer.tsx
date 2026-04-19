@@ -194,6 +194,20 @@ const QuestionBankViewer = () => {
             ))}
           </SelectContent>
         </Select>
+        <Select value={filterGroup} onValueChange={setFilterGroup}>
+          <SelectTrigger className="w-[220px]">
+            <FolderTree className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+            <SelectValue placeholder="Filter by module group" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Module Groups</SelectItem>
+            {groups.map((g) => (
+              <SelectItem key={g.id} value={g.id}>
+                {g.name} ({g.items.length})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Bulk action bar */}

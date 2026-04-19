@@ -948,6 +948,41 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                           </Button>
                         </div>
                       </div>
+                      {/* Topic badge + reassign dropdown for video items */}
+                      {activeSection === "videos" && (() => {
+                        const mod = adminModules.find(m => m.id === item.module_id);
+                        const moduleTopics = mod?.topics || [];
+                        const currentTopic = moduleTopics.find(t => t.id === (item as any).topic_id);
+                        if (moduleTopics.length === 0) return null;
+                        return (
+                          <div className="flex items-center gap-2 pl-7 flex-wrap">
+                            <span
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                currentTopic
+                                  ? "bg-primary/10 text-primary"
+                                  : "bg-warning/15 text-warning"
+                              }`}
+                              title={currentTopic ? `Linked to topic: ${currentTopic.title}` : "No topic linked"}
+                            >
+                              {currentTopic ? `Topic: ${currentTopic.title}` : "⚠ Untagged"}
+                            </span>
+                            <Select
+                              value={(item as any).topic_id || "__none__"}
+                              onValueChange={(v) => handleReassignTopic(item.id, v === "__none__" ? null : v)}
+                            >
+                              <SelectTrigger className="h-6 text-[11px] w-auto min-w-[140px] gap-1">
+                                <SelectValue placeholder="Reassign topic" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">— No topic —</SelectItem>
+                                {moduleTopics.map(t => (
+                                  <SelectItem key={t.id} value={t.id} className="text-xs">{t.title}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        );
+                      })()}
                       {/* YouTube ID editing for video items */}
                       {activeSection === "videos" && (
                         <div className="flex items-center gap-2 pl-7">

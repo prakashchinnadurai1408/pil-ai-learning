@@ -58,15 +58,52 @@ const CodingChallengeManager = () => {
 
   async function generateChallenges() {
     setGenerating(true);
+    const target = Math.max(1, Math.min(genCount || 5, 100));
+    const BATCH = 5;
+    let totalAdded = 0;
+    let lastError: string | null = null;
+
     try {
-      const { data, error } = await supabase.functions.invoke("generate-coding-challenges", {
-        body: { category: genCategory, difficulty: genDifficulty, count: genCount },
-      });
-      if (error) throw error;
-      toast({ title: "Challenges Generated! ✨", description: `${data.count} new challenges added.` });
-      fetchChallenges();
-    } catch (err: any) {
-      toast({ title: "Generation Failed", description: err.message, variant: "destructive" });
+      const batches: number[] = [];
+      let remaining = target;
+      while (remaining > 0) {
+        const take = Math.min(BATCH, remaining);
+        batches.push(take);
+        remaining -= take;
+      }
+
+      for (let i = 0; i < batches.length; i++) {
+        const take = batches[i];
+        toast({
+          title: `Generating batch ${i + 1} of ${batches.length}…`,
+          description: `Requesting ${take} challenges. Total so far: ${totalAdded}/${target}`,
+        });
+        try {
+          const { data, error } = await supabase.functions.invoke("generate-coding-challenges", {
+            body: { category: genCategory, difficulty: genDifficulty, count: take },
+          });
+          if (error) throw error;
+          totalAdded += data?.count || 0;
+        } catch (batchErr: any) {
+          lastError = batchErr?.message || "Batch failed";
+          console.error(`Batch ${i + 1} failed:`, batchErr);
+          // continue to next batch
+        }
+      }
+
+      if (totalAdded > 0) {
+        toast({
+          title: "Challenges Generated! ✨",
+          description: `${totalAdded} new challenges added${lastError ? ` (some batches failed: ${lastError})` : ""}.`,
+        });
+        fetchChallenges();
+      } else {
+        toast({
+          title: "Generation Failed",
+          description: lastError || "No challenges were generated.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setGenerating(false);
     }

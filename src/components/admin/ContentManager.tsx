@@ -62,6 +62,93 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
   const [youtubeIdInput, setYoutubeIdInput] = useState("");
   const [fetchingYoutubeIds, setFetchingYoutubeIds] = useState(false);
   const [relinkingVideos, setRelinkingVideos] = useState(false);
+  const [previewingRelink, setPreviewingRelink] = useState(false);
+  const [relinkPreview, setRelinkPreview] = useState<null | {
+    changes: Array<{
+      id: string;
+      videoTitle: string;
+      moduleTitle: string;
+      fromTopic: string;
+      toTopic: string;
+      newTopicId: string;
+    }>;
+    scanned: number;
+    moduleCount: number;
+  }>(null);
+  const [applyingRelink, setApplyingRelink] = useState(false);
+
+  const computeRelinkPlan = async () => {
+    const targetModuleId = selectedModuleId ? Number(selectedModuleId) : null;
+    const modulesToProcess = targetModuleId
+      ? adminModules.filter(m => m.id === targetModuleId)
+      : adminModules;
+    const eligibleModules = modulesToProcess.filter(m => m.topics.length > 0);
+    if (eligibleModules.length === 0) {
+      toast.error("Pick a module that has topics, or add topics first.");
+      return;
+    }
+
+    setPreviewingRelink(true);
+    const { bestTopicId } = await import("@/lib/topicMatch");
+    const changes: NonNullable<typeof relinkPreview>["changes"] = [];
+    let scanned = 0;
+
+    try {
+      for (const mod of eligibleModules) {
+        const topicById = new Map(mod.topics.map(t => [t.id, t.title]));
+        const { data: videos } = await supabase
+          .from("admin_section_content")
+          .select("id, title, content, topic_id")
+          .eq("section_type", "videos")
+          .eq("module_id", mod.id);
+        if (!videos) continue;
+
+        for (const v of videos) {
+          scanned++;
+          const c = (v.content as any) || {};
+          const text = `${v.title || ""} ${c.title || ""} ${c.youtubeQuery || ""} ${c.description || ""}`;
+          const newTopicId = bestTopicId(text, mod.topics);
+          if (newTopicId && newTopicId !== v.topic_id) {
+            changes.push({
+              id: v.id,
+              videoTitle: v.title || c.title || "(untitled)",
+              moduleTitle: mod.title,
+              fromTopic: v.topic_id ? (topicById.get(v.topic_id) || "(unknown)") : "(unassigned)",
+              toTopic: topicById.get(newTopicId) || "(unknown)",
+              newTopicId,
+            });
+          }
+        }
+      }
+      setRelinkPreview({ changes, scanned, moduleCount: eligibleModules.length });
+    } catch {
+      toast.error("Preview failed. Please try again.");
+    } finally {
+      setPreviewingRelink(false);
+    }
+  };
+
+  const applyRelinkPlan = async () => {
+    if (!relinkPreview) return;
+    setApplyingRelink(true);
+    let updated = 0;
+    try {
+      for (const ch of relinkPreview.changes) {
+        const { error } = await supabase
+          .from("admin_section_content")
+          .update({ topic_id: ch.newTopicId } as any)
+          .eq("id", ch.id);
+        if (!error) updated++;
+      }
+      toast.success(`Re-linked ${updated} of ${relinkPreview.changes.length} video${relinkPreview.changes.length === 1 ? "" : "s"}.`);
+      setRelinkPreview(null);
+      refetch();
+    } catch {
+      toast.error("Apply failed. Please try again.");
+    } finally {
+      setApplyingRelink(false);
+    }
+  };
 
   const handleRelinkAllVideos = async () => {
     const targetModuleId = selectedModuleId ? Number(selectedModuleId) : null;

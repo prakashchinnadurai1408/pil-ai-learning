@@ -56,6 +56,16 @@ interface UsageCounts {
   quizzes: number;
 }
 
+type Spark = number[]; // 7 numbers, oldest → newest
+interface UsageSparks {
+  aiChat: Spark;
+  aiTools: Spark;
+  prompts: Spark;
+  coding: Spark;
+  modules: Spark;
+  quizzes: Spark;
+}
+
 interface AssessmentStat {
   attempts: number;
   avgScore: number;
@@ -91,6 +101,10 @@ const StudentOverview = ({
   const [usage, setUsage] = useState<UsageCounts>({
     aiChat: 0, aiTools: 0, prompts: 0, coding: 0,
     modulesAccessed: 0, modulesCompleted: 0, quizzes: 0,
+  });
+  const [sparks, setSparks] = useState<UsageSparks>({
+    aiChat: [0,0,0,0,0,0,0], aiTools: [0,0,0,0,0,0,0], prompts: [0,0,0,0,0,0,0],
+    coding: [0,0,0,0,0,0,0], modules: [0,0,0,0,0,0,0], quizzes: [0,0,0,0,0,0,0],
   });
   const [assessStat, setAssessStat] = useState<AssessmentStat>({ attempts: 0, avgScore: 0, passRate: 0, recent: [] });
   const [projectStat, setProjectStat] = useState<ProjectStat>({ assigned: 0, inProgress: 0, completed: 0, avgStepPct: 0 });
@@ -173,6 +187,31 @@ const StudentOverview = ({
       modulesCompleted: modProg.filter((m: any) => m.completed).length,
       quizzes: assessScoresRes.data?.length || 0,
     });
+
+    // 7-day sparklines (oldest → newest). Bucket each event into the day index.
+    const dayMs = 86400000;
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const startTs = startOfToday.getTime() - 6 * dayMs; // 7 buckets total
+    const empty = (): Spark => [0, 0, 0, 0, 0, 0, 0];
+    const bucket = (arr: Spark, isoOrTs: string | number | null | undefined) => {
+      if (!isoOrTs) return;
+      const ts = typeof isoOrTs === "number" ? isoOrTs : new Date(isoOrTs).getTime();
+      const idx = Math.floor((ts - startTs) / dayMs);
+      if (idx >= 0 && idx < 7) arr[idx]++;
+    };
+    const sChat = empty(), sTools = empty(), sPrompts = empty();
+    chatLogs.forEach((l: any) => {
+      if (l.feature === "chat") bucket(sChat, l.created_at);
+      else if (l.feature === "prompt_lab") bucket(sPrompts, l.created_at);
+      else if (String(l.feature || "").startsWith("tool")) bucket(sTools, l.created_at);
+    });
+    const sCoding = empty();
+    (codingRes.data || []).forEach((c: any) => bucket(sCoding, c.solved_at));
+    const sModules = empty();
+    modProg.forEach((m: any) => bucket(sModules, m.last_accessed));
+    const sQuizzes = empty();
+    (assessScoresRes.data || []).forEach((q: any) => bucket(sQuizzes, q.attempted_at));
+    setSparks({ aiChat: sChat, aiTools: sTools, prompts: sPrompts, coding: sCoding, modules: sModules, quizzes: sQuizzes });
 
     // Assessments
     const attempts = (assessAttemptsRes.data || []).filter((a: any) => a.completed_at);
@@ -442,12 +481,12 @@ const StudentOverview = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <UsageTile icon={MessageSquare} label="AI Chat" value={usage.aiChat} onClick={() => onNavigate("playground")} />
-          <UsageTile icon={FlaskConical} label="AI Tools" value={usage.aiTools} onClick={() => onNavigate("tools")} />
-          <UsageTile icon={Pencil} label="Prompts" value={usage.prompts} onClick={() => onNavigate("prompts")} />
-          <UsageTile icon={Code2} label="Coding" value={usage.coding} onClick={() => onNavigate("coding")} />
-          <UsageTile icon={BookOpen} label="Modules" value={usage.modulesAccessed} onClick={() => onNavigate("modules")} />
-          <UsageTile icon={Trophy} label="Quizzes" value={usage.quizzes} onClick={() => onNavigate("modules")} />
+          <UsageTile icon={MessageSquare} label="AI Chat" value={usage.aiChat} spark={sparks.aiChat} onClick={() => onNavigate("playground")} />
+          <UsageTile icon={FlaskConical} label="AI Tools" value={usage.aiTools} spark={sparks.aiTools} onClick={() => onNavigate("tools")} />
+          <UsageTile icon={Pencil} label="Prompts" value={usage.prompts} spark={sparks.prompts} onClick={() => onNavigate("prompts")} />
+          <UsageTile icon={Code2} label="Coding" value={usage.coding} spark={sparks.coding} onClick={() => onNavigate("coding")} />
+          <UsageTile icon={BookOpen} label="Modules" value={usage.modulesAccessed} spark={sparks.modules} onClick={() => onNavigate("modules")} />
+          <UsageTile icon={Trophy} label="Quizzes" value={usage.quizzes} spark={sparks.quizzes} onClick={() => onNavigate("modules")} />
         </CardContent>
       </Card>
 
@@ -570,11 +609,28 @@ const KPI = ({ icon: Icon, label, value }: { icon: typeof BookOpen; label: strin
   </Card>
 );
 
-const UsageTile = ({ icon: Icon, label, value, onClick }: { icon: typeof BookOpen; label: string; value: number; onClick: () => void }) => (
+const Sparkline = ({ data }: { data: number[] }) => {
+  const max = Math.max(1, ...data);
+  return (
+    <div className="flex items-end justify-between gap-[2px] h-5 mt-1.5" aria-label="Last 7 days activity">
+      {data.map((v, i) => (
+        <div
+          key={i}
+          className="flex-1 bg-primary/30 rounded-sm"
+          style={{ height: `${Math.max(8, (v / max) * 100)}%`, opacity: v === 0 ? 0.25 : 1 }}
+          title={`${v} on day ${i + 1}`}
+        />
+      ))}
+    </div>
+  );
+};
+
+const UsageTile = ({ icon: Icon, label, value, spark, onClick }: { icon: typeof BookOpen; label: string; value: number; spark?: number[]; onClick: () => void }) => (
   <button onClick={onClick} className="text-center p-3 rounded-lg border border-border hover:bg-muted/30 hover:border-primary/30 transition-colors">
     <Icon className="h-4 w-4 text-primary mx-auto mb-1" />
     <p className="text-base font-display font-bold text-card-foreground">{value}</p>
     <p className="text-[10px] text-muted-foreground">{label}</p>
+    {spark && <Sparkline data={spark} />}
   </button>
 );
 

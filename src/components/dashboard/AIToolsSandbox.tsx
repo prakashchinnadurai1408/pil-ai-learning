@@ -220,6 +220,8 @@ const AIToolsSandbox = () => {
       await streamChat({
         messages: [{ role: "user", content: built.content }],
         tool: built.tool,
+        // Tag for usage analytics — keeps tool prompt selection while grouping logs as "tool_*"
+        featureTag: `tool_${built.tool}`,
         modelOverride,
         onDelta: (chunk) => { acc += chunk; setter(acc); },
         onDone: () => doneSetter(false),

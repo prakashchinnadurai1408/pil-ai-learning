@@ -18,7 +18,7 @@ const Stat: React.FC<{ label: string; value: string; delay: number; color: strin
   const s = spring({ frame: frame - delay, fps, config: { damping: 12, stiffness: 130 } });
   return (
     <div style={{ flex: 1, padding: 24, background: "rgba(255,255,255,0.06)", border: `1px solid ${COLORS.border}`, borderRadius: 16, textAlign: "center", transform: `scale(${s})`, opacity: s, backdropFilter: "blur(20px)" }}>
-      <div style={{ fontFamily: "Space Grotesk", fontSize: 44, fontWeight: 800, color, marginBottom: 6, textShadow: `0 0 30px ${color}` }}>{value}</div>
+      <div style={{ fontFamily: "Space Grotesk", fontSize: 44, fontWeight: 700, color, marginBottom: 6, textShadow: `0 0 30px ${color}` }}>{value}</div>
       <div style={{ fontFamily: "Inter", fontSize: 13, color: COLORS.textDim }}>{label}</div>
     </div>
   );
@@ -38,7 +38,7 @@ export const SceneFinale: React.FC = () => {
       {Array.from({ length: 50 }).map((_, i) => <Confetti key={i} idx={i} />)}
       <div style={{ textAlign: "center", zIndex: 5 }}>
         <div style={{ width: 140, height: 140, margin: "0 auto 28px", borderRadius: 70, background: `linear-gradient(135deg, ${COLORS.warn}, ${COLORS.primary})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 70, transform: `scale(${badgeS * pulse})`, boxShadow: `0 0 80px ${COLORS.warn}90, 0 20px 60px rgba(0,0,0,0.5)` }}>🏆</div>
-        <div style={{ fontFamily: "Space Grotesk", fontSize: 64, fontWeight: 800, color: COLORS.text, letterSpacing: -2, opacity: titleS, transform: `translateY(${(1 - titleS) * 20}px)`, marginBottom: 12 }}>Job-Ready in Weeks</div>
+        <div style={{ fontFamily: "Space Grotesk", fontSize: 64, fontWeight: 700, color: COLORS.text, letterSpacing: -2, opacity: titleS, transform: `translateY(${(1 - titleS) * 20}px)`, marginBottom: 12 }}>Job-Ready in Weeks</div>
         <div style={{ fontFamily: "Inter", fontSize: 22, color: COLORS.textDim, opacity: subS, marginBottom: 50 }}>Your complete AI upskilling journey</div>
         <div style={{ display: "flex", gap: 18, maxWidth: 900, margin: "0 auto" }}>
           <Stat label="Modules" value="10+" delay={45} color={COLORS.primary} />

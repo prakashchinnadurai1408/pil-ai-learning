@@ -85,18 +85,12 @@ Deno.serve(async (req) => {
     if (!resp.ok) {
       const text = await resp.text();
       console.error("AI gateway error", resp.status, text);
-      if (resp.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit. Try again shortly." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (resp.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({ error: "AI gateway error" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      // Degrade gracefully: return empty matches + fallback flag so client uses keyword fallback silently.
+      const reason = resp.status === 402 ? "AI_CREDITS_EXHAUSTED"
+        : resp.status === 429 ? "AI_RATE_LIMITED"
+        : "AI_GATEWAY_ERROR";
+      return new Response(JSON.stringify({ matches: {}, fallback: true, reason }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -113,8 +107,8 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     console.error("match-topics error", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(JSON.stringify({ matches: {}, fallback: true, reason: "EXCEPTION" }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

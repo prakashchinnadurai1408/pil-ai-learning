@@ -56,8 +56,12 @@ export async function bestTopicIdsAI<T extends { id: string; title: string }>(
       body: { items, topics: topics.map(t => ({ id: t.id, title: t.title })) },
     });
     if (error) throw error;
+    if ((data as any)?.fallback) {
+      const out: Record<string, string | null> = {};
+      for (const it of items) out[it.key] = bestTopicId(it.text, topics);
+      return out;
+    }
     const matches: Record<string, string | null> = (data as any)?.matches || {};
-    // Fill any missing keys via keyword fallback
     for (const it of items) {
       if (!matches[it.key]) matches[it.key] = bestTopicId(it.text, topics);
     }

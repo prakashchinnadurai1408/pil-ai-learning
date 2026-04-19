@@ -179,26 +179,28 @@ const AIPlayground = () => {
         )}
       </div>
 
-      <div className="px-4 py-2 border-t border-border flex gap-2 overflow-x-auto" role="group" aria-label="Prompt suggestions">
-        <Lightbulb className="h-4 w-4 text-warning flex-shrink-0 mt-1" aria-hidden="true" />
-        {promptSuggestions.map((s) => (
-          <button
-            key={s}
-            onClick={() => handleSend(s)}
-            className="text-xs px-3 py-1.5 rounded-full border border-border bg-muted/50 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors whitespace-nowrap flex-shrink-0"
-          >
-            {s}
-          </button>
-        ))}
+      <div className="px-3 sm:px-4 py-2 border-t border-border flex items-center gap-2 overflow-x-auto" role="group" aria-label="Prompt suggestions">
+        <Lightbulb className="h-4 w-4 text-warning flex-shrink-0" aria-hidden="true" />
+        <div className="flex gap-2 min-w-0">
+          {promptSuggestions.map((s) => (
+            <button
+              key={s}
+              onClick={() => handleSend(s)}
+              className="text-xs px-3 py-1.5 rounded-full border border-border bg-muted/50 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors whitespace-nowrap flex-shrink-0"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="p-4 border-t border-border flex gap-2">
+      <div className="p-3 sm:p-4 border-t border-border flex gap-2 items-center">
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder="Type or speak your question..."
-          className="flex-1"
+          className="flex-1 min-w-0"
           aria-label="Type your message"
         />
         <ChatVoiceInput
@@ -209,7 +211,7 @@ const AIPlayground = () => {
         <Button
           onClick={() => handleSend()}
           disabled={isLoading || !input.trim()}
-          className="bg-gradient-primary border-0 text-primary-foreground"
+          className="bg-gradient-primary border-0 text-primary-foreground flex-shrink-0"
           aria-label="Send message"
         >
           <Send className="h-4 w-4" aria-hidden="true" />

@@ -1027,6 +1027,69 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!relinkPreview} onOpenChange={(o) => !o && !applyingRelink && setRelinkPreview(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GitCompare className="h-5 w-5" /> Re-link Preview (Dry Run)
+            </DialogTitle>
+            <DialogDescription>
+              {relinkPreview && (
+                <>
+                  Scanned <span className="font-semibold text-foreground">{relinkPreview.scanned}</span> video
+                  {relinkPreview.scanned === 1 ? "" : "s"} across{" "}
+                  <span className="font-semibold text-foreground">{relinkPreview.moduleCount}</span> module
+                  {relinkPreview.moduleCount === 1 ? "" : "s"}.{" "}
+                  <span className="font-semibold text-foreground">{relinkPreview.changes.length}</span> proposed change
+                  {relinkPreview.changes.length === 1 ? "" : "s"}.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto -mx-6 px-6">
+            {relinkPreview && relinkPreview.changes.length === 0 ? (
+              <div className="py-12 text-center text-sm text-muted-foreground">
+                <Check className="h-10 w-10 mx-auto mb-3 text-primary opacity-60" />
+                All videos are already linked to their best-matching topic. Nothing to change.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {relinkPreview?.changes.map((ch) => (
+                  <div key={ch.id} className="rounded-md border border-border p-3 text-sm">
+                    <p className="font-medium text-card-foreground line-clamp-1">{ch.videoTitle}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{ch.moduleTitle}</p>
+                    <div className="flex items-center gap-2 mt-2 text-xs flex-wrap">
+                      <span className="px-2 py-0.5 rounded bg-muted text-muted-foreground line-through">
+                        {ch.fromTopic}
+                      </span>
+                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                      <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                        {ch.toTopic}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRelinkPreview(null)} disabled={applyingRelink}>
+              Cancel
+            </Button>
+            <Button
+              onClick={applyRelinkPlan}
+              disabled={applyingRelink || !relinkPreview || relinkPreview.changes.length === 0}
+              className="gap-2"
+            >
+              {applyingRelink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {applyingRelink ? "Applying..." : `Apply ${relinkPreview?.changes.length ?? 0} Change${relinkPreview?.changes.length === 1 ? "" : "s"}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

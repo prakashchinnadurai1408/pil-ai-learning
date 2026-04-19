@@ -6,7 +6,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Search, Users, UserCheck, Building2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Loader2, Search, Users, UserCheck, Building2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { TIERS, TIER_META, type Tier } from "@/hooks/useMenuAccessControls";
 
@@ -31,6 +32,11 @@ const TrainerAssignments = () => {
   const [draft, setDraft] = useState<Set<string>>(new Set());
   const [bulkCollege, setBulkCollege] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newTrainer, setNewTrainer] = useState({
+    name: "", email: "", mobile: "", college: "", location: "", password: "", subscription_tier: "free" as Tier,
+  });
 
   const load = async () => {
     setLoading(true);
@@ -60,15 +66,29 @@ const TrainerAssignments = () => {
     setOpen(true);
   };
 
+  // Students assigned to OTHER trainers should be hidden in the dialog
+  const assignedToOthers = useMemo(() => {
+    const set = new Set<string>();
+    Object.entries(assignments).forEach(([tid, ids]) => {
+      if (tid !== activeTrainer?.id) ids.forEach(id => set.add(id));
+    });
+    return set;
+  }, [assignments, activeTrainer]);
+
+  const availableStudents = useMemo(
+    () => students.filter(s => !assignedToOthers.has(s.id)),
+    [students, assignedToOthers]
+  );
+
   const colleges = useMemo(
-    () => Array.from(new Set(students.map(s => s.college).filter(Boolean))).sort(),
-    [students]
+    () => Array.from(new Set(availableStudents.map(s => s.college).filter(Boolean))).sort(),
+    [availableStudents]
   );
 
   const addCollegeStudents = () => {
     if (!bulkCollege) return;
-    const ids = students.filter(s => s.college === bulkCollege).map(s => s.id);
-    if (ids.length === 0) { toast.info("No students from that institute"); return; }
+    const ids = availableStudents.filter(s => s.college === bulkCollege).map(s => s.id);
+    if (ids.length === 0) { toast.info("No unassigned students from that institute"); return; }
     setDraft(prev => {
       const next = new Set(prev);
       ids.forEach(id => next.add(id));
@@ -79,13 +99,33 @@ const TrainerAssignments = () => {
 
   const filteredStudents = useMemo(() => {
     const q = search.toLowerCase().trim();
-    if (!q) return students;
-    return students.filter(s =>
+    if (!q) return availableStudents;
+    return availableStudents.filter(s =>
       s.name.toLowerCase().includes(q) ||
       s.email.toLowerCase().includes(q) ||
       s.college.toLowerCase().includes(q)
     );
-  }, [students, search]);
+  }, [availableStudents, search]);
+
+  const addTrainer = async () => {
+    const t = newTrainer;
+    if (!t.name.trim() || !t.email.trim() || !t.mobile.trim() || !t.college.trim() || !t.location.trim()) {
+      toast.error("Name, email, mobile, college and location are required");
+      return;
+    }
+    setAdding(true);
+    const { error } = await supabase.from("trainers").insert({
+      name: t.name.trim(), email: t.email.trim(), mobile: t.mobile.trim(),
+      college: t.college.trim(), location: t.location.trim(),
+      password: t.password || "trainer123", subscription_tier: t.subscription_tier,
+    });
+    setAdding(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Trainer ${t.name} added on ${TIER_META[t.subscription_tier].label} plan`);
+    setAddOpen(false);
+    setNewTrainer({ name: "", email: "", mobile: "", college: "", location: "", password: "", subscription_tier: "free" });
+    await load();
+  };
 
   const toggle = (id: string) => {
     setDraft(prev => {
@@ -145,9 +185,14 @@ const TrainerAssignments = () => {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-display font-semibold text-card-foreground">Trainer ↔ Student Assignments</h2>
-        <p className="text-sm text-muted-foreground">Assign which candidates each trainer can see and manage.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-display font-semibold text-card-foreground">Trainer ↔ Student Assignments</h2>
+          <p className="text-sm text-muted-foreground">Assign which candidates each trainer can see and manage.</p>
+        </div>
+        <Button className="gap-2 bg-gradient-primary border-0 text-primary-foreground" onClick={() => setAddOpen(true)}>
+          <UserPlus className="h-4 w-4" /> Add Trainer
+        </Button>
       </div>
 
       <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
@@ -249,7 +294,10 @@ const TrainerAssignments = () => {
             </Button>
           </div>
 
-          <p className="text-xs text-muted-foreground">{draft.size} selected • {filteredStudents.length} shown</p>
+          <p className="text-xs text-muted-foreground">
+            {draft.size} selected • {filteredStudents.length} unassigned shown
+            {assignedToOthers.size > 0 && ` • ${assignedToOthers.size} hidden (already assigned to other trainers)`}
+          </p>
 
           <div className="flex-1 overflow-y-auto border border-border rounded-md divide-y divide-border">
             {filteredStudents.length === 0 ? (
@@ -269,6 +317,70 @@ const TrainerAssignments = () => {
             <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
             <Button className="bg-gradient-primary border-0 text-primary-foreground" onClick={save} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save assignments"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" /> Add New Trainer
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Name *</Label>
+                <Input value={newTrainer.name} onChange={e => setNewTrainer(p => ({ ...p, name: e.target.value }))} placeholder="Full name" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Mobile *</Label>
+                <Input value={newTrainer.mobile} onChange={e => setNewTrainer(p => ({ ...p, mobile: e.target.value }))} placeholder="10-digit mobile" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Email *</Label>
+              <Input type="email" value={newTrainer.email} onChange={e => setNewTrainer(p => ({ ...p, email: e.target.value }))} placeholder="trainer@institute.com" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Institute *</Label>
+                <Input value={newTrainer.college} onChange={e => setNewTrainer(p => ({ ...p, college: e.target.value }))} placeholder="College / Org" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Location *</Label>
+                <Input value={newTrainer.location} onChange={e => setNewTrainer(p => ({ ...p, location: e.target.value }))} placeholder="City" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Initial password</Label>
+              <Input value={newTrainer.password} onChange={e => setNewTrainer(p => ({ ...p, password: e.target.value }))} placeholder="Default: trainer123" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Subscription Plan</Label>
+              <Select value={newTrainer.subscription_tier} onValueChange={(v) => setNewTrainer(p => ({ ...p, subscription_tier: v as Tier }))}>
+                <SelectTrigger className={TIER_META[newTrainer.subscription_tier].color}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  {TIERS.map(tt => (
+                    <SelectItem key={tt} value={tt}>
+                      <span className={TIER_META[tt].color}>{TIER_META[tt].label}</span>
+                      <span className="text-muted-foreground ml-2 text-xs">{TIER_META[tt].price}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)} disabled={adding}>Cancel</Button>
+            <Button className="bg-gradient-primary border-0 text-primary-foreground" onClick={addTrainer} disabled={adding}>
+              {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add Trainer"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -551,6 +551,16 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
     refetch();
   };
 
+  const handleReassignTopic = async (itemId: string, newTopicId: string | null) => {
+    const { error } = await supabase
+      .from("admin_section_content")
+      .update({ topic_id: newTopicId } as any)
+      .eq("id", itemId);
+    if (error) { toast.error("Failed to reassign topic"); return; }
+    toast.success(newTopicId ? "Topic reassigned" : "Topic cleared");
+    refetch();
+  };
+
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("admin_section_content").delete().eq("id", id);
     if (error) { toast.error("Failed to delete"); return; }

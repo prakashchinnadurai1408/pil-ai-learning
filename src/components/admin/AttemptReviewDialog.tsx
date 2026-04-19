@@ -4,7 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Save, RefreshCw, Trophy, FileText, Video, Code2, ListChecks, CheckCircle, XCircle, Sparkles } from "lucide-react";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Loader2, Save, Trophy, FileText, Video, Code2, ListChecks, CheckCircle, XCircle, Sparkles, History } from "lucide-react";
 import { toast } from "sonner";
 import type { AssessmentAttempt, AssessmentQuestion } from "@/hooks/useAssessments";
 
@@ -15,6 +16,8 @@ interface Props {
   assessmentTitle: string;
   passingScore: number;
   onSaved?: () => void;
+  siblingAttempts?: AssessmentAttempt[];
+  onSwitchAttempt?: (a: AssessmentAttempt) => void;
 }
 
 type Grading = Record<string, { score: number; max: number; feedback: string }>;

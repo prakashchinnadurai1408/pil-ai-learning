@@ -67,7 +67,7 @@ serve(async (req) => {
   const startedAt = Date.now();
 
   try {
-    const { messages, tool, studentContext, userMeta, modelOverride, featureTag } = await req.json();
+    const { messages, tool, studentContext, userMeta, modelOverride, featureTag, nonStream } = await req.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: "No messages provided" }), {

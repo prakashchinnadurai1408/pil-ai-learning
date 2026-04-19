@@ -20,6 +20,8 @@ import {
 import QuestionLevelAnalytics from "./QuestionLevelAnalytics";
 import { exportAnalyticsPDF } from "./exportAnalyticsPDF";
 import { useTrainerScope } from "@/hooks/useTrainerScope";
+import AttemptReviewDialog from "./AttemptReviewDialog";
+import { Eye } from "lucide-react";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
 
@@ -32,7 +34,7 @@ interface StudentInfo {
 
 const AssessmentAnalytics = ({ initialSearch = "" }: { initialSearch?: string } = {}) => {
   const { assessments } = useAssessments();
-  const { attempts, loading } = useAssessmentAttempts();
+  const { attempts, loading, refetch: refetchAttempts } = useAssessmentAttempts();
   const { allowedNames } = useTrainerScope();
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState(initialSearch);
@@ -42,6 +44,7 @@ const AssessmentAnalytics = ({ initialSearch = "" }: { initialSearch?: string } 
   const [exportingPDF, setExportingPDF] = useState(false);
   const [studentsMap, setStudentsMap] = useState<Record<string, StudentInfo>>({});
   const [analyticsView, setAnalyticsView] = useState<string>("overall");
+  const [reviewAttempt, setReviewAttempt] = useState<AssessmentAttempt | null>(null);
 
   // Fetch students for degree/dept data
   useEffect(() => {
@@ -410,12 +413,17 @@ Format the response in clean markdown with headers and bullet points.`
                     <th className="p-3 font-medium">Best Score</th>
                     <th className="p-3 font-medium">Avg Score</th>
                     <th className="p-3 font-medium">Attempts</th>
+                    <th className="p-3 font-medium w-20">Review</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {rankings.length === 0 ? (
-                    <tr><td colSpan={8} className="p-8 text-center text-sm text-muted-foreground">No assessment data yet</td></tr>
-                  ) : rankings.map((r, i) => (
+                    <tr><td colSpan={9} className="p-8 text-center text-sm text-muted-foreground">No assessment data yet</td></tr>
+                  ) : rankings.map((r, i) => {
+                    const latest = filteredAttempts
+                      .filter(a => a.student_name === r.name)
+                      .sort((a, b) => new Date(b.completed_at || b.started_at).getTime() - new Date(a.completed_at || a.started_at).getTime())[0];
+                    return (
                     <tr key={r.name} className="hover:bg-muted/30">
                       <td className="p-3">
                         {i < 3 ? (
@@ -442,8 +450,18 @@ Format the response in clean markdown with headers and bullet points.`
                       </td>
                       <td className="p-3 text-sm text-muted-foreground">{r.avgScore}%</td>
                       <td className="p-3 text-sm text-muted-foreground">{r.attempts}</td>
+                      <td className="p-3">
+                        <Button
+                          variant="ghost" size="sm" className="h-7 px-2 gap-1"
+                          disabled={!latest}
+                          onClick={() => latest && setReviewAttempt(latest)}
+                        >
+                          <Eye className="h-3.5 w-3.5" /> Review
+                        </Button>
+                      </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -473,6 +491,16 @@ Format the response in clean markdown with headers and bullet points.`
 
       {/* Question-Level Analytics */}
       <QuestionLevelAnalytics assessments={assessments} attempts={filteredAttempts} onStatsReady={setQuestionStatsForExport} />
+
+      {/* Per-attempt review dialog */}
+      <AttemptReviewDialog
+        open={!!reviewAttempt}
+        onOpenChange={(v) => !v && setReviewAttempt(null)}
+        attempt={reviewAttempt}
+        assessmentTitle={assessments.find(a => a.id === reviewAttempt?.assessment_id)?.title || ""}
+        passingScore={assessments.find(a => a.id === reviewAttempt?.assessment_id)?.passing_score || 60}
+        onSaved={() => { refetchAttempts(); setReviewAttempt(null); }}
+      />
     </div>
   );
 };

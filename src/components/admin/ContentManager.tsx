@@ -12,8 +12,11 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Sparkles, Video, MessageSquare, FlaskConical, ClipboardCheck, FolderKanban,
-  Loader2, Trash2, Check, AlertTriangle, Eye, Search, X
+  Loader2, Trash2, Check, AlertTriangle, Eye, Search, X, ArrowRight, GitCompare
 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminSectionContent } from "@/hooks/useAdminSectionContent";
@@ -59,6 +62,93 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
   const [youtubeIdInput, setYoutubeIdInput] = useState("");
   const [fetchingYoutubeIds, setFetchingYoutubeIds] = useState(false);
   const [relinkingVideos, setRelinkingVideos] = useState(false);
+  const [previewingRelink, setPreviewingRelink] = useState(false);
+  const [relinkPreview, setRelinkPreview] = useState<null | {
+    changes: Array<{
+      id: string;
+      videoTitle: string;
+      moduleTitle: string;
+      fromTopic: string;
+      toTopic: string;
+      newTopicId: string;
+    }>;
+    scanned: number;
+    moduleCount: number;
+  }>(null);
+  const [applyingRelink, setApplyingRelink] = useState(false);
+
+  const computeRelinkPlan = async () => {
+    const targetModuleId = selectedModuleId ? Number(selectedModuleId) : null;
+    const modulesToProcess = targetModuleId
+      ? adminModules.filter(m => m.id === targetModuleId)
+      : adminModules;
+    const eligibleModules = modulesToProcess.filter(m => m.topics.length > 0);
+    if (eligibleModules.length === 0) {
+      toast.error("Pick a module that has topics, or add topics first.");
+      return;
+    }
+
+    setPreviewingRelink(true);
+    const { bestTopicId } = await import("@/lib/topicMatch");
+    const changes: NonNullable<typeof relinkPreview>["changes"] = [];
+    let scanned = 0;
+
+    try {
+      for (const mod of eligibleModules) {
+        const topicById = new Map(mod.topics.map(t => [t.id, t.title]));
+        const { data: videos } = await supabase
+          .from("admin_section_content")
+          .select("id, title, content, topic_id")
+          .eq("section_type", "videos")
+          .eq("module_id", mod.id);
+        if (!videos) continue;
+
+        for (const v of videos) {
+          scanned++;
+          const c = (v.content as any) || {};
+          const text = `${v.title || ""} ${c.title || ""} ${c.youtubeQuery || ""} ${c.description || ""}`;
+          const newTopicId = bestTopicId(text, mod.topics);
+          if (newTopicId && newTopicId !== v.topic_id) {
+            changes.push({
+              id: v.id,
+              videoTitle: v.title || c.title || "(untitled)",
+              moduleTitle: mod.title,
+              fromTopic: v.topic_id ? (topicById.get(v.topic_id) || "(unknown)") : "(unassigned)",
+              toTopic: topicById.get(newTopicId) || "(unknown)",
+              newTopicId,
+            });
+          }
+        }
+      }
+      setRelinkPreview({ changes, scanned, moduleCount: eligibleModules.length });
+    } catch {
+      toast.error("Preview failed. Please try again.");
+    } finally {
+      setPreviewingRelink(false);
+    }
+  };
+
+  const applyRelinkPlan = async () => {
+    if (!relinkPreview) return;
+    setApplyingRelink(true);
+    let updated = 0;
+    try {
+      for (const ch of relinkPreview.changes) {
+        const { error } = await supabase
+          .from("admin_section_content")
+          .update({ topic_id: ch.newTopicId } as any)
+          .eq("id", ch.id);
+        if (!error) updated++;
+      }
+      toast.success(`Re-linked ${updated} of ${relinkPreview.changes.length} video${relinkPreview.changes.length === 1 ? "" : "s"}.`);
+      setRelinkPreview(null);
+      refetch();
+    } catch {
+      toast.error("Apply failed. Please try again.");
+    } finally {
+      setApplyingRelink(false);
+    }
+  };
 
   const handleRelinkAllVideos = async () => {
     const targetModuleId = selectedModuleId ? Number(selectedModuleId) : null;
@@ -605,8 +695,18 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                     <Button
                       variant="outline"
                       className="gap-2 text-sm"
+                      onClick={computeRelinkPlan}
+                      disabled={previewingRelink || relinkingVideos}
+                      title="Preview proposed topic re-assignments without applying them"
+                    >
+                      {previewingRelink ? <Loader2 className="h-4 w-4 animate-spin" /> : <GitCompare className="h-4 w-4" />}
+                      {previewingRelink ? "Computing preview..." : "Preview Re-link Changes"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gap-2 text-sm"
                       onClick={handleRelinkAllVideos}
-                      disabled={relinkingVideos}
+                      disabled={relinkingVideos || previewingRelink}
                       title={selectedModuleId ? "Re-run topic matcher for videos in the selected module" : "Re-run topic matcher across every module"}
                     >
                       {relinkingVideos ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -927,6 +1027,69 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!relinkPreview} onOpenChange={(o) => !o && !applyingRelink && setRelinkPreview(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GitCompare className="h-5 w-5" /> Re-link Preview (Dry Run)
+            </DialogTitle>
+            <DialogDescription>
+              {relinkPreview && (
+                <>
+                  Scanned <span className="font-semibold text-foreground">{relinkPreview.scanned}</span> video
+                  {relinkPreview.scanned === 1 ? "" : "s"} across{" "}
+                  <span className="font-semibold text-foreground">{relinkPreview.moduleCount}</span> module
+                  {relinkPreview.moduleCount === 1 ? "" : "s"}.{" "}
+                  <span className="font-semibold text-foreground">{relinkPreview.changes.length}</span> proposed change
+                  {relinkPreview.changes.length === 1 ? "" : "s"}.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto -mx-6 px-6">
+            {relinkPreview && relinkPreview.changes.length === 0 ? (
+              <div className="py-12 text-center text-sm text-muted-foreground">
+                <Check className="h-10 w-10 mx-auto mb-3 text-primary opacity-60" />
+                All videos are already linked to their best-matching topic. Nothing to change.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {relinkPreview?.changes.map((ch) => (
+                  <div key={ch.id} className="rounded-md border border-border p-3 text-sm">
+                    <p className="font-medium text-card-foreground line-clamp-1">{ch.videoTitle}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{ch.moduleTitle}</p>
+                    <div className="flex items-center gap-2 mt-2 text-xs flex-wrap">
+                      <span className="px-2 py-0.5 rounded bg-muted text-muted-foreground line-through">
+                        {ch.fromTopic}
+                      </span>
+                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                      <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                        {ch.toTopic}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRelinkPreview(null)} disabled={applyingRelink}>
+              Cancel
+            </Button>
+            <Button
+              onClick={applyRelinkPlan}
+              disabled={applyingRelink || !relinkPreview || relinkPreview.changes.length === 0}
+              className="gap-2"
+            >
+              {applyingRelink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {applyingRelink ? "Applying..." : `Apply ${relinkPreview?.changes.length ?? 0} Change${relinkPreview?.changes.length === 1 ? "" : "s"}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -682,41 +682,58 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
                 </Button>
 
                 {section.id === "videos" && (
-                  <>
-                    <Button
-                      variant="outline"
-                      className="gap-2 text-sm"
-                      onClick={handleBulkFetchYoutubeIds}
-                      disabled={fetchingYoutubeIds}
-                    >
-                      {fetchingYoutubeIds ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                      {fetchingYoutubeIds ? "Fetching IDs..." : "Auto-Fetch YouTube IDs"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gap-2 text-sm"
-                      onClick={computeRelinkPlan}
-                      disabled={previewingRelink || relinkingVideos}
-                      title="Preview proposed topic re-assignments without applying them"
-                    >
-                      {previewingRelink ? <Loader2 className="h-4 w-4 animate-spin" /> : <GitCompare className="h-4 w-4" />}
-                      {previewingRelink ? "Computing preview..." : "Preview Re-link Changes"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gap-2 text-sm"
-                      onClick={handleRelinkAllVideos}
-                      disabled={relinkingVideos || previewingRelink}
-                      title={selectedModuleId ? "Re-run topic matcher for videos in the selected module" : "Re-run topic matcher across every module"}
-                    >
-                      {relinkingVideos ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                      {relinkingVideos
-                        ? "Re-linking..."
-                        : selectedModuleId
-                          ? "Re-link Videos in Module"
-                          : "Re-link All Videos"}
-                    </Button>
-                  </>
+                  <div className="rounded-lg border border-primary/30 bg-gradient-to-br from-primary/5 to-transparent p-4 space-y-3 w-full">
+                    <div className="flex items-start gap-2">
+                      <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-display font-semibold text-sm text-card-foreground">
+                          AI Auto-Link Agent
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Scans every existing video and uses keyword matching against module topic titles to assign
+                          the best-fit topic automatically. {selectedModuleId
+                            ? "Currently scoped to the selected module."
+                            : "Currently scoped to all modules."} Preview the proposed changes before applying.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        className="gap-2 text-sm"
+                        onClick={handleBulkFetchYoutubeIds}
+                        disabled={fetchingYoutubeIds}
+                      >
+                        {fetchingYoutubeIds ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                        {fetchingYoutubeIds ? "Fetching IDs..." : "Auto-Fetch YouTube IDs"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="gap-2 text-sm"
+                        onClick={computeRelinkPlan}
+                        disabled={previewingRelink || relinkingVideos}
+                        title="Preview proposed topic re-assignments without applying them"
+                      >
+                        {previewingRelink ? <Loader2 className="h-4 w-4 animate-spin" /> : <GitCompare className="h-4 w-4" />}
+                        {previewingRelink ? "Computing preview..." : "Preview Auto-Link Changes"}
+                      </Button>
+                      <Button
+                        className="gap-2 text-sm"
+                        onClick={handleRelinkAllVideos}
+                        disabled={relinkingVideos || previewingRelink}
+                        title={selectedModuleId ? "Re-run topic matcher for videos in the selected module" : "Re-run topic matcher across every module"}
+                      >
+                        {relinkingVideos ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                        {relinkingVideos
+                          ? "Auto-Linking..."
+                          : selectedModuleId
+                            ? "Auto-Link Videos in Module"
+                            : "Auto-Link All Videos to Topics"}
+                      </Button>
+                    </div>
+                  </div>
                 )}
 
                 {selectedModuleId && (() => {

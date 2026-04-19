@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Crown, Zap, Search, Users, Sparkles, Rocket, Building2 } from "lucide-react";
 import { toast } from "sonner";
+import { fetchMenuRows, type MenuRow, type Tier } from "@/hooks/useMenuAccessControls";
 
 interface Student {
   id: string;

@@ -18,7 +18,7 @@ import { SceneCoding } from "./scenes/SceneCoding";
 import { SceneAssessment } from "./scenes/SceneAssessment";
 import { SceneFinale } from "./scenes/SceneFinale";
 
-loadGrotesk("normal", { weights: ["400", "600", "700", "800"], subsets: ["latin"] });
+loadGrotesk("normal", { weights: ["400", "500", "600", "700"], subsets: ["latin"] });
 loadInter("normal", { weights: ["400", "600", "700"], subsets: ["latin"] });
 loadMono("normal", { weights: ["400", "600"], subsets: ["latin"] });
 

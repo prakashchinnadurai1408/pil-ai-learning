@@ -47,6 +47,18 @@ const TrainerAssignments = () => {
   const [deleteTarget, setDeleteTarget] = useState<Trainer | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [unassignedOpen, setUnassignedOpen] = useState(false);
+  const [quickAssigning, setQuickAssigning] = useState<string | null>(null);
+
+  const quickAssign = async (studentId: string, trainerId: string) => {
+    setQuickAssigning(studentId);
+    const { error } = await (supabase as any).from("trainer_students")
+      .insert({ trainer_id: trainerId, student_id: studentId });
+    setQuickAssigning(null);
+    if (error) { toast.error(error.message); return; }
+    const trainer = trainers.find(t => t.id === trainerId);
+    toast.success(`Assigned to ${trainer?.name || "trainer"}`);
+    await load();
+  };
 
   const load = async () => {
     setLoading(true);

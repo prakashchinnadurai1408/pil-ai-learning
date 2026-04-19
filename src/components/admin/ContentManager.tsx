@@ -58,6 +58,55 @@ const ContentManager = ({ initialSection, sectionsOverride }: ContentManagerProp
   const [editingYoutubeId, setEditingYoutubeId] = useState<string | null>(null);
   const [youtubeIdInput, setYoutubeIdInput] = useState("");
   const [fetchingYoutubeIds, setFetchingYoutubeIds] = useState(false);
+  const [relinkingVideos, setRelinkingVideos] = useState(false);
+
+  const handleRelinkAllVideos = async () => {
+    const targetModuleId = selectedModuleId ? Number(selectedModuleId) : null;
+    const modulesToProcess = targetModuleId
+      ? adminModules.filter(m => m.id === targetModuleId)
+      : adminModules;
+    const eligibleModules = modulesToProcess.filter(m => m.topics.length > 0);
+    if (eligibleModules.length === 0) {
+      toast.error("Pick a module that has topics, or add topics first.");
+      return;
+    }
+
+    setRelinkingVideos(true);
+    const { bestTopicId } = await import("@/lib/topicMatch");
+    let updated = 0;
+    let scanned = 0;
+
+    try {
+      for (const mod of eligibleModules) {
+        const { data: videos } = await supabase
+          .from("admin_section_content")
+          .select("id, title, content, topic_id")
+          .eq("section_type", "videos")
+          .eq("module_id", mod.id);
+        if (!videos) continue;
+
+        for (const v of videos) {
+          scanned++;
+          const c = (v.content as any) || {};
+          const text = `${v.title || ""} ${c.title || ""} ${c.youtubeQuery || ""} ${c.description || ""}`;
+          const newTopicId = bestTopicId(text, mod.topics);
+          if (newTopicId && newTopicId !== v.topic_id) {
+            const { error } = await supabase
+              .from("admin_section_content")
+              .update({ topic_id: newTopicId } as any)
+              .eq("id", v.id);
+            if (!error) updated++;
+          }
+        }
+      }
+      toast.success(`Re-linked ${updated} of ${scanned} video${scanned === 1 ? "" : "s"}.`);
+      refetch();
+    } catch {
+      toast.error("Re-link failed. Please try again.");
+    } finally {
+      setRelinkingVideos(false);
+    }
+  };
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {

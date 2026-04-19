@@ -140,7 +140,7 @@ const TrainerAssignments = () => {
     setEditForm({
       name: t.name || "", email: t.email || "",
       mobile: (t as any).mobile || "", college: t.college || "",
-      location: (t as any).location || "",
+      location: (t as any).location || "", password: "",
     });
     setEditTrainer(t);
   };
@@ -150,15 +150,20 @@ const TrainerAssignments = () => {
     if (!editForm.name.trim() || !editForm.email.trim()) {
       toast.error("Name and email are required"); return;
     }
+    if (editForm.password && editForm.password.length < 6) {
+      toast.error("New password must be at least 6 characters"); return;
+    }
     setSavingEdit(true);
-    const { error } = await (supabase as any).from("trainers").update({
+    const update: any = {
       name: editForm.name.trim(), email: editForm.email.trim(),
       mobile: editForm.mobile.trim(), college: editForm.college.trim(),
       location: editForm.location.trim(),
-    }).eq("id", editTrainer.id);
+    };
+    if (editForm.password.trim()) update.password = editForm.password.trim();
+    const { error } = await (supabase as any).from("trainers").update(update).eq("id", editTrainer.id);
     setSavingEdit(false);
     if (error) { toast.error(error.message); return; }
-    toast.success(`Updated ${editForm.name}`);
+    toast.success(editForm.password.trim() ? `Updated ${editForm.name} (password reset)` : `Updated ${editForm.name}`);
     setEditTrainer(null);
     await load();
   };

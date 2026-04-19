@@ -134,12 +134,21 @@ const LLMUsageCohortPanel = () => {
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <CardTitle className="text-base">Cohort usage — last 7 days</CardTitle>
+          <CardTitle className="text-base">Cohort usage — last {rangeDays} days</CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
             {scopeStudentCount} student{scopeStudentCount === 1 ? "" : "s"} in scope
+            {loading && <span className="ml-2 inline-flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> loading…</span>}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Select value={String(rangeDays)} onValueChange={(v) => setRangeDays(Number(v) as RangeDays)}>
+            <SelectTrigger className="w-[110px] h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="90">Last 90 days</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={scope.type} onValueChange={(v) => setScope({ type: v as Scope["type"] })}>
             <SelectTrigger className="w-[140px] h-9 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>

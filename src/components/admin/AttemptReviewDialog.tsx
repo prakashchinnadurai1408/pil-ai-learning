@@ -163,6 +163,29 @@ const AttemptReviewDialog = ({ open, onOpenChange, attempt, assessmentTitle, pas
           </DialogDescription>
         </DialogHeader>
 
+        {siblingAttempts.length > 1 && onSwitchAttempt && (
+          <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30 border border-border">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Attempt:</span>
+            <Select value={attempt.id} onValueChange={(id) => {
+              const next = siblingAttempts.find((a) => a.id === id);
+              if (next) onSwitchAttempt(next);
+            }}>
+              <SelectTrigger className="h-8 w-auto min-w-[280px] text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {[...siblingAttempts]
+                  .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
+                  .map((a, i) => (
+                    <SelectItem key={a.id} value={a.id} className="text-xs">
+                      #{i + 1} · {a.completed_at ? new Date(a.completed_at).toLocaleString() : "in progress"} · {a.score}%
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <Badge variant="outline" className="text-[10px] ml-auto">{siblingAttempts.length} attempts</Badge>
+          </div>
+        )}
+
         {/* Score summary */}
         <div className="flex items-center gap-3 flex-wrap p-3 rounded-lg bg-muted/40 border border-border">
           <Badge variant="secondary" className="gap-1">

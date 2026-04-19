@@ -12,6 +12,7 @@ export async function streamChat({
   studentContext,
   modelOverride,
   userMeta,
+  featureTag,
   onDelta,
   onDone,
 }: {
@@ -20,6 +21,7 @@ export async function streamChat({
   studentContext?: Record<string, any>;
   modelOverride?: string;
   userMeta?: { id?: string; name?: string; role?: string };
+  featureTag?: string;
   onDelta: (deltaText: string) => void;
   onDone: () => void;
 }) {
@@ -42,7 +44,7 @@ export async function streamChat({
       "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages, tool, studentContext, modelOverride, userMeta: resolvedMeta }),
+    body: JSON.stringify({ messages, tool, studentContext, modelOverride, userMeta: resolvedMeta, featureTag }),
   });
 
   if (!resp.ok || !resp.body) {

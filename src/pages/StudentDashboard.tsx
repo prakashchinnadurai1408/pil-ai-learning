@@ -15,7 +15,8 @@ import { useStudentLearningPaths } from "@/hooks/useLearningPaths";
 import {
   BookOpen, MessageSquare, FlaskConical, ClipboardCheck,
   FolderKanban, LogOut, CheckCircle, Code2, Pencil,
-  Lock, Crown, User,
+  Lock, Crown, User, LayoutDashboard, CreditCard, Route, Layers,
+  Library, BarChart3, ShieldCheck,
 } from "lucide-react";
 import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 import { getMenuAccess, isAllowed, TIER_META, TIERS, type MenuAccessConfig, type Tier } from "@/hooks/useMenuAccessControls";
@@ -25,7 +26,6 @@ import NotificationsPanel from "@/components/dashboard/NotificationsPanel";
 import { ContentSkeleton } from "@/components/LoadingFallback";
 
 const AIPlayground = lazy(() => import("@/components/dashboard/AIPlayground"));
-const VideoLearning = lazy(() => import("@/components/dashboard/VideoLearning"));
 const AssessmentsView = lazy(() => import("@/components/dashboard/AssessmentsView"));
 const StudentAssessmentTaker = lazy(() => import("@/components/dashboard/StudentAssessmentTaker"));
 const AIToolsSandbox = lazy(() => import("@/components/dashboard/AIToolsSandbox"));
@@ -39,20 +39,43 @@ const MyAILearningPath = lazy(() => import("@/components/dashboard/MyAILearningP
 const StudentModulesView = lazy(() => import("@/components/dashboard/StudentModulesView"));
 const MyAssignedProjects = lazy(() => import("@/components/dashboard/MyAssignedProjects"));
 const MyModuleGroups = lazy(() => import("@/components/dashboard/MyModuleGroups"));
+const QuestionBankViewer = lazy(() => import("@/components/admin/QuestionBankViewer"));
+const StudentAssessmentsAnalytics = lazy(() => import("@/components/dashboard/StudentAssessmentsAnalytics"));
+const StudentProctoringAnalytics = lazy(() => import("@/components/dashboard/StudentProctoringAnalytics"));
+const StudentProjectsAnalytics = lazy(() => import("@/components/dashboard/StudentProjectsAnalytics"));
 
-type TabKey = "modules" | "videos" | "playground" | "coding" | "prompts" | "tools" | "assessments" | "projects";
+type TabKey =
+  | "overview" | "subscription"
+  | "ai_path" | "module_groups" | "modules"
+  | "playground" | "tools" | "question_bank" | "coding" | "prompts"
+  | "assessments" | "projects"
+  | "analytics_assessments" | "analytics_proctoring" | "analytics_projects";
 
 const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: typeof BookOpen }[] }[] = [
-  { label: "Learn", items: [{ key: "modules", label: "Modules", icon: BookOpen }] },
-  { label: "Practice", items: [
-    { key: "playground", label: "AI Chat", icon: MessageSquare },
-    { key: "coding", label: "Coding", icon: Code2 },
-    { key: "prompts", label: "Prompts", icon: Pencil },
-    { key: "tools", label: "AI Tools", icon: FlaskConical },
+  { label: "Account", items: [
+    { key: "overview", label: "Overview", icon: LayoutDashboard },
+    { key: "subscription", label: "Subscriptions Status", icon: CreditCard },
   ]},
-  { label: "Progress", items: [
+  { label: "Learn", items: [
+    { key: "ai_path", label: "Learning Paths", icon: Route },
+    { key: "module_groups", label: "Module Groups", icon: Layers },
+    { key: "modules", label: "Modules & Videos", icon: BookOpen },
+  ]},
+  { label: "Practice", items: [
+    { key: "playground", label: "Section Content – AI Chat", icon: MessageSquare },
+    { key: "tools", label: "Section Content – AI Tools", icon: FlaskConical },
+    { key: "question_bank", label: "Question Bank", icon: Library },
+    { key: "coding", label: "Coding Challenges", icon: Code2 },
+    { key: "prompts", label: "Prompts", icon: Pencil },
+  ]},
+  { label: "Assessments", items: [
     { key: "assessments", label: "Assessments", icon: ClipboardCheck },
     { key: "projects", label: "Projects", icon: FolderKanban },
+  ]},
+  { label: "Analytics", items: [
+    { key: "analytics_assessments", label: "Assessments", icon: BarChart3 },
+    { key: "analytics_proctoring", label: "Proctoring", icon: ShieldCheck },
+    { key: "analytics_projects", label: "Projects", icon: FolderKanban },
   ]},
 ];
 

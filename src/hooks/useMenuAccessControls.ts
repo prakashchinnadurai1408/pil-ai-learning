@@ -28,9 +28,23 @@ export interface MenuRow {
 export type MenuAccessConfig = Record<string, Record<Tier, boolean>>;
 
 const STUDENT_LABELS: Record<string, string> = {
-  modules: "Modules", videos: "Videos", playground: "AI Chat", coding: "Coding",
-  prompts: "Prompts", tools: "AI Tools Sandbox", assessments: "Assessments", projects: "Projects",
-  ai_path: "AI Learning Path", module_groups: "Module Groups", notifications: "Notifications", profile: "Profile",
+  overview: "Overview",
+  subscription: "Subscriptions Status",
+  ai_path: "Learning Paths",
+  module_groups: "Module Groups",
+  modules: "Modules & Videos",
+  playground: "Section Content – AI Chat",
+  tools: "Section Content – AI Tools",
+  question_bank: "Question Bank",
+  coding: "Coding Challenges",
+  prompts: "Prompts",
+  assessments: "Assessments",
+  projects: "Projects",
+  analytics_assessments: "Analytics — Assessments",
+  analytics_proctoring: "Analytics — Proctoring",
+  analytics_projects: "Analytics — Projects",
+  notifications: "Notifications",
+  profile: "Profile",
 };
 const TRAINER_LABELS: Record<string, string> = {
   students: "Student Progress", assessments_overview: "Assessment Overview",

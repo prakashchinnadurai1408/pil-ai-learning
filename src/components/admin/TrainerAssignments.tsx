@@ -66,15 +66,29 @@ const TrainerAssignments = () => {
     setOpen(true);
   };
 
+  // Students assigned to OTHER trainers should be hidden in the dialog
+  const assignedToOthers = useMemo(() => {
+    const set = new Set<string>();
+    Object.entries(assignments).forEach(([tid, ids]) => {
+      if (tid !== activeTrainer?.id) ids.forEach(id => set.add(id));
+    });
+    return set;
+  }, [assignments, activeTrainer]);
+
+  const availableStudents = useMemo(
+    () => students.filter(s => !assignedToOthers.has(s.id)),
+    [students, assignedToOthers]
+  );
+
   const colleges = useMemo(
-    () => Array.from(new Set(students.map(s => s.college).filter(Boolean))).sort(),
-    [students]
+    () => Array.from(new Set(availableStudents.map(s => s.college).filter(Boolean))).sort(),
+    [availableStudents]
   );
 
   const addCollegeStudents = () => {
     if (!bulkCollege) return;
-    const ids = students.filter(s => s.college === bulkCollege).map(s => s.id);
-    if (ids.length === 0) { toast.info("No students from that institute"); return; }
+    const ids = availableStudents.filter(s => s.college === bulkCollege).map(s => s.id);
+    if (ids.length === 0) { toast.info("No unassigned students from that institute"); return; }
     setDraft(prev => {
       const next = new Set(prev);
       ids.forEach(id => next.add(id));
@@ -85,13 +99,33 @@ const TrainerAssignments = () => {
 
   const filteredStudents = useMemo(() => {
     const q = search.toLowerCase().trim();
-    if (!q) return students;
-    return students.filter(s =>
+    if (!q) return availableStudents;
+    return availableStudents.filter(s =>
       s.name.toLowerCase().includes(q) ||
       s.email.toLowerCase().includes(q) ||
       s.college.toLowerCase().includes(q)
     );
-  }, [students, search]);
+  }, [availableStudents, search]);
+
+  const addTrainer = async () => {
+    const t = newTrainer;
+    if (!t.name.trim() || !t.email.trim() || !t.mobile.trim() || !t.college.trim() || !t.location.trim()) {
+      toast.error("Name, email, mobile, college and location are required");
+      return;
+    }
+    setAdding(true);
+    const { error } = await supabase.from("trainers").insert({
+      name: t.name.trim(), email: t.email.trim(), mobile: t.mobile.trim(),
+      college: t.college.trim(), location: t.location.trim(),
+      password: t.password || "trainer123", subscription_tier: t.subscription_tier,
+    });
+    setAdding(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Trainer ${t.name} added on ${TIER_META[t.subscription_tier].label} plan`);
+    setAddOpen(false);
+    setNewTrainer({ name: "", email: "", mobile: "", college: "", location: "", password: "", subscription_tier: "free" });
+    await load();
+  };
 
   const toggle = (id: string) => {
     setDraft(prev => {

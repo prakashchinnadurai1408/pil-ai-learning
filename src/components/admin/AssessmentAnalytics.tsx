@@ -413,6 +413,7 @@ Format the response in clean markdown with headers and bullet points.`
                     <th className="p-3 font-medium">Best Score</th>
                     <th className="p-3 font-medium">Avg Score</th>
                     <th className="p-3 font-medium">Attempts</th>
+                    <th className="p-3 font-medium w-20">Review</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">

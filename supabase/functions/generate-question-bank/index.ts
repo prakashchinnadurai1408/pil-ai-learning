@@ -41,7 +41,7 @@ serve(async (req) => {
     const existingHashes = new Set((existing || []).map((r: any) => hash(r.question)));
     const sampleExisting = (existing || []).slice(0, 8).map((r: any) => `- ${r.question}`).join("\n");
 
-    const target = Math.min(Math.max(Number(count) || 20, 5), 50);
+    const target = Math.min(Math.max(Number(count) || 5, 1), 5);
 
     const prompt = `You are an expert quiz author for an AI/tech learning platform serving Indian UG/PG students.
 

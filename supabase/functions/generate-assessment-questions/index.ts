@@ -43,8 +43,8 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (total > 50) {
-      return new Response(JSON.stringify({ error: "Max 50 questions per generation" }), {
+    if (total > 5) {
+      return new Response(JSON.stringify({ error: "Max 5 questions per call — batch on the client" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

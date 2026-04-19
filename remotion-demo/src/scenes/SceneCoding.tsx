@@ -16,7 +16,7 @@ const CODE_LINES = [
 export const SceneCoding: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const visibleLines = Math.floor(interpolate(frame, [10, 80], [0, CODE_LINES.length], { extrapolateRight: "clamp" }));
+  const visibleLines = Math.max(0, Math.floor(interpolate(frame, [10, 80], [0, CODE_LINES.length], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })));
   const runFrame = 95;
   const showOutput = frame > runFrame + 15;
   const outputOp = spring({ frame: frame - runFrame - 15, fps, config: { damping: 18 } });

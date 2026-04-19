@@ -497,9 +497,11 @@ Format the response in clean markdown with headers and bullet points.`
         open={!!reviewAttempt}
         onOpenChange={(v) => !v && setReviewAttempt(null)}
         attempt={reviewAttempt}
+        siblingAttempts={reviewAttempt ? filteredAttempts.filter(a => a.student_id === reviewAttempt.student_id && a.assessment_id === reviewAttempt.assessment_id) : []}
+        onSwitchAttempt={(a) => setReviewAttempt(a)}
         assessmentTitle={assessments.find(a => a.id === reviewAttempt?.assessment_id)?.title || ""}
         passingScore={assessments.find(a => a.id === reviewAttempt?.assessment_id)?.passing_score || 60}
-        onSaved={() => { refetchAttempts(); setReviewAttempt(null); }}
+        onSaved={() => { refetchAttempts(); }}
       />
     </div>
   );

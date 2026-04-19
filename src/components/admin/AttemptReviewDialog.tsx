@@ -4,7 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Save, RefreshCw, Trophy, FileText, Video, Code2, ListChecks, CheckCircle, XCircle, Sparkles } from "lucide-react";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Loader2, Save, Trophy, FileText, Video, Code2, ListChecks, CheckCircle, XCircle, Sparkles, History } from "lucide-react";
 import { toast } from "sonner";
 import type { AssessmentAttempt, AssessmentQuestion } from "@/hooks/useAssessments";
 
@@ -15,6 +16,8 @@ interface Props {
   assessmentTitle: string;
   passingScore: number;
   onSaved?: () => void;
+  siblingAttempts?: AssessmentAttempt[];
+  onSwitchAttempt?: (a: AssessmentAttempt) => void;
 }
 
 type Grading = Record<string, { score: number; max: number; feedback: string }>;
@@ -29,7 +32,7 @@ const typeIcon = (t: string) => {
   }
 };
 
-const AttemptReviewDialog = ({ open, onOpenChange, attempt, assessmentTitle, passingScore, onSaved }: Props) => {
+const AttemptReviewDialog = ({ open, onOpenChange, attempt, assessmentTitle, passingScore, onSaved, siblingAttempts = [], onSwitchAttempt }: Props) => {
   const [questions, setQuestions] = useState<AssessmentQuestion[]>([]);
   const [grading, setGrading] = useState<Grading>({});
   const [overrides, setOverrides] = useState<Record<string, string>>({}); // raw input strings
@@ -159,6 +162,29 @@ const AttemptReviewDialog = ({ open, onOpenChange, attempt, assessmentTitle, pas
             {assessmentTitle} · Submitted {attempt.completed_at ? new Date(attempt.completed_at).toLocaleString() : "—"}
           </DialogDescription>
         </DialogHeader>
+
+        {siblingAttempts.length > 1 && onSwitchAttempt && (
+          <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30 border border-border">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Attempt:</span>
+            <Select value={attempt.id} onValueChange={(id) => {
+              const next = siblingAttempts.find((a) => a.id === id);
+              if (next) onSwitchAttempt(next);
+            }}>
+              <SelectTrigger className="h-8 w-auto min-w-[280px] text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {[...siblingAttempts]
+                  .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
+                  .map((a, i) => (
+                    <SelectItem key={a.id} value={a.id} className="text-xs">
+                      #{i + 1} · {a.completed_at ? new Date(a.completed_at).toLocaleString() : "in progress"} · {a.score}%
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <Badge variant="outline" className="text-[10px] ml-auto">{siblingAttempts.length} attempts</Badge>
+          </div>
+        )}
 
         {/* Score summary */}
         <div className="flex items-center gap-3 flex-wrap p-3 rounded-lg bg-muted/40 border border-border">

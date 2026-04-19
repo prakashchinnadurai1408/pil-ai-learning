@@ -7,9 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Loader2, Search, Users, UserCheck, Building2, UserPlus } from "lucide-react";
+import { Loader2, Search, Users, UserCheck, Building2, UserPlus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { TIERS, TIER_META, type Tier } from "@/hooks/useMenuAccessControls";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Trainer { id: string; name: string; email: string; college: string; subscription_tier?: string; }
 interface Student { id: string; name: string; email: string; college: string; }
@@ -37,6 +41,11 @@ const TrainerAssignments = () => {
   const [newTrainer, setNewTrainer] = useState({
     name: "", email: "", mobile: "", college: "", location: "", password: "", subscription_tier: "free" as Tier,
   });
+  const [editTrainer, setEditTrainer] = useState<Trainer | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", email: "", mobile: "", college: "", location: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Trainer | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -124,6 +133,45 @@ const TrainerAssignments = () => {
     toast.success(`Trainer ${t.name} added on ${TIER_META[t.subscription_tier].label} plan`);
     setAddOpen(false);
     setNewTrainer({ name: "", email: "", mobile: "", college: "", location: "", password: "", subscription_tier: "free" });
+    await load();
+  };
+
+  const openEdit = (t: Trainer) => {
+    setEditForm({
+      name: t.name || "", email: t.email || "",
+      mobile: (t as any).mobile || "", college: t.college || "",
+      location: (t as any).location || "",
+    });
+    setEditTrainer(t);
+  };
+
+  const saveEdit = async () => {
+    if (!editTrainer) return;
+    if (!editForm.name.trim() || !editForm.email.trim()) {
+      toast.error("Name and email are required"); return;
+    }
+    setSavingEdit(true);
+    const { error } = await (supabase as any).from("trainers").update({
+      name: editForm.name.trim(), email: editForm.email.trim(),
+      mobile: editForm.mobile.trim(), college: editForm.college.trim(),
+      location: editForm.location.trim(),
+    }).eq("id", editTrainer.id);
+    setSavingEdit(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Updated ${editForm.name}`);
+    setEditTrainer(null);
+    await load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    await (supabase as any).from("trainer_students").delete().eq("trainer_id", deleteTarget.id);
+    const { error } = await (supabase as any).from("trainers").delete().eq("id", deleteTarget.id);
+    setDeleting(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Removed ${deleteTarget.name} and their student mappings`);
+    setDeleteTarget(null);
     await load();
   };
 
@@ -254,9 +302,17 @@ const TrainerAssignments = () => {
                     </Badge>
                   </td>
                   <td className="p-4">
-                    <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => openDialog(t)}>
-                      <UserCheck className="h-3 w-3" /> Assign Students
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => openDialog(t)}>
+                        <UserCheck className="h-3 w-3" /> Assign
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => openEdit(t)}>
+                        <Pencil className="h-3 w-3" /> Edit
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-1 text-xs text-destructive hover:text-destructive" onClick={() => setDeleteTarget(t)}>
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -385,6 +441,71 @@ const TrainerAssignments = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!editTrainer} onOpenChange={(o) => !o && setEditTrainer(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" /> Edit Trainer
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Name *</Label>
+                <Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Mobile</Label>
+                <Input value={editForm.mobile} onChange={e => setEditForm(p => ({ ...p, mobile: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Email *</Label>
+              <Input type="email" value={editForm.email} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Institute</Label>
+                <Input value={editForm.college} onChange={e => setEditForm(p => ({ ...p, college: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Location</Label>
+                <Input value={editForm.location} onChange={e => setEditForm(p => ({ ...p, location: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTrainer(null)} disabled={savingEdit}>Cancel</Button>
+            <Button className="bg-gradient-primary border-0 text-primary-foreground" onClick={saveEdit} disabled={savingEdit}>
+              {savingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete trainer {deleteTarget?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the trainer and unassign all{" "}
+              <strong>{deleteTarget ? (assignments[deleteTarget.id]?.size ?? 0) : 0}</strong> mapped students.
+              The students themselves will not be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); confirmDelete(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete trainer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

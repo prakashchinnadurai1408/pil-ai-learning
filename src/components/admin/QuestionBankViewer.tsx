@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Database, Trash2, Filter, HelpCircle, CheckSquare, Sparkles } from "lucide-react";
+import { Search, Database, Trash2, Filter, HelpCircle, CheckSquare, Sparkles, FolderTree } from "lucide-react";
 import { toast } from "sonner";
 import AIQuestionBankGenerator from "./AIQuestionBankGenerator";
+import { useModuleGroups } from "@/hooks/useModuleGroups";
 
 interface BankQuestion {
   id: string;

@@ -250,10 +250,15 @@ const TrainerAssignments = () => {
             Object.values(assignments).forEach(set => set.forEach(id => mapped.add(id)));
             const unassigned = students.filter(s => !mapped.has(s.id)).length;
             return (
-              <Badge variant={unassigned > 0 ? "destructive" : "secondary"} className="gap-1 h-9 px-3">
+              <Button
+                variant={unassigned > 0 ? "destructive" : "secondary"}
+                size="sm"
+                className="gap-1 h-9"
+                onClick={() => setUnassignedOpen(true)}
+              >
                 <Users className="h-3.5 w-3.5" />
                 {unassigned} unassigned student{unassigned === 1 ? "" : "s"}
-              </Badge>
+              </Button>
             );
           })()}
           <Button className="gap-2 bg-gradient-primary border-0 text-primary-foreground" onClick={() => setAddOpen(true)}>

@@ -29,8 +29,10 @@ const QuestionBankViewer = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterModule, setFilterModule] = useState("all");
+  const [filterGroup, setFilterGroup] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const { groups } = useModuleGroups();
 
   const fetchQuestions = async () => {
     setLoading(true);

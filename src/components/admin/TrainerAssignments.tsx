@@ -46,6 +46,7 @@ const TrainerAssignments = () => {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Trainer | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [unassignedOpen, setUnassignedOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);

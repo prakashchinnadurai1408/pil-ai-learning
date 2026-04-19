@@ -90,24 +90,26 @@ const LLMUsageCohortPanel = () => {
 
   const featureBuckets = useMemo(() => {
     const now = Date.now();
-    const days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(now - (6 - i) * 24 * 60 * 60 * 1000);
-      return d.toISOString().slice(0, 10);
-    });
+    const bucketCount = rangeDays === 90 ? 13 : rangeDays;
+    const bucketMs = (rangeDays * 24 * 60 * 60 * 1000) / bucketCount;
+    const startMs = now - rangeDays * 24 * 60 * 60 * 1000;
     return FEATURES.map((feat) => {
-      const buckets: Record<string, number> = Object.fromEntries(days.map((d) => [d, 0]));
+      const series = new Array(bucketCount).fill(0);
       let total = 0;
-      const otherUsed = new Set<string>();
+      const users = new Set<string>();
       scopedLogs.forEach((l) => {
         const matched = FEATURES.find((f) => f.key !== "other" && f.match(l.feature || ""));
         const isThis = feat.key === "other" ? !matched : matched?.key === feat.key;
         if (!isThis) return;
-        const day = new Date(l.created_at).toISOString().slice(0, 10);
-        if (day in buckets) { buckets[day] += 1; total += 1; otherUsed.add(l.user_id); }
+        const t = +new Date(l.created_at);
+        const idx = Math.min(bucketCount - 1, Math.max(0, Math.floor((t - startMs) / bucketMs)));
+        series[idx] += 1;
+        total += 1;
+        users.add(l.user_id);
       });
-      return { ...feat, total, uniqueUsers: otherUsed.size, series: days.map((d) => buckets[d]) };
+      return { ...feat, total, uniqueUsers: users.size, series };
     });
-  }, [scopedLogs]);
+  }, [scopedLogs, rangeDays]);
 
   const leaderboard = useMemo(() => {
     const counts = new Map<string, number>();

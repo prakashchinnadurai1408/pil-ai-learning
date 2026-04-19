@@ -204,7 +204,7 @@ const LLMUsageCohortPanel = () => {
         <div className="mt-6">
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-sm font-semibold text-card-foreground">Top 10 most active students</h4>
-            <span className="text-[10px] text-muted-foreground">by total LLM calls (7d)</span>
+            <span className="text-[10px] text-muted-foreground">by total LLM calls ({rangeDays}d)</span>
           </div>
           {leaderboard.length === 0 ? (
             <div className="text-center text-xs text-muted-foreground py-6 border border-dashed border-border rounded-lg">
@@ -245,6 +245,7 @@ const LLMUsageCohortPanel = () => {
         uid={drillUid}
         student={drillUid ? students.find((s) => s.id === drillUid) : null}
         logs={drillUid ? logs.filter((l) => l.user_id === drillUid) : []}
+        rangeDays={rangeDays}
         onClose={() => setDrillUid(null)}
       />
     </Card>
@@ -252,8 +253,8 @@ const LLMUsageCohortPanel = () => {
 };
 
 const StudentDrillDownDialog = ({
-  uid, student, logs, onClose,
-}: { uid: string | null; student: any; logs: UsageRow[]; onClose: () => void }) => {
+  uid, student, logs, rangeDays, onClose,
+}: { uid: string | null; student: any; logs: UsageRow[]; rangeDays: number; onClose: () => void }) => {
   const breakdown = useMemo(() => {
     const map = new Map<string, number>();
     logs.forEach((l) => {
@@ -283,7 +284,7 @@ const StudentDrillDownDialog = ({
             <span>{student?.name || "Student"}</span>
             <Badge variant="secondary" className="text-[10px]">{student?.college || "—"}</Badge>
           </DialogTitle>
-          <p className="text-xs text-muted-foreground">Last 7 days · drill-down</p>
+          <p className="text-xs text-muted-foreground">Last {rangeDays} days · drill-down</p>
         </DialogHeader>
 
         <div className="grid grid-cols-3 gap-3">

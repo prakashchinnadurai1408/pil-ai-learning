@@ -479,9 +479,20 @@ const TrainerAssignments = () => {
                 <Input value={editForm.location} onChange={e => setEditForm(p => ({ ...p, location: e.target.value }))} />
               </div>
             </div>
+            <div className="space-y-1 pt-2 border-t border-border">
+              <Label className="text-xs flex items-center justify-between">
+                <span>Reset password</span>
+                <span className="text-muted-foreground font-normal">Leave blank to keep current</span>
+              </Label>
+              <Input
+                type="text"
+                value={editForm.password}
+                onChange={e => setEditForm(p => ({ ...p, password: e.target.value }))}
+                placeholder="New password (min 6 chars)"
+                autoComplete="new-password"
+              />
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditTrainer(null)} disabled={savingEdit}>Cancel</Button>
             <Button className="bg-gradient-primary border-0 text-primary-foreground" onClick={saveEdit} disabled={savingEdit}>
               {savingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save changes"}
             </Button>

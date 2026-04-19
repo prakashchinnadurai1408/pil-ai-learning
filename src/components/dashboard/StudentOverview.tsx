@@ -102,6 +102,10 @@ const StudentOverview = ({
     aiChat: 0, aiTools: 0, prompts: 0, coding: 0,
     modulesAccessed: 0, modulesCompleted: 0, quizzes: 0,
   });
+  const [sparks, setSparks] = useState<UsageSparks>({
+    aiChat: [0,0,0,0,0,0,0], aiTools: [0,0,0,0,0,0,0], prompts: [0,0,0,0,0,0,0],
+    coding: [0,0,0,0,0,0,0], modules: [0,0,0,0,0,0,0], quizzes: [0,0,0,0,0,0,0],
+  });
   const [assessStat, setAssessStat] = useState<AssessmentStat>({ attempts: 0, avgScore: 0, passRate: 0, recent: [] });
   const [projectStat, setProjectStat] = useState<ProjectStat>({ assigned: 0, inProgress: 0, completed: 0, avgStepPct: 0 });
   const [activity, setActivity] = useState<ActivityItem[]>([]);

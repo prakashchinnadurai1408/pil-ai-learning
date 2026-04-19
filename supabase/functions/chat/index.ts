@@ -67,7 +67,7 @@ serve(async (req) => {
   const startedAt = Date.now();
 
   try {
-    const { messages, tool, studentContext, userMeta, modelOverride, featureTag } = await req.json();
+    const { messages, tool, studentContext, userMeta, modelOverride, featureTag, nonStream } = await req.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: "No messages provided" }), {
@@ -185,7 +185,7 @@ When the student asks for help, adapt your explanations to their level. If they 
           { role: "system", content: systemPrompt },
           ...validMessages,
         ],
-        stream: true,
+        stream: !nonStream,
       }),
     });
 
@@ -196,20 +196,32 @@ When the student asks for help, adapt your explanations to their level. If they 
         userRole: userMeta?.role || "student", userName: userMeta?.name || "",
         userId: userMeta?.id || "", feature: (typeof featureTag === "string" && featureTag) ? featureTag : (typeof tool === "string" ? tool : "chat"),
       });
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI usage limit reached. Please add credits to continue." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      return new Response(JSON.stringify({ error: "AI service error" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      const errText = await response.text().catch(() => "");
+      console.error("AI gateway error:", response.status, errText);
+      const reason = response.status === 402 ? "AI usage limit reached. Please add credits to continue."
+        : response.status === 429 ? "AI is busy. Please try again in a moment."
+        : "AI service is temporarily unavailable.";
+      // Always 200 so client doesn't see opaque "non-2xx"; client checks `error` field.
+      return new Response(JSON.stringify({ error: reason, fallback: true, status: response.status }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Non-streaming path: return plain JSON the caller can read directly.
+    if (nonStream) {
+      const data = await response.json();
+      const reply = data?.choices?.[0]?.message?.content || "";
+      const usage = data?.usage || {};
+      await logUsage({
+        provider, model,
+        promptTokens: usage.prompt_tokens || 0,
+        completionTokens: usage.completion_tokens || Math.ceil(reply.length / 4),
+        latencyMs: Date.now() - startedAt, status: "success",
+        userRole: userMeta?.role || "student", userName: userMeta?.name || "",
+        userId: userMeta?.id || "", feature: (typeof featureTag === "string" && featureTag) ? featureTag : (typeof tool === "string" ? tool : "chat"),
+      });
+      return new Response(JSON.stringify({ reply, choices: data?.choices }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 

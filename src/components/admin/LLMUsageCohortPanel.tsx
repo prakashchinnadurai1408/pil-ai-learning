@@ -41,27 +41,32 @@ const Sparkline = ({ data, color = "hsl(var(--primary))" }: { data: number[]; co
   );
 };
 
+type RangeDays = 7 | 30 | 90;
+
 const LLMUsageCohortPanel = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [logs, setLogs] = useState<UsageRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [scope, setScope] = useState<Scope>({ type: "all" });
   const [drillUid, setDrillUid] = useState<string | null>(null);
+  const [rangeDays, setRangeDays] = useState<RangeDays>(7);
 
   useEffect(() => {
-    (async () => {
-      const [s, l] = await Promise.all([
-        supabase.from("students").select("id,name,college,degree,department"),
-        supabase.from("llm_usage_logs")
-          .select("user_id,feature,created_at,model,provider,total_tokens,latency_ms,status")
-          .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-          .limit(50000),
-      ]);
-      setStudents(s.data || []);
-      setLogs((l.data as UsageRow[]) || []);
-      setLoading(false);
-    })();
+    supabase.from("students").select("id,name,college,degree,department")
+      .then(({ data }) => setStudents(data || []));
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    supabase.from("llm_usage_logs")
+      .select("user_id,feature,created_at,model,provider,total_tokens,latency_ms,status")
+      .gte("created_at", new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000).toISOString())
+      .limit(50000)
+      .then(({ data }) => {
+        setLogs((data as UsageRow[]) || []);
+        setLoading(false);
+      });
+  }, [rangeDays]);
 
   const colleges = useMemo(() => Array.from(new Set(students.map((s) => s.college).filter(Boolean))).sort(), [students]);
   const degrees = useMemo(() => Array.from(new Set(students.map((s) => s.degree).filter(Boolean))).sort(), [students]);
@@ -85,24 +90,26 @@ const LLMUsageCohortPanel = () => {
 
   const featureBuckets = useMemo(() => {
     const now = Date.now();
-    const days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(now - (6 - i) * 24 * 60 * 60 * 1000);
-      return d.toISOString().slice(0, 10);
-    });
+    const bucketCount = rangeDays === 90 ? 13 : rangeDays;
+    const bucketMs = (rangeDays * 24 * 60 * 60 * 1000) / bucketCount;
+    const startMs = now - rangeDays * 24 * 60 * 60 * 1000;
     return FEATURES.map((feat) => {
-      const buckets: Record<string, number> = Object.fromEntries(days.map((d) => [d, 0]));
+      const series = new Array(bucketCount).fill(0);
       let total = 0;
-      const otherUsed = new Set<string>();
+      const users = new Set<string>();
       scopedLogs.forEach((l) => {
         const matched = FEATURES.find((f) => f.key !== "other" && f.match(l.feature || ""));
         const isThis = feat.key === "other" ? !matched : matched?.key === feat.key;
         if (!isThis) return;
-        const day = new Date(l.created_at).toISOString().slice(0, 10);
-        if (day in buckets) { buckets[day] += 1; total += 1; otherUsed.add(l.user_id); }
+        const t = +new Date(l.created_at);
+        const idx = Math.min(bucketCount - 1, Math.max(0, Math.floor((t - startMs) / bucketMs)));
+        series[idx] += 1;
+        total += 1;
+        users.add(l.user_id);
       });
-      return { ...feat, total, uniqueUsers: otherUsed.size, series: days.map((d) => buckets[d]) };
+      return { ...feat, total, uniqueUsers: users.size, series };
     });
-  }, [scopedLogs]);
+  }, [scopedLogs, rangeDays]);
 
   const leaderboard = useMemo(() => {
     const counts = new Map<string, number>();
@@ -127,12 +134,21 @@ const LLMUsageCohortPanel = () => {
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <CardTitle className="text-base">Cohort usage — last 7 days</CardTitle>
+          <CardTitle className="text-base">Cohort usage — last {rangeDays} days</CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
             {scopeStudentCount} student{scopeStudentCount === 1 ? "" : "s"} in scope
+            {loading && <span className="ml-2 inline-flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> loading…</span>}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Select value={String(rangeDays)} onValueChange={(v) => setRangeDays(Number(v) as RangeDays)}>
+            <SelectTrigger className="w-[110px] h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="90">Last 90 days</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={scope.type} onValueChange={(v) => setScope({ type: v as Scope["type"] })}>
             <SelectTrigger className="w-[140px] h-9 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -188,7 +204,7 @@ const LLMUsageCohortPanel = () => {
         <div className="mt-6">
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-sm font-semibold text-card-foreground">Top 10 most active students</h4>
-            <span className="text-[10px] text-muted-foreground">by total LLM calls (7d)</span>
+            <span className="text-[10px] text-muted-foreground">by total LLM calls ({rangeDays}d)</span>
           </div>
           {leaderboard.length === 0 ? (
             <div className="text-center text-xs text-muted-foreground py-6 border border-dashed border-border rounded-lg">
@@ -229,6 +245,7 @@ const LLMUsageCohortPanel = () => {
         uid={drillUid}
         student={drillUid ? students.find((s) => s.id === drillUid) : null}
         logs={drillUid ? logs.filter((l) => l.user_id === drillUid) : []}
+        rangeDays={rangeDays}
         onClose={() => setDrillUid(null)}
       />
     </Card>
@@ -236,8 +253,8 @@ const LLMUsageCohortPanel = () => {
 };
 
 const StudentDrillDownDialog = ({
-  uid, student, logs, onClose,
-}: { uid: string | null; student: any; logs: UsageRow[]; onClose: () => void }) => {
+  uid, student, logs, rangeDays, onClose,
+}: { uid: string | null; student: any; logs: UsageRow[]; rangeDays: number; onClose: () => void }) => {
   const breakdown = useMemo(() => {
     const map = new Map<string, number>();
     logs.forEach((l) => {
@@ -267,7 +284,7 @@ const StudentDrillDownDialog = ({
             <span>{student?.name || "Student"}</span>
             <Badge variant="secondary" className="text-[10px]">{student?.college || "—"}</Badge>
           </DialogTitle>
-          <p className="text-xs text-muted-foreground">Last 7 days · drill-down</p>
+          <p className="text-xs text-muted-foreground">Last {rangeDays} days · drill-down</p>
         </DialogHeader>
 
         <div className="grid grid-cols-3 gap-3">

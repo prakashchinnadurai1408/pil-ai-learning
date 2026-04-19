@@ -42,7 +42,7 @@ const TrainerAssignments = () => {
     name: "", email: "", mobile: "", college: "", location: "", password: "", subscription_tier: "free" as Tier,
   });
   const [editTrainer, setEditTrainer] = useState<Trainer | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", email: "", mobile: "", college: "", location: "" });
+  const [editForm, setEditForm] = useState({ name: "", email: "", mobile: "", college: "", location: "", password: "" });
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Trainer | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -140,7 +140,7 @@ const TrainerAssignments = () => {
     setEditForm({
       name: t.name || "", email: t.email || "",
       mobile: (t as any).mobile || "", college: t.college || "",
-      location: (t as any).location || "",
+      location: (t as any).location || "", password: "",
     });
     setEditTrainer(t);
   };
@@ -150,15 +150,20 @@ const TrainerAssignments = () => {
     if (!editForm.name.trim() || !editForm.email.trim()) {
       toast.error("Name and email are required"); return;
     }
+    if (editForm.password && editForm.password.length < 6) {
+      toast.error("New password must be at least 6 characters"); return;
+    }
     setSavingEdit(true);
-    const { error } = await (supabase as any).from("trainers").update({
+    const update: any = {
       name: editForm.name.trim(), email: editForm.email.trim(),
       mobile: editForm.mobile.trim(), college: editForm.college.trim(),
       location: editForm.location.trim(),
-    }).eq("id", editTrainer.id);
+    };
+    if (editForm.password.trim()) update.password = editForm.password.trim();
+    const { error } = await (supabase as any).from("trainers").update(update).eq("id", editTrainer.id);
     setSavingEdit(false);
     if (error) { toast.error(error.message); return; }
-    toast.success(`Updated ${editForm.name}`);
+    toast.success(editForm.password.trim() ? `Updated ${editForm.name} (password reset)` : `Updated ${editForm.name}`);
     setEditTrainer(null);
     await load();
   };
@@ -238,9 +243,22 @@ const TrainerAssignments = () => {
           <h2 className="text-xl font-display font-semibold text-card-foreground">Trainer ↔ Student Assignments</h2>
           <p className="text-sm text-muted-foreground">Assign which candidates each trainer can see and manage.</p>
         </div>
-        <Button className="gap-2 bg-gradient-primary border-0 text-primary-foreground" onClick={() => setAddOpen(true)}>
-          <UserPlus className="h-4 w-4" /> Add Trainer
-        </Button>
+        <div className="flex items-center gap-2">
+          {(() => {
+            const mapped = new Set<string>();
+            Object.values(assignments).forEach(set => set.forEach(id => mapped.add(id)));
+            const unassigned = students.filter(s => !mapped.has(s.id)).length;
+            return (
+              <Badge variant={unassigned > 0 ? "destructive" : "secondary"} className="gap-1 h-9 px-3">
+                <Users className="h-3.5 w-3.5" />
+                {unassigned} unassigned student{unassigned === 1 ? "" : "s"}
+              </Badge>
+            );
+          })()}
+          <Button className="gap-2 bg-gradient-primary border-0 text-primary-foreground" onClick={() => setAddOpen(true)}>
+            <UserPlus className="h-4 w-4" /> Add Trainer
+          </Button>
+        </div>
       </div>
 
       <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
@@ -473,6 +491,19 @@ const TrainerAssignments = () => {
                 <Label className="text-xs">Location</Label>
                 <Input value={editForm.location} onChange={e => setEditForm(p => ({ ...p, location: e.target.value }))} />
               </div>
+            </div>
+            <div className="space-y-1 pt-2 border-t border-border">
+              <Label className="text-xs flex items-center justify-between">
+                <span>Reset password</span>
+                <span className="text-muted-foreground font-normal">Leave blank to keep current</span>
+              </Label>
+              <Input
+                type="text"
+                value={editForm.password}
+                onChange={e => setEditForm(p => ({ ...p, password: e.target.value }))}
+                placeholder="New password (min 6 chars)"
+                autoComplete="new-password"
+              />
             </div>
           </div>
           <DialogFooter>

@@ -302,9 +302,17 @@ const TrainerAssignments = () => {
                     </Badge>
                   </td>
                   <td className="p-4">
-                    <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => openDialog(t)}>
-                      <UserCheck className="h-3 w-3" /> Assign Students
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => openDialog(t)}>
+                        <UserCheck className="h-3 w-3" /> Assign
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => openEdit(t)}>
+                        <Pencil className="h-3 w-3" /> Edit
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-1 text-xs text-destructive hover:text-destructive" onClick={() => setDeleteTarget(t)}>
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               );

@@ -11,6 +11,7 @@ export async function streamChat({
   tool,
   studentContext,
   modelOverride,
+  userMeta,
   onDelta,
   onDone,
 }: {
@@ -18,16 +19,30 @@ export async function streamChat({
   tool?: string;
   studentContext?: Record<string, any>;
   modelOverride?: string;
+  userMeta?: { id?: string; name?: string; role?: string };
   onDelta: (deltaText: string) => void;
   onDone: () => void;
 }) {
+  // Auto-resolve userMeta from sessionStorage if not provided.
+  let resolvedMeta = userMeta;
+  if (!resolvedMeta) {
+    try {
+      const raw = sessionStorage.getItem("studentSession") || sessionStorage.getItem("trainerSession") || sessionStorage.getItem("adminSession");
+      if (raw) {
+        const s = JSON.parse(raw);
+        const role = sessionStorage.getItem("studentSession") ? "student" : sessionStorage.getItem("trainerSession") ? "trainer" : "admin";
+        resolvedMeta = { id: s.id || s.email || "", name: s.name || "", role };
+      }
+    } catch { /* ignore */ }
+  }
+
   const resp = await fetch(CHAT_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages, tool, studentContext, modelOverride }),
+    body: JSON.stringify({ messages, tool, studentContext, modelOverride, userMeta: resolvedMeta }),
   });
 
   if (!resp.ok || !resp.body) {

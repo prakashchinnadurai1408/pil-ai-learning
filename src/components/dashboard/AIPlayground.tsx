@@ -144,21 +144,21 @@ const AIPlayground = () => {
   }, [input, isLoading, messages, lang]);
 
   return (
-    <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden" role="region" aria-label="AI Chat Playground">
-      <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+    <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden w-full max-w-full" role="region" aria-label="AI Chat Playground">
+      <div className="p-3 sm:p-4 border-b border-border flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center flex-shrink-0">
             <Sparkles className="h-4 w-4 text-primary-foreground" aria-hidden="true" />
           </div>
-          <div>
-            <h3 className="font-display font-semibold text-card-foreground">Prakash — AI Coach</h3>
-            <p className="text-xs text-muted-foreground">Multilingual AI coach with voice — remembers your conversation</p>
+          <div className="min-w-0">
+            <h3 className="font-display font-semibold text-card-foreground text-sm sm:text-base truncate">Prakash — AI Coach</h3>
+            <p className="text-xs text-muted-foreground truncate hidden sm:block">Multilingual AI coach with voice — remembers your conversation</p>
           </div>
         </div>
         <ChatLanguageSelector value={lang} onChange={setLang} />
       </div>
 
-      <div ref={scrollRef} className="h-[400px] overflow-y-auto p-4 space-y-4" role="log" aria-label="Chat messages" aria-live="polite">
+      <div ref={scrollRef} className="h-[380px] sm:h-[420px] overflow-y-auto p-3 sm:p-4 space-y-4" role="log" aria-label="Chat messages" aria-live="polite">
         {messages.map((msg, i) => (
           <ChatMessage key={i} msg={msg} index={i} lang={lang} />
         ))}

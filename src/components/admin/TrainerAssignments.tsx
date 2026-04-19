@@ -136,6 +136,45 @@ const TrainerAssignments = () => {
     await load();
   };
 
+  const openEdit = (t: Trainer) => {
+    setEditForm({
+      name: t.name || "", email: t.email || "",
+      mobile: (t as any).mobile || "", college: t.college || "",
+      location: (t as any).location || "",
+    });
+    setEditTrainer(t);
+  };
+
+  const saveEdit = async () => {
+    if (!editTrainer) return;
+    if (!editForm.name.trim() || !editForm.email.trim()) {
+      toast.error("Name and email are required"); return;
+    }
+    setSavingEdit(true);
+    const { error } = await (supabase as any).from("trainers").update({
+      name: editForm.name.trim(), email: editForm.email.trim(),
+      mobile: editForm.mobile.trim(), college: editForm.college.trim(),
+      location: editForm.location.trim(),
+    }).eq("id", editTrainer.id);
+    setSavingEdit(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Updated ${editForm.name}`);
+    setEditTrainer(null);
+    await load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    await (supabase as any).from("trainer_students").delete().eq("trainer_id", deleteTarget.id);
+    const { error } = await (supabase as any).from("trainers").delete().eq("id", deleteTarget.id);
+    setDeleting(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Removed ${deleteTarget.name} and their student mappings`);
+    setDeleteTarget(null);
+    await load();
+  };
+
   const toggle = (id: string) => {
     setDraft(prev => {
       const next = new Set(prev);

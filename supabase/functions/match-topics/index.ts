@@ -107,8 +107,8 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     console.error("match-topics error", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(JSON.stringify({ matches: {}, fallback: true, reason: "EXCEPTION" }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

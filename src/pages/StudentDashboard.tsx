@@ -44,6 +44,7 @@ const QuestionBankViewer = lazy(() => import("@/components/admin/QuestionBankVie
 const StudentAssessmentsAnalytics = lazy(() => import("@/components/dashboard/StudentAssessmentsAnalytics"));
 const StudentProctoringAnalytics = lazy(() => import("@/components/dashboard/StudentProctoringAnalytics"));
 const StudentProjectsAnalytics = lazy(() => import("@/components/dashboard/StudentProjectsAnalytics"));
+const StudentOverview = lazy(() => import("@/components/dashboard/StudentOverview"));
 
 type TabKey =
   | "overview" | "subscription"

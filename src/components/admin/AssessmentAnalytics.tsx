@@ -20,6 +20,8 @@ import {
 import QuestionLevelAnalytics from "./QuestionLevelAnalytics";
 import { exportAnalyticsPDF } from "./exportAnalyticsPDF";
 import { useTrainerScope } from "@/hooks/useTrainerScope";
+import AttemptReviewDialog from "./AttemptReviewDialog";
+import { Eye } from "lucide-react";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
 

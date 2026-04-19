@@ -41,27 +41,32 @@ const Sparkline = ({ data, color = "hsl(var(--primary))" }: { data: number[]; co
   );
 };
 
+type RangeDays = 7 | 30 | 90;
+
 const LLMUsageCohortPanel = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [logs, setLogs] = useState<UsageRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [scope, setScope] = useState<Scope>({ type: "all" });
   const [drillUid, setDrillUid] = useState<string | null>(null);
+  const [rangeDays, setRangeDays] = useState<RangeDays>(7);
 
   useEffect(() => {
-    (async () => {
-      const [s, l] = await Promise.all([
-        supabase.from("students").select("id,name,college,degree,department"),
-        supabase.from("llm_usage_logs")
-          .select("user_id,feature,created_at,model,provider,total_tokens,latency_ms,status")
-          .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-          .limit(50000),
-      ]);
-      setStudents(s.data || []);
-      setLogs((l.data as UsageRow[]) || []);
-      setLoading(false);
-    })();
+    supabase.from("students").select("id,name,college,degree,department")
+      .then(({ data }) => setStudents(data || []));
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    supabase.from("llm_usage_logs")
+      .select("user_id,feature,created_at,model,provider,total_tokens,latency_ms,status")
+      .gte("created_at", new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000).toISOString())
+      .limit(50000)
+      .then(({ data }) => {
+        setLogs((data as UsageRow[]) || []);
+        setLoading(false);
+      });
+  }, [rangeDays]);
 
   const colleges = useMemo(() => Array.from(new Set(students.map((s) => s.college).filter(Boolean))).sort(), [students]);
   const degrees = useMemo(() => Array.from(new Set(students.map((s) => s.degree).filter(Boolean))).sort(), [students]);

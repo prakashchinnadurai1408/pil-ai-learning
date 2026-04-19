@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar,
@@ -15,7 +16,8 @@ import { useStudentLearningPaths } from "@/hooks/useLearningPaths";
 import {
   BookOpen, MessageSquare, FlaskConical, ClipboardCheck,
   FolderKanban, LogOut, CheckCircle, Code2, Pencil,
-  Lock, Crown, User,
+  Lock, Crown, User, LayoutDashboard, CreditCard, Route, Layers,
+  Library, BarChart3, ShieldCheck,
 } from "lucide-react";
 import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 import { getMenuAccess, isAllowed, TIER_META, TIERS, type MenuAccessConfig, type Tier } from "@/hooks/useMenuAccessControls";
@@ -25,7 +27,6 @@ import NotificationsPanel from "@/components/dashboard/NotificationsPanel";
 import { ContentSkeleton } from "@/components/LoadingFallback";
 
 const AIPlayground = lazy(() => import("@/components/dashboard/AIPlayground"));
-const VideoLearning = lazy(() => import("@/components/dashboard/VideoLearning"));
 const AssessmentsView = lazy(() => import("@/components/dashboard/AssessmentsView"));
 const StudentAssessmentTaker = lazy(() => import("@/components/dashboard/StudentAssessmentTaker"));
 const AIToolsSandbox = lazy(() => import("@/components/dashboard/AIToolsSandbox"));
@@ -39,20 +40,43 @@ const MyAILearningPath = lazy(() => import("@/components/dashboard/MyAILearningP
 const StudentModulesView = lazy(() => import("@/components/dashboard/StudentModulesView"));
 const MyAssignedProjects = lazy(() => import("@/components/dashboard/MyAssignedProjects"));
 const MyModuleGroups = lazy(() => import("@/components/dashboard/MyModuleGroups"));
+const QuestionBankViewer = lazy(() => import("@/components/admin/QuestionBankViewer"));
+const StudentAssessmentsAnalytics = lazy(() => import("@/components/dashboard/StudentAssessmentsAnalytics"));
+const StudentProctoringAnalytics = lazy(() => import("@/components/dashboard/StudentProctoringAnalytics"));
+const StudentProjectsAnalytics = lazy(() => import("@/components/dashboard/StudentProjectsAnalytics"));
 
-type TabKey = "modules" | "videos" | "playground" | "coding" | "prompts" | "tools" | "assessments" | "projects";
+type TabKey =
+  | "overview" | "subscription"
+  | "ai_path" | "module_groups" | "modules"
+  | "playground" | "tools" | "question_bank" | "coding" | "prompts"
+  | "assessments" | "projects"
+  | "analytics_assessments" | "analytics_proctoring" | "analytics_projects";
 
 const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: typeof BookOpen }[] }[] = [
-  { label: "Learn", items: [{ key: "modules", label: "Modules", icon: BookOpen }] },
-  { label: "Practice", items: [
-    { key: "playground", label: "AI Chat", icon: MessageSquare },
-    { key: "coding", label: "Coding", icon: Code2 },
-    { key: "prompts", label: "Prompts", icon: Pencil },
-    { key: "tools", label: "AI Tools", icon: FlaskConical },
+  { label: "Account", items: [
+    { key: "overview", label: "Overview", icon: LayoutDashboard },
+    { key: "subscription", label: "Subscriptions Status", icon: CreditCard },
   ]},
-  { label: "Progress", items: [
+  { label: "Learn", items: [
+    { key: "ai_path", label: "Learning Paths", icon: Route },
+    { key: "module_groups", label: "Module Groups", icon: Layers },
+    { key: "modules", label: "Modules & Videos", icon: BookOpen },
+  ]},
+  { label: "Practice", items: [
+    { key: "playground", label: "Section Content – AI Chat", icon: MessageSquare },
+    { key: "tools", label: "Section Content – AI Tools", icon: FlaskConical },
+    { key: "question_bank", label: "Question Bank", icon: Library },
+    { key: "coding", label: "Coding Challenges", icon: Code2 },
+    { key: "prompts", label: "Prompts", icon: Pencil },
+  ]},
+  { label: "Assessments", items: [
     { key: "assessments", label: "Assessments", icon: ClipboardCheck },
     { key: "projects", label: "Projects", icon: FolderKanban },
+  ]},
+  { label: "Analytics", items: [
+    { key: "analytics_assessments", label: "Assessments", icon: BarChart3 },
+    { key: "analytics_proctoring", label: "Proctoring", icon: ShieldCheck },
+    { key: "analytics_projects", label: "Projects", icon: FolderKanban },
   ]},
 ];
 
@@ -108,7 +132,7 @@ const normalizeTier = (raw: any): Tier => {
 };
 
 const StudentDashboard = () => {
-  const [activeTab, setActiveTab] = useState<TabKey>("modules");
+  const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [selectedModuleId, setSelectedModuleId] = useState<number | null>(null);
@@ -142,9 +166,7 @@ const StudentDashboard = () => {
   const filteredModules = allowedModuleIds === null ? modules : modules.filter((m) => allowedModuleIds.includes(m.id));
   const filteredAdminModules = allowedModuleIds === null ? publishedAdminModules : publishedAdminModules.filter((m) => allowedModuleIds.includes(m.id));
 
-  // Header / inline gates for non-sidebar menus
-  const showAIPath = isAllowed(menuAccess, "ai_path", userTier);
-  const showModuleGroups = isAllowed(menuAccess, "module_groups", userTier);
+  // Header gates for non-sidebar buttons
   const showNotifications = isAllowed(menuAccess, "notifications", userTier);
   const showProfileBtn = isAllowed(menuAccess, "profile", userTier);
 
@@ -159,17 +181,6 @@ const StudentDashboard = () => {
           </ErrorBoundary>
         ) : (
           <div className="space-y-4">
-            {studentId && showModuleGroups && (
-              <Suspense fallback={null}>
-                <MyModuleGroups
-                  studentId={studentId}
-                  college={studentCollege}
-                  department={studentDepartment}
-                  degree={studentDegree}
-                  onOpenModule={(id) => setSelectedModuleId(id)}
-                />
-              </Suspense>
-            )}
             <Suspense fallback={<ContentSkeleton />}>
               <StudentModulesView
                 studentId={studentId}
@@ -183,16 +194,110 @@ const StudentDashboard = () => {
             </Suspense>
           </div>
         );
-      case "videos":
-        return <Suspense fallback={<ContentSkeleton />}><VideoLearning /></Suspense>;
+      case "overview":
+        return (
+          <div className="space-y-6">
+            <Card><CardContent className="p-6">
+              <h2 className="text-xl font-display font-bold text-card-foreground mb-1">Welcome back, {studentName} 👋</h2>
+              <p className="text-sm text-muted-foreground">
+                Pick a section from the sidebar to keep learning. Your subscription tier ({TIER_META[userTier].label}) decides what's unlocked.
+              </p>
+            </CardContent></Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {SECTIONS.flatMap(s => s.items).filter(i => i.key !== "overview" && isAllowed(menuAccess, i.key, userTier)).map(i => {
+                const Icon = i.icon;
+                return (
+                  <button key={i.key} onClick={() => setActiveTab(i.key)}
+                    className="text-left p-4 rounded-lg border border-border bg-card hover:shadow-elevated transition-all">
+                    <Icon className="h-5 w-5 text-primary mb-2" />
+                    <p className="font-medium text-card-foreground text-sm">{i.label}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      case "subscription":
+        return (
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-display font-bold text-card-foreground">Your Subscription</h2>
+                  <p className="text-sm text-muted-foreground">Current plan and what's included.</p>
+                </div>
+                <Badge className={`${TIER_META[userTier].color} border-current text-base px-3 py-1`} variant="outline">
+                  <Crown className="h-4 w-4 mr-1.5" /> {TIER_META[userTier].label} · {TIER_META[userTier].price}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">{TIER_META[userTier].tagline}</p>
+              <div className="border-t border-border pt-4">
+                <h3 className="text-sm font-display font-semibold mb-2 text-card-foreground">Menu access on your plan</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {SECTIONS.flatMap(s => s.items).map(i => {
+                    const allowed = isAllowed(menuAccess, i.key, userTier);
+                    return (
+                      <div key={i.key} className="flex items-center gap-2 text-sm">
+                        {allowed
+                          ? <CheckCircle className="h-4 w-4 text-success" />
+                          : <Lock className="h-4 w-4 text-muted-foreground" />}
+                        <span className={allowed ? "text-card-foreground" : "text-muted-foreground line-through"}>{i.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <Button className="bg-warning text-warning-foreground hover:bg-warning/90 gap-2" onClick={() => setUpgradeDialogOpen(true)}>
+                <Crown className="h-4 w-4" /> View Upgrade Options
+              </Button>
+            </CardContent>
+          </Card>
+        );
+      case "ai_path":
+        return studentId ? (
+          <Suspense fallback={<ContentSkeleton />}>
+            <MyAILearningPath candidateId={studentId} onOpenModule={(id) => { setActiveTab("modules"); setSelectedModuleId(id); }} />
+          </Suspense>
+        ) : null;
+      case "module_groups":
+        return studentId ? (
+          <Suspense fallback={<ContentSkeleton />}>
+            <MyModuleGroups studentId={studentId} college={studentCollege} department={studentDepartment} degree={studentDegree}
+              onOpenModule={(id) => { setActiveTab("modules"); setSelectedModuleId(id); }} />
+          </Suspense>
+        ) : null;
+      case "modules":
+        return selectedModuleId ? (
+          <ErrorBoundary>
+            <Suspense fallback={<ContentSkeleton />}>
+              <ModuleDetailView moduleId={selectedModuleId} onBack={() => setSelectedModuleId(null)} />
+            </Suspense>
+          </ErrorBoundary>
+        ) : (
+          <div className="space-y-4">
+            <Suspense fallback={<ContentSkeleton />}>
+              <StudentModulesView
+                studentId={studentId}
+                college={studentCollege}
+                department={studentDepartment}
+                degree={studentDegree}
+                filteredModules={filteredModules}
+                filteredAdminModules={filteredAdminModules}
+                onOpenModule={(id) => setSelectedModuleId(id)}
+              />
+            </Suspense>
+          </div>
+        );
       case "playground":
         return <Suspense fallback={<ContentSkeleton />}><AIPlayground /></Suspense>;
+      case "tools":
+        return <Suspense fallback={<ContentSkeleton />}><AIToolsSandbox /></Suspense>;
+      case "question_bank":
+        return <Suspense fallback={<ContentSkeleton />}><QuestionBankViewer /></Suspense>;
       case "coding":
         return <Suspense fallback={<ContentSkeleton />}><ProgrammingModule /></Suspense>;
       case "prompts":
         return <Suspense fallback={<ContentSkeleton />}><PromptEngineeringLab /></Suspense>;
-      case "tools":
-        return <Suspense fallback={<ContentSkeleton />}><AIToolsSandbox /></Suspense>;
       case "assessments":
         return (
           <>
@@ -212,6 +317,12 @@ const StudentDashboard = () => {
             <Suspense fallback={<ContentSkeleton />}><ProjectsView /></Suspense>
           </div>
         );
+      case "analytics_assessments":
+        return <Suspense fallback={<ContentSkeleton />}><StudentAssessmentsAnalytics studentId={studentId} /></Suspense>;
+      case "analytics_proctoring":
+        return <Suspense fallback={<ContentSkeleton />}><StudentProctoringAnalytics studentId={studentId} /></Suspense>;
+      case "analytics_projects":
+        return <Suspense fallback={<ContentSkeleton />}><StudentProjectsAnalytics studentId={studentId} studentName={studentName} /></Suspense>;
       default:
         return null;
     }
@@ -281,7 +392,7 @@ const StudentDashboard = () => {
                   <Progress value={overallProgress} className="h-2" />
                 </div>
 
-                {studentId && (
+                {studentId && activeTab === "overview" && (
                   <div className="mb-8">
                     <ErrorBoundary>
                       <Suspense fallback={<ContentSkeleton />}>
@@ -289,19 +400,6 @@ const StudentDashboard = () => {
                           studentId={studentId}
                           studentName={studentName}
                           onOpenChat={() => setActiveTab("playground")}
-                        />
-                      </Suspense>
-                    </ErrorBoundary>
-                  </div>
-                )}
-
-                {studentId && showAIPath && activeTab === "modules" && !selectedModuleId && (
-                  <div className="mb-8">
-                    <ErrorBoundary>
-                      <Suspense fallback={<ContentSkeleton />}>
-                        <MyAILearningPath
-                          candidateId={studentId}
-                          onOpenModule={(id) => setSelectedModuleId(id)}
                         />
                       </Suspense>
                     </ErrorBoundary>

@@ -1,6 +1,5 @@
-// Lightweight keyword-overlap matcher used to auto-link videos to module topics
-// when an explicit topic_id is not present (legacy/static videos, or admin-created
-// rows that were saved without picking a topic).
+// Topic matcher: keyword-overlap fallback + AI semantic batch matcher.
+import { supabase } from "@/integrations/supabase/client";
 
 const STOPWORDS = new Set([
   "the","a","an","of","to","and","or","for","with","in","on","is","are","be","by",
@@ -28,10 +27,7 @@ export function scoreOverlap(a: string, b: string): number {
   return hits;
 }
 
-/**
- * Pick the topic whose title overlaps most with the given text.
- * Falls back to the first topic when nothing matches.
- */
+/** Keyword-overlap fallback. */
 export function bestTopicId<T extends { id: string; title: string }>(
   text: string,
   topics: T[]
@@ -44,4 +40,32 @@ export function bestTopicId<T extends { id: string; title: string }>(
     if (s > bestScore) { bestScore = s; bestId = t.id; }
   }
   return bestId;
+}
+
+/**
+ * Semantic batch matcher via Lovable AI. Falls back to keyword overlap on failure.
+ * items: array of { key, text }. topics: { id, title }[]. Returns map key → topicId.
+ */
+export async function bestTopicIdsAI<T extends { id: string; title: string }>(
+  items: { key: string; text: string }[],
+  topics: T[]
+): Promise<Record<string, string | null>> {
+  if (!items.length || !topics.length) return {};
+  try {
+    const { data, error } = await supabase.functions.invoke("match-topics", {
+      body: { items, topics: topics.map(t => ({ id: t.id, title: t.title })) },
+    });
+    if (error) throw error;
+    const matches: Record<string, string | null> = (data as any)?.matches || {};
+    // Fill any missing keys via keyword fallback
+    for (const it of items) {
+      if (!matches[it.key]) matches[it.key] = bestTopicId(it.text, topics);
+    }
+    return matches;
+  } catch (e) {
+    console.warn("AI topic match failed, using keyword fallback", e);
+    const out: Record<string, string | null> = {};
+    for (const it of items) out[it.key] = bestTopicId(it.text, topics);
+    return out;
+  }
 }

@@ -217,11 +217,11 @@ const AIToolsSandbox = () => {
     if (!built) return;
     let acc = "";
     try {
-      // Prefix tool feature with "tool_" so usage analytics can group it.
-      const featureTag = `tool_${built.tool}`;
       await streamChat({
         messages: [{ role: "user", content: built.content }],
-        tool: featureTag,
+        tool: built.tool,
+        // Tag for usage analytics — keeps tool prompt selection while grouping logs as "tool_*"
+        featureTag: `tool_${built.tool}`,
         modelOverride,
         onDelta: (chunk) => { acc += chunk; setter(acc); },
         onDone: () => doneSetter(false),

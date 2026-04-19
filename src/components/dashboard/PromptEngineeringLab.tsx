@@ -180,6 +180,7 @@ const PromptEngineeringLab = () => {
       await streamChat({
         messages: [{ role: "user", content: prompt }],
         tool: systemRole === "general" ? undefined : systemRole,
+        featureTag: "prompt_lab",
         onDelta: (delta) => { accumulated += delta; setter(accumulated); },
         onDone: () => loadSetter(false),
       });
@@ -212,6 +213,7 @@ Respond in EXACTLY this JSON format, nothing else:
       let fullText = "";
       await streamChat({
         messages: [{ role: "user", content: evalPrompt }],
+        featureTag: "prompt_lab",
         onDelta: (delta) => { fullText += delta; },
         onDone: () => {},
       });

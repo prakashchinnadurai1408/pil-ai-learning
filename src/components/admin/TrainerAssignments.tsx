@@ -41,6 +41,11 @@ const TrainerAssignments = () => {
   const [newTrainer, setNewTrainer] = useState({
     name: "", email: "", mobile: "", college: "", location: "", password: "", subscription_tier: "free" as Tier,
   });
+  const [editTrainer, setEditTrainer] = useState<Trainer | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", email: "", mobile: "", college: "", location: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Trainer | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setLoading(true);

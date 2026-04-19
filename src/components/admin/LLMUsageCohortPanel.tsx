@@ -2,11 +2,22 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, MessageSquare, Wrench, Sparkles, Code2, BookOpen, ClipboardCheck } from "lucide-react";
 
 type Scope = { type: "all" | "college" | "cohort"; college?: string; degree?: string; department?: string };
 
-interface UsageRow { user_id: string; feature: string; created_at: string; }
+interface UsageRow {
+  user_id: string;
+  feature: string;
+  created_at: string;
+  model?: string;
+  provider?: string;
+  total_tokens?: number;
+  latency_ms?: number;
+  status?: string;
+}
 
 const FEATURES = [
   { key: "chat", label: "AI Chat", icon: MessageSquare, match: (f: string) => f === "chat" },
@@ -35,12 +46,14 @@ const LLMUsageCohortPanel = () => {
   const [logs, setLogs] = useState<UsageRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [scope, setScope] = useState<Scope>({ type: "all" });
+  const [drillUid, setDrillUid] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       const [s, l] = await Promise.all([
         supabase.from("students").select("id,name,college,degree,department"),
-        supabase.from("llm_usage_logs").select("user_id,feature,created_at")
+        supabase.from("llm_usage_logs")
+          .select("user_id,feature,created_at,model,provider,total_tokens,latency_ms,status")
           .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
           .limit(50000),
       ]);
@@ -194,9 +207,13 @@ const LLMUsageCohortPanel = () => {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {leaderboard.map((r, i) => (
-                    <tr key={r.uid} className="hover:bg-muted/30">
+                    <tr
+                      key={r.uid}
+                      className="hover:bg-muted/40 cursor-pointer transition-colors"
+                      onClick={() => setDrillUid(r.uid)}
+                    >
                       <td className="p-2 text-xs text-muted-foreground">{i + 1}</td>
-                      <td className="p-2 text-xs font-medium">{r.name}</td>
+                      <td className="p-2 text-xs font-medium text-primary hover:underline">{r.name}</td>
                       <td className="p-2 text-xs text-muted-foreground">{r.college}</td>
                       <td className="p-2 text-xs text-right font-mono">{r.calls.toLocaleString()}</td>
                     </tr>
@@ -207,7 +224,129 @@ const LLMUsageCohortPanel = () => {
           )}
         </div>
       </CardContent>
+
+      <StudentDrillDownDialog
+        uid={drillUid}
+        student={drillUid ? students.find((s) => s.id === drillUid) : null}
+        logs={drillUid ? logs.filter((l) => l.user_id === drillUid) : []}
+        onClose={() => setDrillUid(null)}
+      />
     </Card>
+  );
+};
+
+const StudentDrillDownDialog = ({
+  uid, student, logs, onClose,
+}: { uid: string | null; student: any; logs: UsageRow[]; onClose: () => void }) => {
+  const breakdown = useMemo(() => {
+    const map = new Map<string, number>();
+    logs.forEach((l) => {
+      const matched = FEATURES.find((f) => f.key !== "other" && f.match(l.feature || ""));
+      const key = matched?.key || "other";
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    return FEATURES.map((f) => ({ ...f, count: map.get(f.key) || 0 })).filter((f) => f.count > 0);
+  }, [logs]);
+
+  const recent = useMemo(
+    () => [...logs].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)).slice(0, 25),
+    [logs]
+  );
+
+  const totals = useMemo(() => ({
+    calls: logs.length,
+    tokens: logs.reduce((s, l) => s + (l.total_tokens || 0), 0),
+    avgLatency: logs.length ? Math.round(logs.reduce((s, l) => s + (l.latency_ms || 0), 0) / logs.length) : 0,
+  }), [logs]);
+
+  return (
+    <Dialog open={!!uid} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span>{student?.name || "Student"}</span>
+            <Badge variant="secondary" className="text-[10px]">{student?.college || "—"}</Badge>
+          </DialogTitle>
+          <p className="text-xs text-muted-foreground">Last 7 days · drill-down</p>
+        </DialogHeader>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-lg border border-border bg-card/40 p-3">
+            <p className="text-[10px] text-muted-foreground uppercase">Calls</p>
+            <p className="text-xl font-bold">{totals.calls.toLocaleString()}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card/40 p-3">
+            <p className="text-[10px] text-muted-foreground uppercase">Tokens</p>
+            <p className="text-xl font-bold">{totals.tokens.toLocaleString()}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card/40 p-3">
+            <p className="text-[10px] text-muted-foreground uppercase">Avg Latency</p>
+            <p className="text-xl font-bold">{totals.avgLatency} ms</p>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="text-sm font-semibold mb-2">Feature breakdown</h4>
+          {breakdown.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No usage in window.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {breakdown.map((b) => {
+                const Icon = b.icon;
+                const pct = totals.calls ? Math.round((b.count / totals.calls) * 100) : 0;
+                return (
+                  <div key={b.key} className="flex items-center gap-2 text-xs">
+                    <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="w-24 shrink-0">{b.label}</span>
+                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="w-20 text-right font-mono text-muted-foreground">{b.count} ({pct}%)</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h4 className="text-sm font-semibold mb-2">Recent calls (last 25)</h4>
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/50 text-muted-foreground">
+                <tr>
+                  <th className="p-2 text-left font-medium">Time</th>
+                  <th className="p-2 text-left font-medium">Feature</th>
+                  <th className="p-2 text-left font-medium">Model</th>
+                  <th className="p-2 text-right font-medium">Tokens</th>
+                  <th className="p-2 text-right font-medium">Latency</th>
+                  <th className="p-2 text-left font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {recent.map((r, i) => (
+                  <tr key={i} className="hover:bg-muted/30">
+                    <td className="p-2 text-muted-foreground">{new Date(r.created_at).toLocaleString()}</td>
+                    <td className="p-2 font-mono">{r.feature || "—"}</td>
+                    <td className="p-2 font-mono text-muted-foreground">{r.model || "—"}</td>
+                    <td className="p-2 text-right">{(r.total_tokens || 0).toLocaleString()}</td>
+                    <td className="p-2 text-right">{r.latency_ms || 0} ms</td>
+                    <td className="p-2">
+                      <Badge variant={r.status === "success" ? "secondary" : "destructive"} className="text-[10px]">
+                        {r.status || "—"}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+                {recent.length === 0 && (
+                  <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">No calls.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

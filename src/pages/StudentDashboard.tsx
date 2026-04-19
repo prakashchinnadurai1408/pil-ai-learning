@@ -131,7 +131,7 @@ const normalizeTier = (raw: any): Tier => {
 };
 
 const StudentDashboard = () => {
-  const [activeTab, setActiveTab] = useState<TabKey>("modules");
+  const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [selectedModuleId, setSelectedModuleId] = useState<number | null>(null);
@@ -206,16 +206,110 @@ const StudentDashboard = () => {
             </Suspense>
           </div>
         );
-      case "videos":
-        return <Suspense fallback={<ContentSkeleton />}><VideoLearning /></Suspense>;
+      case "overview":
+        return (
+          <div className="space-y-6">
+            <Card><CardContent className="p-6">
+              <h2 className="text-xl font-display font-bold text-card-foreground mb-1">Welcome back, {studentName} 👋</h2>
+              <p className="text-sm text-muted-foreground">
+                Pick a section from the sidebar to keep learning. Your subscription tier ({TIER_META[userTier].label}) decides what's unlocked.
+              </p>
+            </CardContent></Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {SECTIONS.flatMap(s => s.items).filter(i => i.key !== "overview" && isAllowed(menuAccess, i.key, userTier)).map(i => {
+                const Icon = i.icon;
+                return (
+                  <button key={i.key} onClick={() => setActiveTab(i.key)}
+                    className="text-left p-4 rounded-lg border border-border bg-card hover:shadow-elevated transition-all">
+                    <Icon className="h-5 w-5 text-primary mb-2" />
+                    <p className="font-medium text-card-foreground text-sm">{i.label}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      case "subscription":
+        return (
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-display font-bold text-card-foreground">Your Subscription</h2>
+                  <p className="text-sm text-muted-foreground">Current plan and what's included.</p>
+                </div>
+                <Badge className={`${TIER_META[userTier].color} border-current text-base px-3 py-1`} variant="outline">
+                  <Crown className="h-4 w-4 mr-1.5" /> {TIER_META[userTier].label} · {TIER_META[userTier].price}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">{TIER_META[userTier].tagline}</p>
+              <div className="border-t border-border pt-4">
+                <h3 className="text-sm font-display font-semibold mb-2 text-card-foreground">Menu access on your plan</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {SECTIONS.flatMap(s => s.items).map(i => {
+                    const allowed = isAllowed(menuAccess, i.key, userTier);
+                    return (
+                      <div key={i.key} className="flex items-center gap-2 text-sm">
+                        {allowed
+                          ? <CheckCircle className="h-4 w-4 text-success" />
+                          : <Lock className="h-4 w-4 text-muted-foreground" />}
+                        <span className={allowed ? "text-card-foreground" : "text-muted-foreground line-through"}>{i.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <Button className="bg-warning text-warning-foreground hover:bg-warning/90 gap-2" onClick={() => setUpgradeDialogOpen(true)}>
+                <Crown className="h-4 w-4" /> View Upgrade Options
+              </Button>
+            </CardContent>
+          </Card>
+        );
+      case "ai_path":
+        return studentId ? (
+          <Suspense fallback={<ContentSkeleton />}>
+            <MyAILearningPath candidateId={studentId} onOpenModule={(id) => { setActiveTab("modules"); setSelectedModuleId(id); }} />
+          </Suspense>
+        ) : null;
+      case "module_groups":
+        return studentId ? (
+          <Suspense fallback={<ContentSkeleton />}>
+            <MyModuleGroups studentId={studentId} college={studentCollege} department={studentDepartment} degree={studentDegree}
+              onOpenModule={(id) => { setActiveTab("modules"); setSelectedModuleId(id); }} />
+          </Suspense>
+        ) : null;
+      case "modules":
+        return selectedModuleId ? (
+          <ErrorBoundary>
+            <Suspense fallback={<ContentSkeleton />}>
+              <ModuleDetailView moduleId={selectedModuleId} onBack={() => setSelectedModuleId(null)} />
+            </Suspense>
+          </ErrorBoundary>
+        ) : (
+          <div className="space-y-4">
+            <Suspense fallback={<ContentSkeleton />}>
+              <StudentModulesView
+                studentId={studentId}
+                college={studentCollege}
+                department={studentDepartment}
+                degree={studentDegree}
+                filteredModules={filteredModules}
+                filteredAdminModules={filteredAdminModules}
+                onOpenModule={(id) => setSelectedModuleId(id)}
+              />
+            </Suspense>
+          </div>
+        );
       case "playground":
         return <Suspense fallback={<ContentSkeleton />}><AIPlayground /></Suspense>;
+      case "tools":
+        return <Suspense fallback={<ContentSkeleton />}><AIToolsSandbox /></Suspense>;
+      case "question_bank":
+        return <Suspense fallback={<ContentSkeleton />}><QuestionBankViewer /></Suspense>;
       case "coding":
         return <Suspense fallback={<ContentSkeleton />}><ProgrammingModule /></Suspense>;
       case "prompts":
         return <Suspense fallback={<ContentSkeleton />}><PromptEngineeringLab /></Suspense>;
-      case "tools":
-        return <Suspense fallback={<ContentSkeleton />}><AIToolsSandbox /></Suspense>;
       case "assessments":
         return (
           <>
@@ -235,6 +329,12 @@ const StudentDashboard = () => {
             <Suspense fallback={<ContentSkeleton />}><ProjectsView /></Suspense>
           </div>
         );
+      case "analytics_assessments":
+        return <Suspense fallback={<ContentSkeleton />}><StudentAssessmentsAnalytics studentId={studentId} /></Suspense>;
+      case "analytics_proctoring":
+        return <Suspense fallback={<ContentSkeleton />}><StudentProctoringAnalytics studentId={studentId} /></Suspense>;
+      case "analytics_projects":
+        return <Suspense fallback={<ContentSkeleton />}><StudentProjectsAnalytics studentId={studentId} studentName={studentName} /></Suspense>;
       default:
         return null;
     }

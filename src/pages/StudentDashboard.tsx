@@ -44,6 +44,7 @@ const QuestionBankViewer = lazy(() => import("@/components/admin/QuestionBankVie
 const StudentAssessmentsAnalytics = lazy(() => import("@/components/dashboard/StudentAssessmentsAnalytics"));
 const StudentProctoringAnalytics = lazy(() => import("@/components/dashboard/StudentProctoringAnalytics"));
 const StudentProjectsAnalytics = lazy(() => import("@/components/dashboard/StudentProjectsAnalytics"));
+const StudentOverview = lazy(() => import("@/components/dashboard/StudentOverview"));
 
 type TabKey =
   | "overview" | "subscription"
@@ -196,26 +197,20 @@ const StudentDashboard = () => {
         );
       case "overview":
         return (
-          <div className="space-y-6">
-            <Card><CardContent className="p-6">
-              <h2 className="text-xl font-display font-bold text-card-foreground mb-1">Welcome back, {studentName} 👋</h2>
-              <p className="text-sm text-muted-foreground">
-                Pick a section from the sidebar to keep learning. Your subscription tier ({TIER_META[userTier].label}) decides what's unlocked.
-              </p>
-            </CardContent></Card>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {SECTIONS.flatMap(s => s.items).filter(i => i.key !== "overview" && isAllowed(menuAccess, i.key, userTier)).map(i => {
-                const Icon = i.icon;
-                return (
-                  <button key={i.key} onClick={() => setActiveTab(i.key)}
-                    className="text-left p-4 rounded-lg border border-border bg-card hover:shadow-elevated transition-all">
-                    <Icon className="h-5 w-5 text-primary mb-2" />
-                    <p className="font-medium text-card-foreground text-sm">{i.label}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <Suspense fallback={<ContentSkeleton />}>
+            <StudentOverview
+              studentId={studentId}
+              studentName={studentName}
+              studentCollege={studentCollege}
+              studentDepartment={studentDepartment}
+              studentDegree={studentDegree}
+              userTier={userTier}
+              onNavigate={(tab, moduleId) => {
+                setActiveTab(tab as TabKey);
+                setSelectedModuleId(moduleId ?? null);
+              }}
+            />
+          </Suspense>
         );
       case "subscription":
         return (

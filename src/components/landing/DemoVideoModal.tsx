@@ -1,46 +1,109 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Play, Pause, Volume2, VolumeX, Sparkles } from "lucide-react";
+import {
+  X, Play, Pause, Volume2, VolumeX, Sparkles, BookOpen, Bot,
+  ClipboardCheck, FolderKanban, BarChart3, Rocket, Code2,
+  MessageSquare, Video, Trophy, Users, FileCheck, GraduationCap,
+  Cpu, Layers,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import airaAvatar from "@/assets/aira-avatar.png";
 
 interface DemoVideoModalProps {
   onClose: () => void;
 }
 
+interface ScreenChip {
+  icon: LucideIcon;
+  label: string;
+}
+
 interface Script {
   title: string;
   text: string;
+  icon: LucideIcon;
+  gradient: string; // tailwind gradient classes
+  chips: ScreenChip[];
 }
 
 const SCRIPT: Script[] = [
   {
     title: "Welcome to Pluginlive AI Learning",
     text: "Hi! I'm Aira, your AI guide. Welcome to Pluginlive — an AI-powered learning platform built for UG and PG students.",
+    icon: Sparkles,
+    gradient: "from-primary via-primary/80 to-accent",
+    chips: [
+      { icon: GraduationCap, label: "UG & PG Students" },
+      { icon: Bot, label: "AI-Powered" },
+      { icon: Rocket, label: "Career Ready" },
+    ],
   },
   {
     title: "Structured Learning Modules",
     text: "Learn through 10 plus structured modules covering Prompt Engineering, AI Agents, Large Language Models, Retrieval Augmented Generation, and more — each with videos and rich section content.",
+    icon: BookOpen,
+    gradient: "from-blue-500 via-indigo-500 to-primary",
+    chips: [
+      { icon: Layers, label: "10+ Modules" },
+      { icon: Video, label: "50+ Videos" },
+      { icon: Cpu, label: "LLMs · RAG · Agents" },
+    ],
   },
   {
     title: "AI Coach & Playground",
     text: "Practice with an AI Coach that gives personalized guidance, and explore the AI Playground and Tools Sandbox to experiment with image generation, code generation, and prompt engineering.",
+    icon: Bot,
+    gradient: "from-violet-500 via-purple-500 to-fuchsia-500",
+    chips: [
+      { icon: MessageSquare, label: "AI Coach" },
+      { icon: Sparkles, label: "Playground" },
+      { icon: Code2, label: "Tools Sandbox" },
+    ],
   },
   {
     title: "Assessments & Coding",
     text: "Take adaptive assessments with M C Q, descriptive and coding questions, and solve over 200 programming challenges across 40 plus languages — all with built-in proctoring.",
+    icon: ClipboardCheck,
+    gradient: "from-orange-500 via-amber-500 to-yellow-500",
+    chips: [
+      { icon: Trophy, label: "200+ Challenges" },
+      { icon: Code2, label: "40+ Languages" },
+      { icon: FileCheck, label: "Proctored" },
+    ],
   },
   {
     title: "Academic Projects",
     text: "Get a complete college academic project guide with a 10-step lifecycle for both Tech and Non-Tech streams, including trainer reviews and threaded feedback.",
+    icon: FolderKanban,
+    gradient: "from-teal-500 via-emerald-500 to-green-500",
+    chips: [
+      { icon: Layers, label: "10-Step Lifecycle" },
+      { icon: Users, label: "Trainer Reviews" },
+      { icon: MessageSquare, label: "Threaded Feedback" },
+    ],
   },
   {
     title: "For Trainers",
     text: "Trainers get a powerful dashboard to manage cohorts, create assessments, review projects, send bulk messages, and track real-time analytics for every student.",
+    icon: BarChart3,
+    gradient: "from-pink-500 via-rose-500 to-red-500",
+    chips: [
+      { icon: Users, label: "Cohort Manager" },
+      { icon: BarChart3, label: "Live Analytics" },
+      { icon: MessageSquare, label: "Bulk Messaging" },
+    ],
   },
   {
     title: "Start Learning Today",
     text: "Sign in as a student or trainer and begin your AI journey. Let's transform your academic journey together!",
+    icon: Rocket,
+    gradient: "from-primary via-accent to-primary",
+    chips: [
+      { icon: GraduationCap, label: "Student Login" },
+      { icon: Users, label: "Trainer Login" },
+      { icon: Sparkles, label: "Get Started" },
+    ],
   },
 ];
 

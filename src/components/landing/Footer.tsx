@@ -13,8 +13,8 @@ const Footer = () => {
               </span>
             </div>
             <p className="text-sm" style={{ color: "hsl(220, 15%, 60%)" }}>
-              Empowering UG/PG students with AI literacy, hands-on tools, and
-              real-world project experience for AI-driven careers.
+              Empowering all age group students with AI literacy, hands-on
+              tools, and real-world project experience for AI-driven careers.
             </p>
           </div>
 

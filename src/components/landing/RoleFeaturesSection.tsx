@@ -123,7 +123,7 @@ const RoleFeaturesSection = () => {
           badge="For Students"
           title="Learn, practice and"
           highlight="grow with AI"
-          description="Everything a UG/PG student needs to master AI — structured modules, hands-on labs, assessments, projects and personalized coaching."
+          description="Everything an all age group student needs to master AI — structured modules, hands-on labs, assessments, projects and personalized coaching."
           features={studentFeatures}
           accent="primary"
         />

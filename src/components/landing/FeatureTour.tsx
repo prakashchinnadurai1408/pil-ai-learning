@@ -19,7 +19,7 @@ const slides = [
     image: tourModules,
     icon: BookOpen,
     title: "10 Structured AI Modules",
-    description: "From AI fundamentals to SaaS development — each module includes lessons, activities, and hands-on exercises designed for UG/PG students.",
+    description: "From AI fundamentals to SaaS development — each module includes lessons, activities, and hands-on exercises designed for all age group students.",
     accent: "from-primary to-blue-600",
   },
   {

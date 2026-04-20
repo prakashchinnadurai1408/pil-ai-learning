@@ -150,9 +150,11 @@ const DemoVideoModal = ({ onClose }: DemoVideoModalProps) => {
       window.speechSynthesis?.cancel();
       setIsPlaying(false);
     } else {
-      if (currentStep >= SCRIPT.length - 1 && !window.speechSynthesis?.speaking) {
-        setCurrentStep(0);
+      // If we're on the last step, restart from the beginning
+      if (currentStep >= SCRIPT.length - 1) {
+        window.speechSynthesis?.cancel();
         stepRef.current = 0;
+        setCurrentStep(0);
       }
       setIsPlaying(true);
     }

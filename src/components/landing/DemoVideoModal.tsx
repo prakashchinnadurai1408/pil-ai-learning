@@ -3,7 +3,7 @@ import {
   X, Play, Pause, Volume2, VolumeX, Sparkles, BookOpen, Bot,
   ClipboardCheck, FolderKanban, BarChart3, Rocket, Code2,
   MessageSquare, Video, Trophy, Users, FileCheck, GraduationCap,
-  Cpu, Layers,
+  Cpu, Layers, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
@@ -233,6 +233,16 @@ const DemoVideoModal = ({ onClose }: DemoVideoModalProps) => {
     stepRef.current = idx;
     setCurrentStep(idx);
     setIsPlaying(true);
+  };
+
+  const goPrev = () => {
+    if (currentStep === 0) return;
+    jumpTo(currentStep - 1);
+  };
+
+  const goNext = () => {
+    if (currentStep >= SCRIPT.length - 1) return;
+    jumpTo(currentStep + 1);
   };
 
   const step = SCRIPT[currentStep];

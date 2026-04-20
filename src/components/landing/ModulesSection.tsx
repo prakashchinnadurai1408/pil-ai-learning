@@ -20,7 +20,7 @@ const ModulesSection = () => {
             {10 + publishedAdminModules.length} Structured <span className="text-gradient-primary">AI Learning</span> Modules
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            From AI fundamentals to SaaS development — a complete learning path designed for UG/PG students
+            From AI fundamentals to SaaS development — a complete learning path designed for all age group students
           </p>
         </motion.div>
 

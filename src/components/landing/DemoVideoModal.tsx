@@ -127,10 +127,13 @@ const DemoVideoModal = ({ onClose }: DemoVideoModalProps) => {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") handleClose();
+      else if (e.key === "ArrowRight") goNext();
+      else if (e.key === "ArrowLeft") goPrev();
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep]);
 
   // Pick a female English voice (prefer Indian English)
   const pickFemaleVoice = (): SpeechSynthesisVoice | null => {

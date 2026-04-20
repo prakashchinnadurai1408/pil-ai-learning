@@ -409,8 +409,19 @@ const DemoVideoModal = ({ onClose }: DemoVideoModalProps) => {
                 ))}
               </div>
 
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={goPrev}
+                    disabled={currentStep === 0}
+                    className="gap-1"
+                    aria-label="Previous step"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    Prev
+                  </Button>
                   <Button
                     size="sm"
                     variant="default"
@@ -420,6 +431,17 @@ const DemoVideoModal = ({ onClose }: DemoVideoModalProps) => {
                   >
                     {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                     {isPlaying ? "Pause" : currentStep >= SCRIPT.length - 1 ? "Replay" : "Play"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={goNext}
+                    disabled={currentStep >= SCRIPT.length - 1}
+                    className="gap-1"
+                    aria-label="Next step"
+                  >
+                    Next
+                    <ChevronRight className="h-3.5 w-3.5" />
                   </Button>
                   <Button
                     size="sm"

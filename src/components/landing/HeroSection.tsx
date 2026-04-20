@@ -89,18 +89,18 @@ const HeroSection = () => {
               style={{ color: "hsl(220, 15%, 60%)" }}
             >
               <div>
-                <span className="text-2xl font-bold text-primary">10+</span>
-                <p>AI Modules</p>
+                <span className="text-2xl font-bold text-primary">Unlimited</span>
+                <p>AI-Generated Modules (Tech & Non-Tech)</p>
               </div>
               <div className="w-px h-10 bg-primary/20" />
               <div>
-                <span className="text-2xl font-bold text-primary">50+</span>
-                <p>Video Lessons</p>
+                <span className="text-2xl font-bold text-primary">Unlimited</span>
+                <p>AI-Generated Learning Videos</p>
               </div>
               <div className="w-px h-10 bg-primary/20" />
               <div>
-                <span className="text-2xl font-bold text-primary">100+</span>
-                <p>Practice Tasks</p>
+                <span className="text-2xl font-bold text-primary">Unlimited</span>
+                <p>AI-Generated Practice Tests (Tech & Non-Tech)</p>
               </div>
             </motion.div>
           </div>

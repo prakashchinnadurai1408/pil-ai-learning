@@ -28,7 +28,7 @@ const HeroSection = () => {
             >
               <Sparkles className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium text-primary">
-                AI-Powered Learning for UG / PG Students
+                AI-Powered Learning for all Age Group Students
               </span>
             </motion.div>
 

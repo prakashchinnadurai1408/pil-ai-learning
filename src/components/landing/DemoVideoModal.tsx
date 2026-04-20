@@ -3,7 +3,7 @@ import {
   X, Play, Pause, Volume2, VolumeX, Sparkles, BookOpen, Bot,
   ClipboardCheck, FolderKanban, BarChart3, Rocket, Code2,
   MessageSquare, Video, Trophy, Users, FileCheck, GraduationCap,
-  Cpu, Layers,
+  Cpu, Layers, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
@@ -127,10 +127,13 @@ const DemoVideoModal = ({ onClose }: DemoVideoModalProps) => {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") handleClose();
+      else if (e.key === "ArrowRight") goNext();
+      else if (e.key === "ArrowLeft") goPrev();
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep]);
 
   // Pick a female English voice (prefer Indian English)
   const pickFemaleVoice = (): SpeechSynthesisVoice | null => {
@@ -233,6 +236,16 @@ const DemoVideoModal = ({ onClose }: DemoVideoModalProps) => {
     stepRef.current = idx;
     setCurrentStep(idx);
     setIsPlaying(true);
+  };
+
+  const goPrev = () => {
+    if (currentStep === 0) return;
+    jumpTo(currentStep - 1);
+  };
+
+  const goNext = () => {
+    if (currentStep >= SCRIPT.length - 1) return;
+    jumpTo(currentStep + 1);
   };
 
   const step = SCRIPT[currentStep];
@@ -399,8 +412,19 @@ const DemoVideoModal = ({ onClose }: DemoVideoModalProps) => {
                 ))}
               </div>
 
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={goPrev}
+                    disabled={currentStep === 0}
+                    className="gap-1"
+                    aria-label="Previous step"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    Prev
+                  </Button>
                   <Button
                     size="sm"
                     variant="default"
@@ -410,6 +434,17 @@ const DemoVideoModal = ({ onClose }: DemoVideoModalProps) => {
                   >
                     {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                     {isPlaying ? "Pause" : currentStep >= SCRIPT.length - 1 ? "Replay" : "Play"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={goNext}
+                    disabled={currentStep >= SCRIPT.length - 1}
+                    className="gap-1"
+                    aria-label="Next step"
+                  >
+                    Next
+                    <ChevronRight className="h-3.5 w-3.5" />
                   </Button>
                   <Button
                     size="sm"

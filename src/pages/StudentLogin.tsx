@@ -20,6 +20,26 @@ const StudentLogin = () => {
   const [otp, setOtp] = useState("");
   const [forgotMobile, setForgotMobile] = useState("");
   const [newPassword, setNewPassword] = useState({ password: "", confirm: "" });
+  // Generated OTP + expiry for the current verification step
+  const [generatedOtp, setGeneratedOtp] = useState<string>("");
+  const [otpExpiresAt, setOtpExpiresAt] = useState<number>(0);
+
+  const issueOtp = () => {
+    // Dev OTP remains 1234 (store-only SMS gateway). 5 minute validity.
+    const code = "1234";
+    setGeneratedOtp(code);
+    setOtpExpiresAt(Date.now() + 5 * 60 * 1000);
+    setOtp("");
+    return code;
+  };
+
+  const verifyOtp = (entered: string): { ok: boolean; reason?: string } => {
+    if (!generatedOtp) return { ok: false, reason: "No OTP was generated. Please request a new one." };
+    if (entered.length < 4) return { ok: false, reason: "Enter the complete 4-digit OTP" };
+    if (Date.now() > otpExpiresAt) return { ok: false, reason: "OTP has expired. Please request a new one." };
+    if (entered !== generatedOtp) return { ok: false, reason: "Incorrect OTP. Please check and try again." };
+    return { ok: true };
+  };
 
   const handleRegisterSendOTP = async () => {
     if (!form.name || !form.email || !form.mobile || !form.college || !form.location || !form.password || !form.age_group) {

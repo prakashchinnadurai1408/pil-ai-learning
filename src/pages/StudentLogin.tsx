@@ -66,13 +66,14 @@ const StudentLogin = () => {
     }
     await supabase.from("locations").upsert({ name: form.location.trim() }, { onConflict: "name" });
     await supabase.from("colleges").upsert({ name: form.college.trim() }, { onConflict: "name" });
-    toast.success("OTP sent to " + form.mobile);
+    issueOtp();
+    toast.success(`OTP sent to ${form.mobile}. Use 1234 (dev mode).`);
     setStep("otp");
   };
 
   const handleVerifyRegisterOTP = async () => {
-    if (otp.length < 4) { toast.error("Enter the complete 4-digit OTP"); return; }
-    if (otp !== "1234") { toast.error("Invalid OTP. Please enter 1234"); return; }
+    const check = verifyOtp(otp);
+    if (!check.ok) { toast.error(check.reason!); return; }
     const { error } = await supabase.from("students").insert({
       name: form.name.trim(), email: form.email.trim(), mobile: form.mobile.trim(),
       college: form.college.trim(), location: form.location.trim(), password: form.password,
@@ -109,14 +110,15 @@ const StudentLogin = () => {
     if (forgotMobile.length < 10) { toast.error("Enter a valid 10-digit mobile number"); return; }
     const { data } = await supabase.from("students").select("id").eq("mobile", forgotMobile).maybeSingle();
     if (!data) { toast.error("Mobile number not registered"); return; }
-    toast.success("OTP sent to " + forgotMobile);
-    setOtp("");
+    issueOtp();
+    toast.success(`OTP sent to ${forgotMobile}. Use 1234 (dev mode).`);
     setStep("reset-otp");
   };
 
   const handleVerifyResetOTP = () => {
-    if (otp.length < 4) { toast.error("Enter the complete 4-digit OTP"); return; }
-    if (otp !== "1234") { toast.error("Invalid OTP. Please enter 1234"); return; }
+    const check = verifyOtp(otp);
+    if (!check.ok) { toast.error(check.reason!); return; }
+    toast.success("OTP verified");
     setOtp("");
     setStep("new-password");
   };

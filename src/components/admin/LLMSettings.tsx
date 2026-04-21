@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Save, Loader2, Brain, KeyRound, Youtube, RefreshCw, CheckCircle2, Sliders } from "lucide-react";
 import { toast } from "sonner";
+import SMSGatewaySettings from "./SMSGatewaySettings";
 
 type ProviderKey = "lovable" | "openai" | "anthropic" | "deepseek" | "xai";
 type Difficulty = "easy" | "medium" | "hard";
@@ -464,6 +465,8 @@ const LLMSettings = () => {
           </Button>
         </CardContent>
       </Card>
+
+      <SMSGatewaySettings />
 
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving} className="gap-2">

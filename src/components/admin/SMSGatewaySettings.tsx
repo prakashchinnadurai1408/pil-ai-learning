@@ -146,8 +146,8 @@ const SMSGatewaySettings = () => {
       </CardHeader>
 
       <CardContent className="space-y-6">
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-foreground flex gap-2">
-          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-foreground flex gap-2">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
           <span>
             <strong>Store-only mode:</strong> saving here records your gateway configuration. The current
             login flow continues to use the development OTP <code className="font-mono">1234</code> until

@@ -122,10 +122,28 @@ const SMSGatewaySettings = () => {
       toast.error("Generic headers must be valid JSON object");
       return;
     }
+    // Client-side guards mirror server validation for instant feedback
+    if (!row.otp_template.includes("{otp}")) {
+      toast.error("OTP template must contain the {otp} placeholder");
+      return;
+    }
+    if (row.otp_template.trim().length < 10 || row.otp_template.length > 300) {
+      toast.error("OTP template must be 10–300 characters");
+      return;
+    }
+    if (row.otp_length < 4 || row.otp_length > 8) {
+      toast.error("OTP length must be between 4 and 8");
+      return;
+    }
+    if (row.otp_validity_minutes < 1 || row.otp_validity_minutes > 30) {
+      toast.error("OTP validity must be between 1 and 30 minutes");
+      return;
+    }
+
     setSaving(true);
-    const { error } = await supabase
-      .from("sms_gateway_settings" as any)
-      .update({
+    const adminEmail = sessionStorage.getItem("adminEmail") || "";
+    const { data, error } = await supabase.functions.invoke("update-sms-gateway", {
+      body: {
         provider: row.provider,
         enabled: row.enabled,
         sender_id: row.sender_id,
@@ -140,13 +158,19 @@ const SMSGatewaySettings = () => {
         generic_http_method: row.generic_http_method,
         generic_headers: parsedHeaders,
         generic_body_template: row.generic_body_template,
-        updated_at: new Date().toISOString(),
-        updated_by: sessionStorage.getItem("adminEmail") || "admin",
-      } as any)
-      .eq("id", row.id);
+      },
+      headers: { "x-admin-email": adminEmail },
+    });
     setSaving(false);
-    if (error) toast.error("Failed to save: " + error.message);
-    else toast.success("SMS gateway settings saved");
+    if (error) {
+      toast.error("Failed to save: " + error.message);
+      return;
+    }
+    if ((data as any)?.error) {
+      toast.error((data as any).error);
+      return;
+    }
+    toast.success("SMS gateway settings saved");
   };
 
   if (loading || !row) {

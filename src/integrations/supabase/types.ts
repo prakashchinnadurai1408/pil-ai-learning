@@ -1168,6 +1168,72 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_gateway_settings: {
+        Row: {
+          enabled: boolean
+          generic_auth_key_set: boolean
+          generic_body_template: string
+          generic_endpoint_url: string
+          generic_headers: Json
+          generic_http_method: string
+          id: string
+          msg91_auth_key_set: boolean
+          msg91_dlt_te_id: string
+          msg91_template_id: string
+          otp_length: number
+          otp_template: string
+          otp_validity_minutes: number
+          provider: string
+          sender_id: string
+          twilio_account_sid: string
+          twilio_from_number: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          enabled?: boolean
+          generic_auth_key_set?: boolean
+          generic_body_template?: string
+          generic_endpoint_url?: string
+          generic_headers?: Json
+          generic_http_method?: string
+          id?: string
+          msg91_auth_key_set?: boolean
+          msg91_dlt_te_id?: string
+          msg91_template_id?: string
+          otp_length?: number
+          otp_template?: string
+          otp_validity_minutes?: number
+          provider?: string
+          sender_id?: string
+          twilio_account_sid?: string
+          twilio_from_number?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Update: {
+          enabled?: boolean
+          generic_auth_key_set?: boolean
+          generic_body_template?: string
+          generic_endpoint_url?: string
+          generic_headers?: Json
+          generic_http_method?: string
+          id?: string
+          msg91_auth_key_set?: boolean
+          msg91_dlt_te_id?: string
+          msg91_template_id?: string
+          otp_length?: number
+          otp_template?: string
+          otp_validity_minutes?: number
+          provider?: string
+          sender_id?: string
+          twilio_account_sid?: string
+          twilio_from_number?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: []
+      }
       student_assessment_scores: {
         Row: {
           attempted_at: string

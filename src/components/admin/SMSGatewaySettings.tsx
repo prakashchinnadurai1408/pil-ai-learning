@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, Save, Loader2, KeyRound, ShieldCheck, AlertTriangle } from "lucide-react";
+import { MessageSquare, Save, Loader2, KeyRound, ShieldCheck, AlertTriangle, Send, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 type Provider = "twilio" | "msg91" | "generic";
@@ -44,6 +44,40 @@ const SMSGatewaySettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [headersText, setHeadersText] = useState("{}");
+  const [testMobile, setTestMobile] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const sendTestOtp = async () => {
+    if (!testMobile.trim()) {
+      toast.error("Enter a mobile number to test");
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-test-otp", {
+        body: { mobile: testMobile.trim() },
+      });
+      if (error) {
+        setTestResult({ ok: false, message: error.message || "Edge function call failed" });
+      } else if ((data as any)?.error) {
+        setTestResult({ ok: false, message: (data as any).error });
+      } else if ((data as any)?.ok) {
+        setTestResult({
+          ok: true,
+          message: `Sent via ${(data as any).provider} to ${(data as any).to} (OTP ${(data as any).otp_preview})`,
+        });
+        toast.success("Test OTP sent");
+      } else {
+        setTestResult({ ok: false, message: "Unexpected response from gateway" });
+      }
+    } catch (e: any) {
+      setTestResult({ ok: false, message: e?.message || "Network error" });
+    } finally {
+      setTesting(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -354,6 +388,56 @@ const SMSGatewaySettings = () => {
             </p>
           </div>
         )}
+
+        <div className="space-y-3 border-t pt-4">
+          <Label className="text-xs font-semibold uppercase text-muted-foreground">
+            Send test OTP
+          </Label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              type="tel"
+              placeholder="+919876543210 or 9876543210"
+              value={testMobile}
+              maxLength={20}
+              onChange={(e) => setTestMobile(e.target.value)}
+              className="sm:max-w-xs"
+            />
+            <Button
+              onClick={sendTestOtp}
+              disabled={testing || !row.enabled}
+              variant="outline"
+              className="gap-2"
+            >
+              {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Send test OTP
+            </Button>
+          </div>
+          {!row.enabled && (
+            <p className="text-xs text-muted-foreground">
+              Enable the gateway above to send a test message.
+            </p>
+          )}
+          {testResult && (
+            <div
+              className={`text-sm rounded-md border px-3 py-2 flex gap-2 ${
+                testResult.ok
+                  ? "border-primary/30 bg-primary/5 text-foreground"
+                  : "border-destructive/40 bg-destructive/5 text-destructive"
+              }`}
+            >
+              {testResult.ok ? (
+                <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              ) : (
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              )}
+              <span>{testResult.message}</span>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Save your settings first. The test sends a real OTP via the selected provider — standard
+            SMS charges apply.
+          </p>
+        </div>
 
         <div className="flex items-center justify-between border-t pt-4">
           <span className="text-xs text-muted-foreground inline-flex items-center gap-1">

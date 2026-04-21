@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, Save, Loader2, KeyRound, ShieldCheck, AlertTriangle } from "lucide-react";
+import { MessageSquare, Save, Loader2, KeyRound, ShieldCheck, AlertTriangle, Send, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 type Provider = "twilio" | "msg91" | "generic";

@@ -321,7 +321,7 @@ Generate three MCQs per chapter.`;
       generation_error: rows.length ? "" : "AI did not return any usable questions.",
     }).eq("id", lessonId);
 
-    return json({ lessonId, questionCount: rows.length, chapterCount: chapters.length });
+    return json({ lessonId, questionCount: rows.length, chapterCount: chapters.length, version: nextVersion });
   } catch (err) {
     console.error("generate-video-mcqs fatal:", err);
     if (lessonId) {

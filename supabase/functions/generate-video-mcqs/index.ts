@@ -144,27 +144,53 @@ serve(async (req) => {
     // Cap to 8 chapters to keep AI cost predictable
     chapters = chapters.slice(0, 8);
 
-    // 2. Insert/refresh lesson row in "running" state so the UI can poll
-    const { data: lessonRow, error: insertErr } = await supabase
-      .from("video_lessons")
-      .insert({
-        title: videoTitle,
-        description: description.slice(0, 2000),
-        youtube_url: youtubeUrl,
-        youtube_video_id: videoId,
-        thumbnail_url: thumb,
-        duration_seconds: duration,
-        module_id: moduleId ?? null,
-        status: "draft",
-        generation_status: "running",
-        chapters,
-        created_by: createdBy || "admin",
-      })
-      .select("id")
-      .single();
-    if (insertErr || !lessonRow) {
-      console.error("video_lessons insert failed:", insertErr);
-      return json({ error: "Could not create the lesson record." }, 500);
+    // 2. Insert OR update lesson row in "running" state so the UI can poll
+    let lessonRow: { id: string } | null = null;
+    if (regenerateLessonId) {
+      const { data, error } = await supabase
+        .from("video_lessons")
+        .update({
+          title: videoTitle,
+          description: description.slice(0, 2000),
+          thumbnail_url: thumb,
+          duration_seconds: duration,
+          chapters,
+          generation_status: "running",
+          generation_error: "",
+          version: nextVersion,
+          last_regenerated_at: new Date().toISOString(),
+        })
+        .eq("id", regenerateLessonId)
+        .select("id")
+        .single();
+      if (error || !data) {
+        console.error("video_lessons update failed:", error);
+        return json({ error: "Could not update the lesson record." }, 500);
+      }
+      lessonRow = data;
+    } else {
+      const { data, error } = await supabase
+        .from("video_lessons")
+        .insert({
+          title: videoTitle,
+          description: description.slice(0, 2000),
+          youtube_url: youtubeUrl,
+          youtube_video_id: videoId,
+          thumbnail_url: thumb,
+          duration_seconds: duration,
+          module_id: moduleId ?? null,
+          status: "draft",
+          generation_status: "running",
+          chapters,
+          created_by: createdBy || "admin",
+        })
+        .select("id")
+        .single();
+      if (error || !data) {
+        console.error("video_lessons insert failed:", error);
+        return json({ error: "Could not create the lesson record." }, 500);
+      }
+      lessonRow = data;
     }
     lessonId = lessonRow.id;
 

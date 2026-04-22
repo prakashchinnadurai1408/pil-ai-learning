@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Users, GraduationCap, Building2, ShieldCheck, Search, Clock, Check, X } from "lucide-react";
+import { Users, GraduationCap, Building2, ShieldCheck, Search, Clock, Check, X, History } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
@@ -15,6 +15,7 @@ type Student = { id: string; name: string; mobile: string; email: string; colleg
 type Trainer = { id: string; name: string; mobile: string; email: string; college: string; location: string; status: string; rejection_reason?: string; approved_at?: string | null; created_at: string };
 type College = { id: number; name: string; created_at: string };
 type AdminUser = { id: string; email: string; created_at: string };
+type ActivityLog = { id: string; trainer_id: string; trainer_name: string; action: string; reason: string; actor_name: string; created_at: string };
 
 const AdminManagement = () => {
   const [students, setStudents] = useState<Student[]>([]);

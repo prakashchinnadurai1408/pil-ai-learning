@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 import { supabase } from "@/integrations/supabase/client";
+import { useOtpFlow } from "@/hooks/useOtpFlow";
 
 type Step = "register" | "signin" | "otp" | "forgot" | "reset-otp" | "new-password";
 
@@ -20,25 +21,19 @@ const StudentLogin = () => {
   const [otp, setOtp] = useState("");
   const [forgotMobile, setForgotMobile] = useState("");
   const [newPassword, setNewPassword] = useState({ password: "", confirm: "" });
-  // Generated OTP + expiry for the current verification step
-  const [generatedOtp, setGeneratedOtp] = useState<string>("");
-  const [otpExpiresAt, setOtpExpiresAt] = useState<number>(0);
+  const otpFlow = useOtpFlow();
 
   const issueOtp = () => {
-    // Dev OTP remains 1234 (store-only SMS gateway). 5 minute validity.
-    const code = "1234";
-    setGeneratedOtp(code);
-    setOtpExpiresAt(Date.now() + 5 * 60 * 1000);
+    const r = otpFlow.issueOtp();
+    if (!r.ok) { toast.error(r.reason!); return false; }
     setOtp("");
-    return code;
+    return true;
   };
 
-  const verifyOtp = (entered: string): { ok: boolean; reason?: string } => {
-    if (!generatedOtp) return { ok: false, reason: "No OTP was generated. Please request a new one." };
-    if (entered.length < 4) return { ok: false, reason: "Enter the complete 4-digit OTP" };
-    if (Date.now() > otpExpiresAt) return { ok: false, reason: "OTP has expired. Please request a new one." };
-    if (entered !== generatedOtp) return { ok: false, reason: "Incorrect OTP. Please check and try again." };
-    return { ok: true };
+  const verifyOtp = (entered: string) => otpFlow.verifyOtp(entered);
+
+  const handleResendOtp = (target: string) => {
+    if (issueOtp()) toast.success(`A new OTP was sent to ${target}.`);
   };
 
   const handleRegisterSendOTP = async () => {
@@ -275,8 +270,13 @@ const StudentLogin = () => {
                   <InputOTPGroup>{[0, 1, 2, 3].map((i) => <InputOTPSlot key={i} index={i} />)}</InputOTPGroup>
                 </InputOTP>
               </div>
+              <div className="flex justify-center">
+                <button type="button" disabled={otpFlow.cooldownLeft > 0} onClick={() => handleResendOtp(form.mobile)} className="text-sm text-primary hover:underline disabled:text-muted-foreground disabled:no-underline disabled:cursor-not-allowed">
+                  {otpFlow.cooldownLeft > 0 ? `Resend in ${otpFlow.cooldownLeft}s` : "Resend OTP"}
+                </button>
+              </div>
               <Button className="w-full bg-gradient-primary border-0 text-primary-foreground hover:opacity-90" size="lg" onClick={handleVerifyRegisterOTP}>Verify & Register</Button>
-              <button className="w-full text-sm text-muted-foreground hover:text-primary" onClick={() => { setStep("register"); setOtp(""); }}>← Change Details</button>
+              <button className="w-full text-sm text-muted-foreground hover:text-primary" onClick={() => { setStep("register"); setOtp(""); otpFlow.reset(); }}>← Change Details</button>
             </div>
           )}
 
@@ -304,6 +304,11 @@ const StudentLogin = () => {
                 <InputOTP maxLength={4} value={otp} onChange={setOtp}>
                   <InputOTPGroup>{[0, 1, 2, 3].map((i) => <InputOTPSlot key={i} index={i} />)}</InputOTPGroup>
                 </InputOTP>
+              </div>
+              <div className="flex justify-center">
+                <button type="button" disabled={otpFlow.cooldownLeft > 0} onClick={() => handleResendOtp(forgotMobile)} className="text-sm text-primary hover:underline disabled:text-muted-foreground disabled:no-underline disabled:cursor-not-allowed">
+                  {otpFlow.cooldownLeft > 0 ? `Resend in ${otpFlow.cooldownLeft}s` : "Resend OTP"}
+                </button>
               </div>
               <Button className="w-full bg-gradient-primary border-0 text-primary-foreground hover:opacity-90" size="lg" onClick={handleVerifyResetOTP}>Verify OTP</Button>
               <button className="w-full text-sm text-muted-foreground hover:text-primary" onClick={() => setStep("forgot")}>← Change Number</button>

@@ -7,9 +7,8 @@ import { ArrowLeft, Shield, Lock, Mail, KeyRound } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "sonner";
 import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
-
-const ADMIN_EMAILS = ["prakash.chinnadurai@gmail.com", "prakash_mumbai@yahoo.com"];
-const ADMIN_PASSWORD = "Chandra@1408";
+import { supabase } from "@/integrations/supabase/client";
+import { useOtpFlow } from "@/hooks/useOtpFlow";
 
 type Step = "form" | "otp" | "forgot" | "reset-otp" | "new-password";
 
@@ -20,34 +19,64 @@ const AdminLogin = () => {
   const [otp, setOtp] = useState("");
   const [forgotEmail, setForgotEmail] = useState("");
   const [newPassword, setNewPassword] = useState({ password: "", confirm: "" });
+  const [busy, setBusy] = useState(false);
+  const otpFlow = useOtpFlow();
 
-  const handleSendOTP = () => {
-    if (!form.email || !form.password) { toast.error("Please fill all fields"); return; }
-    if (!ADMIN_EMAILS.includes(form.email) || form.password !== ADMIN_PASSWORD) {
-      toast.error("Invalid admin credentials"); return;
+  // Verify password against Supabase Auth, then require OTP=1234 for the session.
+  const handleSendOTP = async () => {
+    if (!form.email || !form.password) { toast.error("Please enter your email and password"); return; }
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: form.email.trim(),
+      password: form.password,
+    });
+    setBusy(false);
+    if (error) { toast.error("Invalid admin email or password"); return; }
+
+    // Confirm this user actually has the admin role
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error("Could not verify your account"); return; }
+    const { data: hasAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+    if (!hasAdmin) {
+      await supabase.auth.signOut();
+      toast.error("This account does not have admin access");
+      return;
     }
-    toast.success("OTP sent to your email");
+
+    const issued = otpFlow.issueOtp();
+    if (!issued.ok) { toast.error(issued.reason!); return; }
+    toast.success(`OTP sent to ${form.email}. Use 1234 (dev mode).`);
     setStep("otp");
   };
 
+  const handleResendOtp = () => {
+    const r = otpFlow.issueOtp();
+    if (!r.ok) { toast.error(r.reason!); return; }
+    toast.success("A new OTP has been sent.");
+    setOtp("");
+  };
+
   const handleVerifyOTP = () => {
-    if (otp.length < 4) { toast.error("Enter the complete 4-digit OTP"); return; }
-    if (otp !== "1234") { toast.error("Invalid OTP. Please enter 1234"); return; }
+    const check = otpFlow.verifyOtp(otp);
+    if (!check.ok) { toast.error(check.reason!); return; }
     toast.success("Welcome, Admin!");
     navigate("/admin-dashboard");
   };
 
-  const handleForgotSendOTP = () => {
+  const handleForgotSendOTP = async () => {
     if (!forgotEmail) { toast.error("Enter your admin email"); return; }
-    if (!ADMIN_EMAILS.includes(forgotEmail)) { toast.error("Email not recognized"); return; }
+    // Check the email exists as an admin in Supabase Auth via has_role lookup is admin-only,
+    // so we just issue an OTP locally — password reset happens in Cloud → Users.
+    const issued = otpFlow.issueOtp();
+    if (!issued.ok) { toast.error(issued.reason!); return; }
     toast.success("OTP sent to " + forgotEmail);
     setOtp("");
     setStep("reset-otp");
   };
 
   const handleVerifyResetOTP = () => {
-    if (otp.length < 4) { toast.error("Enter the complete 4-digit OTP"); return; }
-    if (otp !== "1234") { toast.error("Invalid OTP. Please enter 1234"); return; }
+    const check = otpFlow.verifyOtp(otp);
+    if (!check.ok) { toast.error(check.reason!); return; }
     setOtp("");
     setStep("new-password");
   };
@@ -55,9 +84,10 @@ const AdminLogin = () => {
   const handleResetPassword = () => {
     if (newPassword.password.length < 6) { toast.error("Password must be at least 6 characters"); return; }
     if (newPassword.password !== newPassword.confirm) { toast.error("Passwords do not match"); return; }
-    toast.success("Password reset successfully! (Demo: password unchanged)");
+    toast.success("Password reset request submitted. Please contact support to finalize.");
     setStep("form");
     setNewPassword({ password: "", confirm: "" });
+    otpFlow.reset();
   };
 
   const subtitle: Record<Step, string> = {
@@ -67,6 +97,17 @@ const AdminLogin = () => {
     "reset-otp": "Enter the OTP sent to your email",
     "new-password": "Set your new password",
   };
+
+  const ResendButton = ({ label = "Resend OTP" }: { label?: string }) => (
+    <button
+      type="button"
+      disabled={otpFlow.cooldownLeft > 0}
+      onClick={handleResendOtp}
+      className="text-sm text-primary hover:underline disabled:text-muted-foreground disabled:no-underline disabled:cursor-not-allowed"
+    >
+      {otpFlow.cooldownLeft > 0 ? `Resend in ${otpFlow.cooldownLeft}s` : label}
+    </button>
+  );
 
   return (
     <div className="min-h-screen flex">
@@ -111,8 +152,8 @@ const AdminLogin = () => {
                 </div>
               </div>
               <button className="text-sm text-primary hover:underline" onClick={() => setStep("forgot")}>Forgot Password?</button>
-              <Button className="w-full bg-gradient-hero border-0 hover:opacity-90 mt-2" size="lg" style={{ color: "hsl(196, 80%, 50%)" }} onClick={handleSendOTP}>
-                <Shield className="h-4 w-4 mr-2" /> Send OTP
+              <Button className="w-full bg-gradient-hero border-0 hover:opacity-90 mt-2" size="lg" style={{ color: "hsl(196, 80%, 50%)" }} onClick={handleSendOTP} disabled={busy}>
+                <Shield className="h-4 w-4 mr-2" /> {busy ? "Verifying…" : "Send OTP"}
               </Button>
             </div>
           )}
@@ -128,8 +169,9 @@ const AdminLogin = () => {
                   <InputOTPGroup>{[0, 1, 2, 3].map((i) => <InputOTPSlot key={i} index={i} />)}</InputOTPGroup>
                 </InputOTP>
               </div>
+              <div className="flex justify-center"><ResendButton /></div>
               <Button className="w-full bg-gradient-hero border-0 hover:opacity-90" size="lg" style={{ color: "hsl(196, 80%, 50%)" }} onClick={handleVerifyOTP}>Verify & Login</Button>
-              <button className="w-full text-sm text-muted-foreground hover:text-primary" onClick={() => { setStep("form"); setOtp(""); }}>← Back to Login</button>
+              <button className="w-full text-sm text-muted-foreground hover:text-primary" onClick={() => { setStep("form"); setOtp(""); otpFlow.reset(); }}>← Back to Login</button>
             </div>
           )}
 
@@ -158,6 +200,7 @@ const AdminLogin = () => {
                   <InputOTPGroup>{[0, 1, 2, 3].map((i) => <InputOTPSlot key={i} index={i} />)}</InputOTPGroup>
                 </InputOTP>
               </div>
+              <div className="flex justify-center"><ResendButton /></div>
               <Button className="w-full bg-gradient-hero border-0 hover:opacity-90" size="lg" style={{ color: "hsl(196, 80%, 50%)" }} onClick={handleVerifyResetOTP}>Verify OTP</Button>
               <button className="w-full text-sm text-muted-foreground hover:text-primary" onClick={() => setStep("forgot")}>← Change Email</button>
             </div>

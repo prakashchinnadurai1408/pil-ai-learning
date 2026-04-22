@@ -85,6 +85,7 @@ const AdminManagement = () => {
   };
 
   const approveTrainer = async (t: Trainer) => {
+    if (!isAdmin) { toast.error("Only admins can approve trainers"); return; }
     const wasRejected = t.status === "rejected";
     const { error } = await supabase
       .from("trainers")

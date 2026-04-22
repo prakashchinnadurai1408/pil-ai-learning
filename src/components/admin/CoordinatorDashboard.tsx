@@ -106,8 +106,10 @@ const CoordinatorDashboard = () => {
     return true;
   };
   const matchesText = (s: string) => !search.trim() || s.toLowerCase().includes(search.trim().toLowerCase());
+  // Source of truth: server-stored `retry_scheduled_at`. A lesson is "awaiting retry"
+  // iff that timestamp is in the future (no more 60s last_regenerated_at heuristic).
   const isAwaitingRetry = (l: VideoLessonRow) =>
-    l.generation_status === "failed" && !!l.last_regenerated_at && Date.now() - new Date(l.last_regenerated_at).getTime() < 60_000;
+    l.generation_status === "failed" && !!l.retry_scheduled_at && new Date(l.retry_scheduled_at).getTime() > Date.now();
 
   const filteredLessons = useMemo(() => lessons.filter((l) => {
     if (!matchesText(l.title)) return false;

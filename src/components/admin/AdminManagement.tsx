@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { Users, GraduationCap, Building2, ShieldCheck, Search, Clock, Check, X, History } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Lock } from "lucide-react";
 
 type Student = { id: string; name: string; mobile: string; email: string; college: string; location: string; status: string; created_at: string };
 type Trainer = { id: string; name: string; mobile: string; email: string; college: string; location: string; status: string; rejection_reason?: string; approved_at?: string | null; created_at: string };
@@ -18,6 +20,7 @@ type AdminUser = { id: string; email: string; created_at: string };
 type ActivityLog = { id: string; trainer_id: string; trainer_name: string; action: string; reason: string; actor_name: string; created_at: string };
 
 const AdminManagement = () => {
+  const { isAdmin, isCoordinator, loading: roleLoading } = useUserRole();
   const [students, setStudents] = useState<Student[]>([]);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);
@@ -82,6 +85,7 @@ const AdminManagement = () => {
   };
 
   const approveTrainer = async (t: Trainer) => {
+    if (!isAdmin) { toast.error("Only admins can approve trainers"); return; }
     const wasRejected = t.status === "rejected";
     const { error } = await supabase
       .from("trainers")
@@ -95,6 +99,7 @@ const AdminManagement = () => {
 
   const submitReject = async () => {
     if (!rejectTarget) return;
+    if (!isAdmin) { toast.error("Only admins can reject trainers"); return; }
     const reason = rejectReason.trim() || "Not approved by coordinator";
     const { error } = await supabase
       .from("trainers")
@@ -122,6 +127,13 @@ const AdminManagement = () => {
           <p className="text-muted-foreground">Students, trainers, colleges & login status</p>
         </div>
       </div>
+
+      {!roleLoading && isCoordinator && (
+        <div className="rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-sm flex items-center gap-2">
+          <Lock className="h-4 w-4 text-warning" />
+          <span><strong>Coordinator view</strong> — you can review trainer progress, but only admins can approve or reject trainers.</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card><CardContent className="p-4 flex items-center gap-3"><GraduationCap className="h-8 w-8 text-primary" /><div><div className="text-2xl font-bold">{students.length}</div><div className="text-xs text-muted-foreground">Students</div></div></CardContent></Card>
@@ -265,8 +277,8 @@ const AdminManagement = () => {
                       <TableCell>{t.location}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right space-x-2">
-                        <Button size="sm" onClick={() => approveTrainer(t)} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve</Button>
-                        <Button size="sm" variant="outline" onClick={() => { setRejectTarget(t); setRejectReason(""); }} className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"><X className="h-3.5 w-3.5" /> Reject</Button>
+                        <Button size="sm" onClick={() => approveTrainer(t)} disabled={!isAdmin} title={!isAdmin ? "Admin only" : undefined} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve</Button>
+                        <Button size="sm" variant="outline" onClick={() => { setRejectTarget(t); setRejectReason(""); }} disabled={!isAdmin} title={!isAdmin ? "Admin only" : undefined} className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"><X className="h-3.5 w-3.5" /> Reject</Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -288,7 +300,7 @@ const AdminManagement = () => {
                           <TableCell>{t.email}</TableCell>
                           <TableCell className="text-xs text-destructive">{t.rejection_reason || "—"}</TableCell>
                           <TableCell className="text-right">
-                            <Button size="sm" variant="outline" onClick={() => approveTrainer(t)} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve</Button>
+                            <Button size="sm" variant="outline" onClick={() => approveTrainer(t)} disabled={!isAdmin} title={!isAdmin ? "Admin only" : undefined} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve</Button>
                           </TableCell>
                         </TableRow>
                       ))}

@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Youtube, Sparkles, Trash2, Eye, RefreshCw, Plus, CheckCircle2, AlertTriangle, ListTodo, History, RotateCw, Save, Pencil, Undo2 } from "lucide-react";
+import { Loader2, Youtube, Sparkles, Trash2, Eye, RefreshCw, Plus, CheckCircle2, AlertTriangle, ListTodo, History, RotateCw, Save, Pencil, Undo2, Search, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminModules } from "@/hooks/useAdminModules";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface VideoLesson {
   id: string; title: string; description: string; youtube_url: string; youtube_video_id: string;
@@ -44,6 +45,8 @@ function validateQuestion(q: { question: string; options: string[]; correct: num
 
 const VideoMcqManager = () => {
   const { adminModules } = useAdminModules();
+  const { isAdmin, isCoordinator } = useUserRole();
+  const [historySearch, setHistorySearch] = useState("");
   const [lessons, setLessons] = useState<VideoLesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -123,6 +126,8 @@ const VideoMcqManager = () => {
   };
 
   const handlePublish = async (l: VideoLesson) => {
+    if (!isAdmin) { toast.error("Only admins can publish or unpublish MCQ versions"); return; }
+    if (l.generation_status === "running") { toast.error("Cannot publish while regeneration is running"); return; }
     // Block publish if any question fails validation
     const { data: qs } = await supabase.from("video_lesson_questions").select("question,options,correct").eq("lesson_id", l.id);
     if (l.status !== "published") {
@@ -140,6 +145,7 @@ const VideoMcqManager = () => {
   };
 
   const handleRegenerate = async (l: VideoLesson) => {
+    if (!isAdmin) { toast.error("Only admins can regenerate MCQs"); return; }
     const note = regenNote?.id === l.id ? regenNote.note.trim() : "";
     setRegenNote(null);
     setLiveCounts((p) => ({ ...p, [l.id]: 0 }));
@@ -164,6 +170,8 @@ const VideoMcqManager = () => {
 
   const rollbackToVersion = async (v: LessonVersion) => {
     if (!historyLesson) return;
+    if (!isAdmin) { toast.error("Only admins can rollback MCQ versions"); return; }
+    if (historyLesson.generation_status === "running") { toast.error("Cannot rollback while regeneration is running"); return; }
     if (!confirm(`Republish version v${v.version}? Current published questions will be archived as a new snapshot before being replaced.`)) return;
     setRollingBackId(v.id);
     try {
@@ -282,6 +290,13 @@ const VideoMcqManager = () => {
         <p className="text-muted-foreground text-sm">Paste a YouTube URL — chapters are detected and chapter-wise multiple-choice questions are generated automatically.</p>
       </div>
 
+      {isCoordinator && (
+        <div className="rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-sm flex items-center gap-2">
+          <Lock className="h-4 w-4 text-warning" />
+          <span><strong>Coordinator view</strong> — you can preview lessons and review version history, but only admins can publish, regenerate, or rollback MCQ versions.</span>
+        </div>
+      )}
+
       <Card>
         <CardHeader><CardTitle className="text-base flex items-center gap-2"><Plus className="h-4 w-4" /> Add a new video lesson</CardTitle></CardHeader>
         <CardContent className="space-y-3">
@@ -355,15 +370,24 @@ const VideoMcqManager = () => {
                     )}
                   </div>
                   <div className="flex gap-2 sm:flex-col">
-                    <Button size="sm" variant="outline" onClick={() => openPreview(l)} className="gap-1.5"><Eye className="h-4 w-4" /> Preview & Edit</Button>
-                    <Button size="sm" variant="outline" onClick={() => setRegenNote({ id: l.id, note: "" })} disabled={l.generation_status === "running"} className="gap-1.5">
-                      <RotateCw className="h-4 w-4" /> Regenerate
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => openHistory(l)} className="gap-1.5"><History className="h-4 w-4" /> History</Button>
-                    <Button size="sm" variant="outline" onClick={() => handlePublish(l)} disabled={l.generation_status !== "success"}>
-                      {l.status === "published" ? "Unpublish" : "Publish"}
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleDelete(l.id)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                    {(() => {
+                      const isRunning = l.generation_status === "running";
+                      const lockTitle = isRunning ? "Disabled while regeneration is running" : undefined;
+                      const adminOnly = !isAdmin ? "Admin only" : undefined;
+                      return (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => openPreview(l)} disabled={isRunning} title={lockTitle} className="gap-1.5"><Eye className="h-4 w-4" /> Preview & Edit</Button>
+                          <Button size="sm" variant="outline" onClick={() => setRegenNote({ id: l.id, note: "" })} disabled={isRunning || !isAdmin} title={adminOnly || lockTitle} className="gap-1.5">
+                            <RotateCw className="h-4 w-4" /> Regenerate
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => openHistory(l)} className="gap-1.5"><History className="h-4 w-4" /> History</Button>
+                          <Button size="sm" variant="outline" onClick={() => handlePublish(l)} disabled={l.generation_status !== "success" || isRunning || !isAdmin} title={adminOnly || lockTitle}>
+                            {l.status === "published" ? "Unpublish" : "Publish"}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleDelete(l.id)} disabled={isRunning || !isAdmin} title={adminOnly || lockTitle} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               );})}
@@ -521,40 +545,69 @@ const VideoMcqManager = () => {
               <span className="font-semibold">Current: v{historyLesson?.version || 1}</span>
               {historyLesson?.last_regenerated_at && <span className="text-muted-foreground"> · regenerated {new Date(historyLesson.last_regenerated_at).toLocaleString()}</span>}
             </div>
-            {versions.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No previous versions yet. Each regenerate creates a snapshot.</p>}
-            {versions.map((v) => (
-              <div key={v.id} className="border border-border rounded-lg p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline">v{v.version}</Badge>
-                    <span className="text-xs text-muted-foreground">{new Date(v.generated_at).toLocaleString()} · {v.questions?.length || 0} questions · {v.chapters?.length || 0} chapters</span>
-                    {v.note && <span className="text-xs italic text-muted-foreground">— {v.note}</span>}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search by note, generator, version, or date (e.g. 'rag', 'admin', 'v2', '2026-04')…"
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+            {(() => {
+              const q = historySearch.toLowerCase().trim();
+              const filtered = versions.filter((v) => {
+                if (!q) return true;
+                const haystack = [
+                  v.note || "",
+                  v.generated_by || "",
+                  `v${v.version}`,
+                  new Date(v.generated_at).toLocaleString(),
+                  new Date(v.generated_at).toISOString(),
+                ].join(" ").toLowerCase();
+                return haystack.includes(q);
+              });
+              if (versions.length === 0) {
+                return <p className="text-sm text-muted-foreground text-center py-4">No previous versions yet. Each regenerate creates a snapshot.</p>;
+              }
+              if (filtered.length === 0) {
+                return <p className="text-sm text-muted-foreground text-center py-4">No versions match "{historySearch}".</p>;
+              }
+              return filtered.map((v) => (
+                <div key={v.id} className="border border-border rounded-lg p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline">v{v.version}</Badge>
+                      <span className="text-xs text-muted-foreground">{new Date(v.generated_at).toLocaleString()} · by {v.generated_by || "—"} · {v.questions?.length || 0} questions · {v.chapters?.length || 0} chapters</span>
+                      {v.note && <span className="text-xs italic text-muted-foreground">— {v.note}</span>}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      disabled={rollingBackId === v.id || !v.questions?.length || !isAdmin || historyLesson?.generation_status === "running"}
+                      title={!isAdmin ? "Admin only" : (historyLesson?.generation_status === "running" ? "Disabled while regeneration is running" : undefined)}
+                      onClick={() => rollbackToVersion(v)}
+                    >
+                      {rollingBackId === v.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
+                      Republish this version
+                    </Button>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5"
-                    disabled={rollingBackId === v.id || !v.questions?.length}
-                    onClick={() => rollbackToVersion(v)}
-                  >
-                    {rollingBackId === v.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
-                    Republish this version
-                  </Button>
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs text-muted-foreground">Show questions</summary>
+                    <div className="mt-2 pl-2 space-y-2 text-xs">
+                      {(v.questions || []).slice(0, 12).map((q: any, i: number) => (
+                        <div key={i} className="border-l-2 border-muted pl-2">
+                          <p className="font-medium">Ch {(q.chapter_index ?? 0) + 1} · Q{(q.sort_order ?? 0) + 1}: {q.question}</p>
+                          <p className="text-success">✓ {q.options?.[q.correct]}</p>
+                        </div>
+                      ))}
+                      {(v.questions?.length || 0) > 12 && <p className="text-muted-foreground">+ {v.questions.length - 12} more</p>}
+                    </div>
+                  </details>
                 </div>
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-xs text-muted-foreground">Show questions</summary>
-                  <div className="mt-2 pl-2 space-y-2 text-xs">
-                    {(v.questions || []).slice(0, 12).map((q: any, i: number) => (
-                      <div key={i} className="border-l-2 border-muted pl-2">
-                        <p className="font-medium">Ch {(q.chapter_index ?? 0) + 1} · Q{(q.sort_order ?? 0) + 1}: {q.question}</p>
-                        <p className="text-success">✓ {q.options?.[q.correct]}</p>
-                      </div>
-                    ))}
-                    {(v.questions?.length || 0) > 12 && <p className="text-muted-foreground">+ {v.questions.length - 12} more</p>}
-                  </div>
-                </details>
-              </div>
-            ))}
+              ));
+            })()}
           </div>
         </DialogContent>
       </Dialog>

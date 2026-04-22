@@ -286,6 +286,52 @@ const VideoMcqManager = () => {
         </CardContent>
       </Card>
 
+      {(() => {
+        const running = lessons.filter((l) => l.generation_status === "running");
+        if (running.length === 0) return null;
+        return (
+          <Card className="border-primary/40 bg-primary/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                Live regeneration in progress ({running.length} lesson{running.length > 1 ? "s" : ""})
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Preview, edit, publish, regenerate, delete and rollback are temporarily disabled for these lessons until each job completes.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {running.map((l) => {
+                const totalChapters = l.chapters?.length || 0;
+                const liveCount = liveCounts[l.id] ?? 0;
+                const chaptersProcessed = Math.min(totalChapters, Math.ceil(liveCount / 3));
+                const pct = totalChapters ? Math.round((chaptersProcessed / totalChapters) * 100) : 0;
+                const currentChapter = l.chapters?.[Math.min(chaptersProcessed, Math.max(0, totalChapters - 1))];
+                return (
+                  <div key={l.id} className="rounded-md border border-border bg-background p-3 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate">{l.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Generating v{l.version || 1} · processing chapter {Math.min(chaptersProcessed + 1, totalChapters)} of {totalChapters}
+                          {currentChapter ? ` — "${currentChapter.title}"` : ""}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-xs">{liveCount} questions saved</Badge>
+                    </div>
+                    <Progress value={pct} className="h-2" />
+                    <div className="flex justify-between text-[11px] text-muted-foreground">
+                      <span>{pct}% complete</span>
+                      <span>~3 MCQs per chapter</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center justify-between">

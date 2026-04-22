@@ -42,6 +42,7 @@ const TrainerAssignments = lazy(() => import("@/components/admin/TrainerAssignme
 const ModuleGroupsManager = lazy(() => import("@/components/admin/ModuleGroupsManager"));
 const AdminManagement = lazy(() => import("@/components/admin/AdminManagement"));
 const VideoMcqManager = lazy(() => import("@/components/admin/VideoMcqManager"));
+const CoordinatorDashboard = lazy(() => import("@/components/admin/CoordinatorDashboard"));
 
 const TabSkeleton = () => (
   <div className="space-y-4 animate-pulse">
@@ -61,6 +62,7 @@ const SECTIONS: { label: string; items: MenuItem[] }[] = [
     label: "Overview",
     items: [
       { key: "overview", label: "Overview", icon: LayoutDashboard, component: DashboardOverview },
+      { key: "coordinator", label: "Coordinator View", icon: Activity, component: CoordinatorDashboard },
     ],
   },
   {

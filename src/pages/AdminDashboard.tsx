@@ -17,7 +17,7 @@ import {
 import {
   Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2,
   LayoutDashboard, ClipboardCheck, BarChart3, Eye, FolderKanban, Route,
-  Brain, Activity, UserCheck,
+  Brain, Activity, UserCheck, Video,
 } from "lucide-react";
 import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 
@@ -41,6 +41,7 @@ const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytic
 const TrainerAssignments = lazy(() => import("@/components/admin/TrainerAssignments"));
 const ModuleGroupsManager = lazy(() => import("@/components/admin/ModuleGroupsManager"));
 const AdminManagement = lazy(() => import("@/components/admin/AdminManagement"));
+const VideoMcqManager = lazy(() => import("@/components/admin/VideoMcqManager"));
 
 const TabSkeleton = () => (
   <div className="space-y-4 animate-pulse">
@@ -83,6 +84,7 @@ const SECTIONS: { label: string; items: MenuItem[] }[] = [
       { key: "question-bank", label: "Question Bank", icon: Database, component: QuestionBankViewer },
       { key: "coding", label: "Coding Challenges", icon: Code2, component: CodingChallengeManager },
       { key: "assessments", label: "Assessments", icon: ClipboardCheck, component: AssessmentCreator },
+      { key: "video-mcq", label: "Video → MCQ", icon: Video, component: VideoMcqManager },
     ],
   },
   {

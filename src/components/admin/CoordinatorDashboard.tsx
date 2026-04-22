@@ -288,18 +288,25 @@ const CoordinatorDashboard = () => {
                 const live = liveCounts[l.id] ?? 0;
                 const processed = Math.min(total, Math.ceil(live / 3));
                 const pct = total ? Math.round((processed / total) * 100) : 0;
+                const startedMs = l.last_regenerated_at ? new Date(l.last_regenerated_at).getTime() : null;
+                const elapsedSec = startedMs ? Math.max(0, Math.floor((Date.now() - startedMs) / 1000)) : null;
+                const elapsedLabel = elapsedSec === null ? null : elapsedSec >= 60 ? `${Math.floor(elapsedSec / 60)}m ${elapsedSec % 60}s` : `${elapsedSec}s`;
                 return (
-                  <div key={l.id} className="rounded-md border border-border bg-background p-3 space-y-2">
+                  <div key={l.id} className="rounded-md border border-primary/40 bg-background p-3 space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="font-semibold text-sm truncate">{l.title}</p>
-                        <p className="text-xs text-muted-foreground">v{l.version || 1} · chapter {Math.min(processed + 1, total)} of {total}</p>
+                        <p className="text-xs text-muted-foreground">v{l.version || 1} · chapter {Math.min(processed + 1, total)} of {total}{elapsedLabel ? ` · running for ${elapsedLabel}` : ""}</p>
                       </div>
-                      <Badge variant="outline" className="text-xs">{live} questions saved</Badge>
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        <Badge className="text-[10px] gap-1 bg-primary/15 text-primary border-primary/40 hover:bg-primary/15"><Loader2 className="h-2.5 w-2.5 animate-spin" /> Blocked (running)</Badge>
+                        <Badge variant="outline" className="text-xs">{live} questions saved</Badge>
+                      </div>
                     </div>
                     <Progress value={pct} className="h-2" />
-                    <div className="flex justify-end">
-                      <Button size="sm" variant="outline" disabled title={ADMIN_ONLY_TIP} className="h-7 text-xs gap-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] text-muted-foreground italic">Retry &amp; Cancel are disabled while this job is running. They will re-enable automatically when it finishes or fails.</p>
+                      <Button size="sm" variant="outline" disabled title={ADMIN_ONLY_TIP} className="h-7 text-xs gap-1.5 shrink-0">
                         <Lock className="h-3 w-3" /> Cancel job (Admin only)
                       </Button>
                     </div>

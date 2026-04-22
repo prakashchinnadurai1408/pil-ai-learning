@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Youtube, Sparkles, Trash2, Eye, RefreshCw, Plus, CheckCircle2, AlertTriangle, ListTodo } from "lucide-react";
+import { Loader2, Youtube, Sparkles, Trash2, Eye, RefreshCw, Plus, CheckCircle2, AlertTriangle, ListTodo, History, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminModules } from "@/hooks/useAdminModules";
 
@@ -17,11 +17,16 @@ interface VideoLesson {
   thumbnail_url: string; duration_seconds: number; module_id: number | null;
   status: string; generation_status: string; generation_error: string;
   chapters: { title: string; startSeconds: number }[]; created_at: string;
+  version: number; last_regenerated_at: string | null;
 }
 interface LessonQuestion {
   id: string; lesson_id: string; chapter_index: number; chapter_title: string;
   chapter_start_seconds: number; question: string; options: string[];
   correct: number; explanation: string; sort_order: number;
+}
+interface LessonVersion {
+  id: string; lesson_id: string; version: number; chapters: any[]; questions: any[];
+  generated_at: string; generated_by: string; note: string;
 }
 
 const VideoMcqManager = () => {

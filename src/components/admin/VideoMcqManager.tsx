@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Youtube, Sparkles, Trash2, Eye, RefreshCw, Plus, CheckCircle2, AlertTriangle, ListTodo, History, RotateCw, Save, Pencil, Undo2, Search, Lock } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Loader2, Youtube, Sparkles, Trash2, Eye, RefreshCw, Plus, CheckCircle2, AlertTriangle, ListTodo, History, RotateCw, Save, Pencil, Undo2, Search, Lock, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminModules } from "@/hooks/useAdminModules";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -19,6 +20,11 @@ interface VideoLesson {
   status: string; generation_status: string; generation_error: string;
   chapters: { title: string; startSeconds: number }[]; created_at: string;
   version: number; last_regenerated_at: string | null;
+  // Server-stored timestamp of the next scheduled auto-retry. Null means no retry scheduled.
+  // This is the SOURCE OF TRUTH (replaces the older "failed within 60s" heuristic) so that
+  // the Coordinator dashboard, multiple admin tabs, and reloaded sessions all agree on
+  // exactly when the next attempt will fire.
+  retry_scheduled_at: string | null;
 }
 interface LessonQuestion {
   id: string; lesson_id: string; chapter_index: number; chapter_title: string;
@@ -60,8 +66,12 @@ const VideoMcqManager = () => {
   const [versions, setVersions] = useState<LessonVersion[]>([]);
   const [rollingBackId, setRollingBackId] = useState<string | null>(null);
   const [regenNote, setRegenNote] = useState<{ id: string; note: string } | null>(null);
+  // Confirmation dialog state for cancelling a scheduled auto-retry.
+  const [cancelRetryFor, setCancelRetryFor] = useState<VideoLesson | null>(null);
+  const [cancellingRetry, setCancellingRetry] = useState(false);
   // Retry tracking — { lessonId: { attempts, nextAttemptAt, timer } }
   // Backoff: 5s, 15s, 45s (cap at 3 auto-retries before requiring a manual retry).
+  // `nextAttemptAt` mirrors the server-stored `retry_scheduled_at` so reloads stay consistent.
   const [retryState, setRetryState] = useState<Record<string, { attempts: number; nextAttemptAt: number | null }>>({});
   const retryTimersRef = useRef<Record<string, number>>({});
   const pollRef = useRef<number | null>(null);
@@ -94,6 +104,8 @@ const VideoMcqManager = () => {
 
   // Auto-retry on failure with exponential backoff (5s → 15s → 45s, max 3 attempts).
   // We watch every lesson that flips to "failed" and schedule the next attempt.
+  // The scheduled timestamp is also persisted to `video_lessons.retry_scheduled_at` so
+  // the Coordinator dashboard and any other client can show the same countdown.
   useEffect(() => {
     if (!isAdmin) return;
     lessons.forEach((l) => {
@@ -110,17 +122,45 @@ const VideoMcqManager = () => {
       const state = retryState[l.id] ?? { attempts: 0, nextAttemptAt: null };
       if (state.attempts >= MAX_AUTO_RETRIES) return;
       if (retryTimersRef.current[l.id]) return; // already scheduled
-      const delayMs = RETRY_DELAYS_SEC[state.attempts] * 1000;
-      const nextAt = Date.now() + delayMs;
+
+      // If the server already has a future retry_scheduled_at, rehydrate from it
+      // instead of double-scheduling (e.g. after a page reload or another admin tab).
+      const serverNextAt = l.retry_scheduled_at ? new Date(l.retry_scheduled_at).getTime() : null;
+      const useServer = serverNextAt && serverNextAt > Date.now();
+      const nextAt = useServer ? serverNextAt! : Date.now() + RETRY_DELAYS_SEC[state.attempts] * 1000;
+      const delayMs = Math.max(0, nextAt - Date.now());
+
       setRetryState((s) => ({ ...s, [l.id]: { attempts: state.attempts, nextAttemptAt: nextAt } }));
+      // Persist to server only if we generated a new schedule (avoids redundant writes).
+      if (!useServer) {
+        supabase.from("video_lessons").update({ retry_scheduled_at: new Date(nextAt).toISOString() }).eq("id", l.id).then(() => {});
+      }
       retryTimersRef.current[l.id] = window.setTimeout(async () => {
         delete retryTimersRef.current[l.id];
         setRetryState((s) => ({ ...s, [l.id]: { attempts: state.attempts + 1, nextAttemptAt: null } }));
+        // Clear the server timestamp before firing — the regenerate run itself will set status=running.
+        await supabase.from("video_lessons").update({ retry_scheduled_at: null }).eq("id", l.id);
         await triggerRegenerate(l, { silent: true });
       }, delayMs);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lessons.map((l) => l.id + l.generation_status + l.generation_error).join(","), isAdmin]);
+  }, [lessons.map((l) => l.id + l.generation_status + l.generation_error + (l.retry_scheduled_at || "")).join(","), isAdmin]);
+
+  // Admin action: cancel a scheduled auto-retry (called from confirmation dialog).
+  const cancelScheduledRetry = async (l: VideoLesson) => {
+    if (!isAdmin) { toast.error("Only admins can cancel scheduled retries"); return; }
+    setCancellingRetry(true);
+    const t = retryTimersRef.current[l.id];
+    if (t) { window.clearTimeout(t); delete retryTimersRef.current[l.id]; }
+    // Mark as max-attempts so the auto-retry effect doesn't immediately reschedule.
+    setRetryState((s) => ({ ...s, [l.id]: { attempts: MAX_AUTO_RETRIES, nextAttemptAt: null } }));
+    const { error } = await supabase.from("video_lessons").update({ retry_scheduled_at: null }).eq("id", l.id);
+    setCancellingRetry(false);
+    if (error) { toast.error("Could not cancel scheduled retry"); return; }
+    toast.success(`Scheduled auto-retry cancelled for "${l.title}". Use Retry now if you want to try again.`);
+    setCancelRetryFor(null);
+    load();
+  };
 
   // Live MCQ-row counts per running lesson, used to show "X / Y chapters processed".
   const [liveCounts, setLiveCounts] = useState<Record<string, number>>({});
@@ -223,7 +263,8 @@ const VideoMcqManager = () => {
   };
 
   // Manual retry button on a failed lesson — counts as the next attempt and
-  // resets the backoff window for any future auto-retries.
+  // resets the backoff window for any future auto-retries. Also clears the server-side
+  // `retry_scheduled_at` so other clients (and Coordinator dashboard) stop counting down.
   const handleManualRetry = async (l: VideoLesson) => {
     if (!isAdmin) { toast.error("Only admins can retry MCQ generation"); return; }
     // Cancel any pending auto-retry timer.
@@ -231,6 +272,7 @@ const VideoMcqManager = () => {
     if (t) { window.clearTimeout(t); delete retryTimersRef.current[l.id]; }
     const current = retryState[l.id]?.attempts ?? 0;
     setRetryState((s) => ({ ...s, [l.id]: { attempts: current + 1, nextAttemptAt: null } }));
+    await supabase.from("video_lessons").update({ retry_scheduled_at: null }).eq("id", l.id);
     await triggerRegenerate(l, { attemptNumber: current + 1 });
   };
 
@@ -451,53 +493,66 @@ const VideoMcqManager = () => {
                         <Progress value={pct} className="h-1.5" />
                       </div>
                     )}
-                    {l.generation_status === "failed" && l.generation_error && (
-                      <div className="mt-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive space-y-1.5">
-                        <div className="flex gap-2">
-                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                          <span><span className="font-semibold">Error:</span> {l.generation_error}</span>
-                        </div>
-                        {(() => {
-                          const rs = retryState[l.id];
-                          const attempts = rs?.attempts ?? 0;
-                          const nextAt = rs?.nextAttemptAt;
-                          const remaining = nextAt ? Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)) : null;
-                          if (attempts >= MAX_AUTO_RETRIES) {
-                            return <p className="text-[11px]">Auto-retry exhausted ({MAX_AUTO_RETRIES} attempts). Use the Retry button to try again manually.</p>;
-                          }
-                          if (remaining !== null) {
-                            return <p className="text-[11px]">Auto-retry #{attempts + 1} in ~{remaining}s (backoff: {RETRY_DELAYS_SEC.join("s, ")}s).</p>;
-                          }
-                          return null;
-                        })()}
-                        <div className="flex justify-end">
-                          {(() => {
-                            const rs = retryState[l.id];
-                            const nextAt = rs?.nextAttemptAt ?? null;
-                            const remaining = nextAt ? Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)) : 0;
-                            const isAwaitingRetry = remaining > 0;
-                            const tip = !isAdmin
-                              ? "Requires the Admin role."
-                              : isAwaitingRetry
-                                ? `Auto-retry in ${remaining}s — please wait or it will run automatically.`
-                                : "Retry MCQ generation now (cancels any pending auto-retry).";
-                            return (
+                    {l.generation_status === "failed" && l.generation_error && (() => {
+                      // Server timestamp is the source of truth; fall back to local state
+                      // (which mirrors it) if the row hasn't been refetched yet.
+                      const serverNextAt = l.retry_scheduled_at ? new Date(l.retry_scheduled_at).getTime() : null;
+                      const rs = retryState[l.id];
+                      const localNextAt = rs?.nextAttemptAt ?? null;
+                      const nextAt = (serverNextAt && serverNextAt > Date.now()) ? serverNextAt : localNextAt;
+                      const attempts = rs?.attempts ?? 0;
+                      const remaining = nextAt ? Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)) : 0;
+                      const isAwaitingRetry = remaining > 0;
+                      const exhausted = attempts >= MAX_AUTO_RETRIES;
+                      const retryTip = !isAdmin
+                        ? "Admin role required. Coordinators cannot trigger MCQ regeneration — they only see live status."
+                        : isAwaitingRetry
+                          ? `Admin action: regenerate MCQs immediately. Disabled for ${remaining}s while the next auto-retry is scheduled — click "Cancel auto-retry" first if you want to take over manually.`
+                          : "Admin action: retry MCQ generation now. This counts as the next attempt and clears any pending auto-retry.";
+                      const cancelTip = !isAdmin
+                        ? "Admin role required. Only admins can cancel a scheduled auto-retry."
+                        : `Admin action: stop the scheduled auto-retry that is set to run in ${remaining}s. After cancelling, the lesson will stay in "failed" state until you manually click Retry now.`;
+                      return (
+                        <div className="mt-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive space-y-1.5">
+                          <div className="flex gap-2">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                            <span><span className="font-semibold">Error:</span> {l.generation_error}</span>
+                          </div>
+                          {exhausted ? (
+                            <p className="text-[11px]">Auto-retry exhausted ({MAX_AUTO_RETRIES} attempts). Use the Retry button below to try again manually (admin only).</p>
+                          ) : isAwaitingRetry ? (
+                            <p className="text-[11px]">Auto-retry #{attempts + 1} scheduled in <span className="font-semibold tabular-nums">{remaining}s</span> (backoff: {RETRY_DELAYS_SEC.join("s, ")}s).</p>
+                          ) : null}
+                          <div className="flex justify-end gap-2">
+                            {isAwaitingRetry && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-7 text-xs gap-1.5"
-                                onClick={() => handleManualRetry(l)}
-                                disabled={!isAdmin || isAwaitingRetry}
-                                title={tip}
+                                className="h-7 text-xs gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
+                                onClick={() => setCancelRetryFor(l)}
+                                disabled={!isAdmin}
+                                title={cancelTip}
                               >
-                                <RotateCw className="h-3 w-3" />
-                                {isAwaitingRetry ? `Retry in ${remaining}s` : "Retry now"}
+                                {!isAdmin && <Lock className="h-3 w-3" />}
+                                <XCircle className="h-3 w-3" /> Cancel auto-retry ({remaining}s)
                               </Button>
-                            );
-                          })()}
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1.5"
+                              onClick={() => handleManualRetry(l)}
+                              disabled={!isAdmin || isAwaitingRetry}
+                              title={retryTip}
+                            >
+                              {!isAdmin && <Lock className="h-3 w-3" />}
+                              <RotateCw className="h-3 w-3" />
+                              {isAwaitingRetry ? `Retry in ${remaining}s` : "Retry now"}
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                   <div className="flex gap-2 sm:flex-col">
                     {(() => {
@@ -762,6 +817,50 @@ const VideoMcqManager = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Cancel scheduled auto-retry — admin-only confirmation */}
+      <AlertDialog open={!!cancelRetryFor} onOpenChange={(o) => !o && setCancelRetryFor(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><XCircle className="h-5 w-5 text-destructive" /> Cancel scheduled auto-retry?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  Lesson: <span className="font-semibold text-foreground">{cancelRetryFor?.title}</span>
+                </p>
+                {(() => {
+                  if (!cancelRetryFor) return null;
+                  const serverNextAt = cancelRetryFor.retry_scheduled_at ? new Date(cancelRetryFor.retry_scheduled_at).getTime() : null;
+                  const localNextAt = retryState[cancelRetryFor.id]?.nextAttemptAt ?? null;
+                  const nextAt = (serverNextAt && serverNextAt > Date.now()) ? serverNextAt : localNextAt;
+                  const remaining = nextAt ? Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)) : 0;
+                  return (
+                    <p>
+                      The next automatic retry is scheduled to run in{" "}
+                      <span className="font-semibold text-destructive tabular-nums">{remaining} second{remaining === 1 ? "" : "s"}</span>.
+                    </p>
+                  );
+                })()}
+                <p className="text-muted-foreground">
+                  After cancelling, the lesson will stay in the <span className="font-medium text-foreground">failed</span> state with the same
+                  error visible. No further automatic retries will run — you'll need to click <span className="font-medium text-foreground">Retry now</span> manually
+                  to attempt regeneration again. This action is admin-only and is logged.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancellingRetry}>Keep auto-retry</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); if (cancelRetryFor) cancelScheduledRetry(cancelRetryFor); }}
+              disabled={cancellingRetry || !isAdmin}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancellingRetry ? "Cancelling…" : "Cancel auto-retry"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

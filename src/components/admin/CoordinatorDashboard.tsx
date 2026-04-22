@@ -34,6 +34,9 @@ interface VideoLessonRow {
   chapters: { title: string; startSeconds: number }[];
   version: number;
   last_regenerated_at: string | null;
+  // Explicit server-stored timestamp for the next scheduled auto-retry.
+  // Replaces the previous heuristic of "failed within the last 60s".
+  retry_scheduled_at: string | null;
 }
 interface PendingTrainer { id: string; name: string; email: string; college: string; created_at: string }
 interface ActivityRow { id: string; trainer_name: string; action: string; reason: string; actor_name: string; created_at: string }
@@ -58,7 +61,7 @@ const CoordinatorDashboard = () => {
   const load = async () => {
     setLoading(true);
     const [l, t, a] = await Promise.all([
-      supabase.from("video_lessons").select("id,title,status,generation_status,generation_error,chapters,version,last_regenerated_at").order("last_regenerated_at", { ascending: false, nullsFirst: false }).limit(50),
+      supabase.from("video_lessons").select("id,title,status,generation_status,generation_error,chapters,version,last_regenerated_at,retry_scheduled_at").order("last_regenerated_at", { ascending: false, nullsFirst: false }).limit(50),
       supabase.from("trainers").select("id,name,email,college,created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(25),
       supabase.from("trainer_activity_log").select("id,trainer_name,action,reason,actor_name,created_at").order("created_at", { ascending: false }).limit(15),
     ]);
@@ -103,8 +106,10 @@ const CoordinatorDashboard = () => {
     return true;
   };
   const matchesText = (s: string) => !search.trim() || s.toLowerCase().includes(search.trim().toLowerCase());
+  // Source of truth: server-stored `retry_scheduled_at`. A lesson is "awaiting retry"
+  // iff that timestamp is in the future (no more 60s last_regenerated_at heuristic).
   const isAwaitingRetry = (l: VideoLessonRow) =>
-    l.generation_status === "failed" && !!l.last_regenerated_at && Date.now() - new Date(l.last_regenerated_at).getTime() < 60_000;
+    l.generation_status === "failed" && !!l.retry_scheduled_at && new Date(l.retry_scheduled_at).getTime() > Date.now();
 
   const filteredLessons = useMemo(() => lessons.filter((l) => {
     if (!matchesText(l.title)) return false;

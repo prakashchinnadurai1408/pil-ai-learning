@@ -1788,6 +1788,7 @@ export type Database = {
           id: string
           last_regenerated_at: string | null
           module_id: number | null
+          retry_scheduled_at: string | null
           status: string
           thumbnail_url: string
           title: string
@@ -1807,6 +1808,7 @@ export type Database = {
           id?: string
           last_regenerated_at?: string | null
           module_id?: number | null
+          retry_scheduled_at?: string | null
           status?: string
           thumbnail_url?: string
           title: string
@@ -1826,6 +1828,7 @@ export type Database = {
           id?: string
           last_regenerated_at?: string | null
           module_id?: number | null
+          retry_scheduled_at?: string | null
           status?: string
           thumbnail_url?: string
           title?: string

@@ -19,6 +19,33 @@ type College = { id: number; name: string; created_at: string };
 type AdminUser = { id: string; email: string; created_at: string };
 type ActivityLog = { id: string; trainer_id: string; trainer_name: string; action: string; reason: string; actor_name: string; created_at: string };
 
+// Reason codes for the multi-step approval workflow.
+// Stored in trainer_activity_log.reason as a single string formatted as
+// "<code label>: <reviewer note>" so existing readers stay backward-compatible.
+const APPROVE_REASON_CODES = [
+  { code: "verified_credentials", label: "Verified credentials & college affiliation" },
+  { code: "trusted_referrer", label: "Referred by an approved trainer/admin" },
+  { code: "pilot_program", label: "Pilot program / paid cohort" },
+  { code: "other_approve", label: "Other (explain in notes)" },
+];
+const REJECT_REASON_CODES = [
+  { code: "unverified_college", label: "College not affiliated / cannot verify" },
+  { code: "incomplete_profile", label: "Incomplete or invalid profile details" },
+  { code: "duplicate_account", label: "Duplicate or suspicious account" },
+  { code: "policy_violation", label: "Violates platform policy" },
+  { code: "other_reject", label: "Other (explain in notes)" },
+];
+
+type ReviewStep = "choose" | "details" | "confirm";
+type ReviewMode = "approve" | "reject";
+interface ReviewState {
+  trainer: Trainer;
+  mode: ReviewMode;
+  step: ReviewStep;
+  codeLabel: string;
+  notes: string;
+}
+
 const AdminManagement = () => {
   const { isAdmin, isCoordinator, loading: roleLoading } = useUserRole();
   const [students, setStudents] = useState<Student[]>([]);

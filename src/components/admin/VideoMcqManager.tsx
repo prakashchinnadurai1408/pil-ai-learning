@@ -45,6 +45,8 @@ function validateQuestion(q: { question: string; options: string[]; correct: num
 
 const VideoMcqManager = () => {
   const { adminModules } = useAdminModules();
+  const { isAdmin, isCoordinator } = useUserRole();
+  const [historySearch, setHistorySearch] = useState("");
   const [lessons, setLessons] = useState<VideoLesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);

@@ -354,7 +354,7 @@ const CoordinatorDashboard = () => {
                 <TableRow><TableHead>When</TableHead><TableHead>Trainer</TableHead><TableHead>Action</TableHead><TableHead>By</TableHead><TableHead>Reason / note</TableHead></TableRow>
               </TableHeader>
               <TableBody>
-                {activity.map((row) => (
+                {filteredActivity.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="text-xs whitespace-nowrap">{new Date(row.created_at).toLocaleString()}</TableCell>
                     <TableCell className="font-medium text-sm">{row.trainer_name}</TableCell>

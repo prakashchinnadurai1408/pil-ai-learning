@@ -817,6 +817,50 @@ const VideoMcqManager = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Cancel scheduled auto-retry — admin-only confirmation */}
+      <AlertDialog open={!!cancelRetryFor} onOpenChange={(o) => !o && setCancelRetryFor(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><XCircle className="h-5 w-5 text-destructive" /> Cancel scheduled auto-retry?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  Lesson: <span className="font-semibold text-foreground">{cancelRetryFor?.title}</span>
+                </p>
+                {(() => {
+                  if (!cancelRetryFor) return null;
+                  const serverNextAt = cancelRetryFor.retry_scheduled_at ? new Date(cancelRetryFor.retry_scheduled_at).getTime() : null;
+                  const localNextAt = retryState[cancelRetryFor.id]?.nextAttemptAt ?? null;
+                  const nextAt = (serverNextAt && serverNextAt > Date.now()) ? serverNextAt : localNextAt;
+                  const remaining = nextAt ? Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)) : 0;
+                  return (
+                    <p>
+                      The next automatic retry is scheduled to run in{" "}
+                      <span className="font-semibold text-destructive tabular-nums">{remaining} second{remaining === 1 ? "" : "s"}</span>.
+                    </p>
+                  );
+                })()}
+                <p className="text-muted-foreground">
+                  After cancelling, the lesson will stay in the <span className="font-medium text-foreground">failed</span> state with the same
+                  error visible. No further automatic retries will run — you'll need to click <span className="font-medium text-foreground">Retry now</span> manually
+                  to attempt regeneration again. This action is admin-only and is logged.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancellingRetry}>Keep auto-retry</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); if (cancelRetryFor) cancelScheduledRetry(cancelRetryFor); }}
+              disabled={cancellingRetry || !isAdmin}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancellingRetry ? "Cancelling…" : "Cancel auto-retry"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

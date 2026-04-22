@@ -65,6 +65,14 @@ const VideoMcqManager = () => {
   const [retryState, setRetryState] = useState<Record<string, { attempts: number; nextAttemptAt: number | null }>>({});
   const retryTimersRef = useRef<Record<string, number>>({});
   const pollRef = useRef<number | null>(null);
+  // 1Hz tick used purely to re-render live countdowns for scheduled auto-retries.
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const hasPending = Object.values(retryState).some((r) => r.nextAttemptAt && r.nextAttemptAt > Date.now());
+    if (!hasPending) return;
+    const t = window.setInterval(() => setNowTick((n) => n + 1), 1000);
+    return () => window.clearInterval(t);
+  }, [retryState]);
 
   const load = async () => {
     setLoading(true);
@@ -463,16 +471,30 @@ const VideoMcqManager = () => {
                           return null;
                         })()}
                         <div className="flex justify-end">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs gap-1.5"
-                            onClick={() => handleManualRetry(l)}
-                            disabled={!isAdmin}
-                            title={!isAdmin ? "Requires the Admin role." : "Retry MCQ generation now (cancels any pending auto-retry)."}
-                          >
-                            <RotateCw className="h-3 w-3" /> Retry now
-                          </Button>
+                          {(() => {
+                            const rs = retryState[l.id];
+                            const nextAt = rs?.nextAttemptAt ?? null;
+                            const remaining = nextAt ? Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)) : 0;
+                            const isAwaitingRetry = remaining > 0;
+                            const tip = !isAdmin
+                              ? "Requires the Admin role."
+                              : isAwaitingRetry
+                                ? `Auto-retry in ${remaining}s — please wait or it will run automatically.`
+                                : "Retry MCQ generation now (cancels any pending auto-retry).";
+                            return (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1.5"
+                                onClick={() => handleManualRetry(l)}
+                                disabled={!isAdmin || isAwaitingRetry}
+                                title={tip}
+                              >
+                                <RotateCw className="h-3 w-3" />
+                                {isAwaitingRetry ? `Retry in ${remaining}s` : "Retry now"}
+                              </Button>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}

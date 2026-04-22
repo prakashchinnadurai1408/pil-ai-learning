@@ -18,8 +18,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, AlertTriangle, Clock, ShieldCheck, Eye, RefreshCw, Check, X, Lock, Activity } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, AlertTriangle, Clock, ShieldCheck, Eye, RefreshCw, Check, X, Lock, Activity, Search, Filter } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+
+type LessonStatusFilter = "all" | "running" | "failed" | "awaiting_retry";
 
 interface VideoLessonRow {
   id: string;
@@ -44,6 +48,12 @@ const CoordinatorDashboard = () => {
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
+
+  // Filters
+  const [search, setSearch] = useState("");
+  const [lessonStatus, setLessonStatus] = useState<LessonStatusFilter>("all");
+  const [dateFrom, setDateFrom] = useState<string>(""); // yyyy-mm-dd
+  const [dateTo, setDateTo] = useState<string>("");
 
   const load = async () => {
     setLoading(true);
@@ -83,8 +93,37 @@ const CoordinatorDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessons.map((l) => l.id + l.generation_status).join(",")]);
 
-  const running = useMemo(() => lessons.filter((l) => l.generation_status === "running"), [lessons]);
-  const failed = useMemo(() => lessons.filter((l) => l.generation_status === "failed").slice(0, 8), [lessons]);
+  const fromTs = useMemo(() => (dateFrom ? new Date(dateFrom + "T00:00:00").getTime() : null), [dateFrom]);
+  const toTs = useMemo(() => (dateTo ? new Date(dateTo + "T23:59:59.999").getTime() : null), [dateTo]);
+  const inRange = (iso: string | null | undefined) => {
+    if (!iso) return true;
+    const t = new Date(iso).getTime();
+    if (fromTs !== null && t < fromTs) return false;
+    if (toTs !== null && t > toTs) return false;
+    return true;
+  };
+  const matchesText = (s: string) => !search.trim() || s.toLowerCase().includes(search.trim().toLowerCase());
+  const isAwaitingRetry = (l: VideoLessonRow) =>
+    l.generation_status === "failed" && !!l.last_regenerated_at && Date.now() - new Date(l.last_regenerated_at).getTime() < 60_000;
+
+  const filteredLessons = useMemo(() => lessons.filter((l) => {
+    if (!matchesText(l.title)) return false;
+    if (!inRange(l.last_regenerated_at)) return false;
+    if (lessonStatus === "running" && l.generation_status !== "running") return false;
+    if (lessonStatus === "failed" && l.generation_status !== "failed") return false;
+    if (lessonStatus === "awaiting_retry" && !isAwaitingRetry(l)) return false;
+    return true;
+  }), [lessons, search, lessonStatus, fromTs, toTs]);
+
+  const running = useMemo(() => filteredLessons.filter((l) => l.generation_status === "running"), [filteredLessons]);
+  const failed = useMemo(() => filteredLessons.filter((l) => l.generation_status === "failed").slice(0, 8), [filteredLessons]);
+  const awaitingRetry = useMemo(() => filteredLessons.filter(isAwaitingRetry), [filteredLessons]);
+
+  const filteredPending = useMemo(() => pending.filter((p) => (matchesText(p.name) || matchesText(p.email) || matchesText(p.college)) && inRange(p.created_at)), [pending, search, fromTs, toTs]);
+  const filteredActivity = useMemo(() => activity.filter((a) => (matchesText(a.trainer_name) || matchesText(a.actor_name) || matchesText(a.action)) && inRange(a.created_at)), [activity, search, fromTs, toTs]);
+
+  const hasFilters = !!search || lessonStatus !== "all" || !!dateFrom || !!dateTo;
+  const clearFilters = () => { setSearch(""); setLessonStatus("all"); setDateFrom(""); setDateTo(""); };
 
   return (
     <div className="space-y-6">
@@ -116,7 +155,44 @@ const CoordinatorDashboard = () => {
         </div>
       )}
 
-      <div className="grid sm:grid-cols-3 gap-4">
+      {/* Filter bar */}
+      <Card>
+        <CardContent className="p-3 flex flex-wrap items-end gap-2">
+          <div className="flex-1 min-w-[200px]">
+            <label className="text-[11px] text-muted-foreground font-medium">Search trainer / lesson</label>
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, email, college, lesson title…" className="h-9 pl-8 text-sm" />
+            </div>
+          </div>
+          <div className="min-w-[170px]">
+            <label className="text-[11px] text-muted-foreground font-medium">Lesson status</label>
+            <Select value={lessonStatus} onValueChange={(v) => setLessonStatus(v as LessonStatusFilter)}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="running">Running</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="awaiting_retry">Awaiting retry</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-[11px] text-muted-foreground font-medium">From</label>
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 text-sm" />
+          </div>
+          <div>
+            <label className="text-[11px] text-muted-foreground font-medium">To</label>
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 text-sm" />
+          </div>
+          {hasFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1.5"><X className="h-3.5 w-3.5" /> Clear</Button>
+          )}
+          <Badge variant="outline" className="ml-auto gap-1.5 text-xs"><Filter className="h-3 w-3" /> {filteredLessons.length} lessons · {filteredPending.length} pending</Badge>
+        </CardContent>
+      </Card>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <Loader2 className={`h-8 w-8 text-primary ${running.length ? "animate-spin" : "opacity-30"}`} />
@@ -137,9 +213,18 @@ const CoordinatorDashboard = () => {
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <Clock className={`h-8 w-8 ${pending.length ? "text-warning" : "text-muted-foreground/40"}`} />
+            <RefreshCw className={`h-8 w-8 ${awaitingRetry.length ? "text-warning" : "text-muted-foreground/40"}`} />
             <div>
-              <div className="text-2xl font-bold">{pending.length}</div>
+              <div className="text-2xl font-bold">{awaitingRetry.length}</div>
+              <div className="text-xs text-muted-foreground">Awaiting auto-retry</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <Clock className={`h-8 w-8 ${filteredPending.length ? "text-warning" : "text-muted-foreground/40"}`} />
+            <div>
+              <div className="text-2xl font-bold">{filteredPending.length}</div>
               <div className="text-xs text-muted-foreground">Trainers awaiting approval</div>
             </div>
           </CardContent>
@@ -156,7 +241,7 @@ const CoordinatorDashboard = () => {
         </CardHeader>
         <CardContent>
           {running.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No regeneration jobs are currently running.</p>
+            <p className="text-sm text-muted-foreground">{hasFilters ? "No running jobs match the current filters." : "No regeneration jobs are currently running."}</p>
           ) : (
             <div className="space-y-3">
               {running.map((l) => {
@@ -201,7 +286,12 @@ const CoordinatorDashboard = () => {
               <TableBody>
                 {failed.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell className="font-medium text-sm">{l.title}</TableCell>
+                    <TableCell className="font-medium text-sm">
+                      <div className="flex items-center gap-2">
+                        <span>{l.title}</span>
+                        {isAwaitingRetry(l) && <Badge variant="outline" className="text-[10px] gap-1 border-warning/50 text-warning"><RefreshCw className="h-2.5 w-2.5" /> awaiting retry</Badge>}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-xs text-destructive max-w-md truncate" title={l.generation_error}>{l.generation_error || "—"}</TableCell>
                     <TableCell className="text-xs">{l.version}</TableCell>
                     <TableCell className="text-right">
@@ -225,7 +315,7 @@ const CoordinatorDashboard = () => {
         <CardContent>
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : pending.length === 0 ? (
+          ) : filteredPending.length === 0 ? (
             <p className="text-sm text-muted-foreground">All caught up — no trainers awaiting approval.</p>
           ) : (
             <Table>
@@ -233,7 +323,7 @@ const CoordinatorDashboard = () => {
                 <TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>College</TableHead><TableHead>Registered</TableHead><TableHead className="text-right">Actions</TableHead></TableRow>
               </TableHeader>
               <TableBody>
-                {pending.map((t) => (
+                {filteredPending.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium">{t.name}</TableCell>
                     <TableCell className="text-xs">{t.email}</TableCell>
@@ -261,7 +351,7 @@ const CoordinatorDashboard = () => {
           <CardTitle className="text-base flex items-center gap-2"><Eye className="h-4 w-4" /> Recent approval activity</CardTitle>
         </CardHeader>
         <CardContent>
-          {activity.length === 0 ? (
+          {filteredActivity.length === 0 ? (
             <p className="text-sm text-muted-foreground">No approval/rejection actions yet.</p>
           ) : (
             <Table>
@@ -269,7 +359,7 @@ const CoordinatorDashboard = () => {
                 <TableRow><TableHead>When</TableHead><TableHead>Trainer</TableHead><TableHead>Action</TableHead><TableHead>By</TableHead><TableHead>Reason / note</TableHead></TableRow>
               </TableHeader>
               <TableBody>
-                {activity.map((row) => (
+                {filteredActivity.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="text-xs whitespace-nowrap">{new Date(row.created_at).toLocaleString()}</TableCell>
                     <TableCell className="font-medium text-sm">{row.trainer_name}</TableCell>

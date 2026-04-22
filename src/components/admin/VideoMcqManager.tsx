@@ -37,6 +37,9 @@ const VideoMcqManager = () => {
   const [form, setForm] = useState({ youtubeUrl: "", title: "", moduleId: "" });
   const [previewLesson, setPreviewLesson] = useState<VideoLesson | null>(null);
   const [previewQuestions, setPreviewQuestions] = useState<LessonQuestion[]>([]);
+  const [historyLesson, setHistoryLesson] = useState<VideoLesson | null>(null);
+  const [versions, setVersions] = useState<LessonVersion[]>([]);
+  const [regenNote, setRegenNote] = useState<{ id: string; note: string } | null>(null);
   const pollRef = useRef<number | null>(null);
 
   const load = async () => {

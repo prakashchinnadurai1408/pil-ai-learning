@@ -194,15 +194,21 @@ const VideoMcqManager = () => {
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-semibold truncate">{l.title}</h3>
                       <Badge variant={l.status === "published" ? "default" : "secondary"} className="text-xs">{l.status}</Badge>
+                      <Badge variant="outline" className="text-xs">v{l.version || 1}</Badge>
                       {l.generation_status === "running" && <Badge variant="outline" className="text-xs gap-1"><Loader2 className="h-3 w-3 animate-spin" /> generating</Badge>}
                       {l.generation_status === "success" && <Badge variant="outline" className="text-xs gap-1 text-success border-success"><CheckCircle2 className="h-3 w-3" /> ready</Badge>}
                       {l.generation_status === "failed" && <Badge variant="destructive" className="text-xs gap-1"><AlertTriangle className="h-3 w-3" /> failed</Badge>}
                     </div>
                     <p className="text-xs text-muted-foreground">{l.chapters?.length || 0} chapters · {Math.round((l.duration_seconds || 0) / 60)} min</p>
+                    {l.last_regenerated_at && <p className="text-xs text-muted-foreground">Last regenerated {new Date(l.last_regenerated_at).toLocaleString()}</p>}
                     {l.generation_error && <p className="text-xs text-destructive">{l.generation_error}</p>}
                   </div>
                   <div className="flex gap-2 sm:flex-col">
                     <Button size="sm" variant="outline" onClick={() => openPreview(l)} className="gap-1.5"><Eye className="h-4 w-4" /> Preview</Button>
+                    <Button size="sm" variant="outline" onClick={() => setRegenNote({ id: l.id, note: "" })} disabled={l.generation_status === "running"} className="gap-1.5">
+                      <RotateCw className="h-4 w-4" /> Regenerate
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => openHistory(l)} className="gap-1.5"><History className="h-4 w-4" /> History</Button>
                     <Button size="sm" variant="outline" onClick={() => handlePublish(l)} disabled={l.generation_status !== "success"}>
                       {l.status === "published" ? "Unpublish" : "Publish"}
                     </Button>

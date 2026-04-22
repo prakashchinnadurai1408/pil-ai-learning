@@ -28,6 +28,9 @@ const AdminManagement = () => {
   const [loading, setLoading] = useState(true);
   const [rejectTarget, setRejectTarget] = useState<Trainer | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [activitySearch, setActivitySearch] = useState("");
+  const [activityFrom, setActivityFrom] = useState("");
+  const [activityTo, setActivityTo] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -299,10 +302,41 @@ const AdminManagement = () => {
                   <History className="h-4 w-4" /> Approval activity log
                 </h4>
                 <p className="text-xs text-muted-foreground">Every approve/reject action is recorded here for audit.</p>
+                <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
+                  <div className="relative flex-1 max-w-xs">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input placeholder="Search trainer name…" className="pl-9 h-9" value={activitySearch} onChange={(e) => setActivitySearch(e.target.value)} />
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <div>
+                      <label className="text-[10px] uppercase tracking-wide text-muted-foreground">From</label>
+                      <Input type="date" className="h-9" value={activityFrom} onChange={(e) => setActivityFrom(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase tracking-wide text-muted-foreground">To</label>
+                      <Input type="date" className="h-9" value={activityTo} onChange={(e) => setActivityTo(e.target.value)} />
+                    </div>
+                    {(activitySearch || activityFrom || activityTo) && (
+                      <Button variant="ghost" size="sm" className="h-9" onClick={() => { setActivitySearch(""); setActivityFrom(""); setActivityTo(""); }}>Clear</Button>
+                    )}
+                  </div>
+                </div>
+                {(() => {
+                  const q = activitySearch.toLowerCase().trim();
+                  const fromTs = activityFrom ? new Date(activityFrom + "T00:00:00").getTime() : null;
+                  const toTs = activityTo ? new Date(activityTo + "T23:59:59").getTime() : null;
+                  const filteredActivity = activity.filter((row) => {
+                    if (q && !row.trainer_name.toLowerCase().includes(q)) return false;
+                    const ts = new Date(row.created_at).getTime();
+                    if (fromTs && ts < fromTs) return false;
+                    if (toTs && ts > toTs) return false;
+                    return true;
+                  });
+                  return (
                 <Table>
                   <TableHeader><TableRow><TableHead>When</TableHead><TableHead>Trainer</TableHead><TableHead>Action</TableHead><TableHead>By</TableHead><TableHead>Reason</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {activity.map((row) => (
+                    {filteredActivity.map((row) => (
                       <TableRow key={row.id}>
                         <TableCell className="text-xs whitespace-nowrap">{new Date(row.created_at).toLocaleString()}</TableCell>
                         <TableCell className="font-medium">{row.trainer_name}</TableCell>
@@ -313,11 +347,13 @@ const AdminManagement = () => {
                         <TableCell className="text-xs text-muted-foreground">{row.reason || "—"}</TableCell>
                       </TableRow>
                     ))}
-                    {!activity.length && (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6 text-sm">No approval actions yet.</TableCell></TableRow>
+                    {!filteredActivity.length && (
+                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6 text-sm">{activity.length ? "No matches for current filters." : "No approval actions yet."}</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>

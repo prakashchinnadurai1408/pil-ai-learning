@@ -385,19 +385,32 @@ const VideoMcqManager = () => {
                   <div className="flex gap-2 sm:flex-col">
                     {(() => {
                       const isRunning = l.generation_status === "running";
-                      const lockTitle = isRunning ? "Disabled while regeneration is running" : undefined;
-                      const adminOnly = !isAdmin ? "Admin only" : undefined;
+                      const runningTip = "Disabled while this lesson is regenerating — wait for the job to finish.";
+                      const coordinatorTip = "Requires the Admin role. Coordinators have view-only access to MCQ workflows.";
+                      // Build the most informative tooltip per button (role first, then run-state).
+                      const previewTip = isRunning ? runningTip : undefined;
+                      const regenTip = !isAdmin ? coordinatorTip : isRunning ? runningTip : undefined;
+                      const publishTip = !isAdmin
+                        ? coordinatorTip
+                        : isRunning
+                          ? runningTip
+                          : l.generation_status !== "success"
+                            ? "Lesson must finish generating successfully before it can be published."
+                            : undefined;
+                      const deleteTip = !isAdmin ? coordinatorTip : isRunning ? runningTip : undefined;
                       return (
                         <>
-                          <Button size="sm" variant="outline" onClick={() => openPreview(l)} disabled={isRunning} title={lockTitle} className="gap-1.5"><Eye className="h-4 w-4" /> Preview & Edit</Button>
-                          <Button size="sm" variant="outline" onClick={() => setRegenNote({ id: l.id, note: "" })} disabled={isRunning || !isAdmin} title={adminOnly || lockTitle} className="gap-1.5">
+                          <Button size="sm" variant="outline" onClick={() => openPreview(l)} disabled={isRunning} title={previewTip} className="gap-1.5"><Eye className="h-4 w-4" /> Preview & Edit</Button>
+                          <Button size="sm" variant="outline" onClick={() => setRegenNote({ id: l.id, note: "" })} disabled={isRunning || !isAdmin} title={regenTip} className="gap-1.5">
                             <RotateCw className="h-4 w-4" /> Regenerate
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => openHistory(l)} className="gap-1.5"><History className="h-4 w-4" /> History</Button>
-                          <Button size="sm" variant="outline" onClick={() => handlePublish(l)} disabled={l.generation_status !== "success" || isRunning || !isAdmin} title={adminOnly || lockTitle}>
+                          <Button size="sm" variant="outline" onClick={() => openHistory(l)} className="gap-1.5" title="Anyone can view version history. Rollback is admin-only.">
+                            <History className="h-4 w-4" /> History
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handlePublish(l)} disabled={l.generation_status !== "success" || isRunning || !isAdmin} title={publishTip}>
                             {l.status === "published" ? "Unpublish" : "Publish"}
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleDelete(l.id)} disabled={isRunning || !isAdmin} title={adminOnly || lockTitle} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleDelete(l.id)} disabled={isRunning || !isAdmin} title={deleteTip} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
                         </>
                       );
                     })()}

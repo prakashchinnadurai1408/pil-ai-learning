@@ -214,3 +214,96 @@ Deno.test("edge function accepts a valid admin update", async () => {
   const { status, body } = await callFn(validPayload, ADMIN_EMAIL);
   assert(status >= 200 && status < 300, `expected 2xx, got ${status}: ${JSON.stringify(body)}`);
 });
+
+// ---------- Admin-bypass attempts ----------
+//
+// For each spoof attempt we:
+//   1. Read the current `provider` value (anon can read this safe column).
+//   2. Call the edge function with a payload that flips `provider` to a
+//      different value, while supplying a missing / spoofed / malformed
+//      admin header.
+//   3. Assert the response is rejected (4xx) and never reports ok=true.
+//   4. Re-read `provider` and confirm it did NOT change.
+//
+// This proves no bypass attempt can mutate sms_gateway_settings.
+
+const readProvider = async (): Promise<string | null> => {
+  const { data } = await anon
+    .from("sms_gateway_settings")
+    .select("provider")
+    .limit(1)
+    .maybeSingle();
+  return (data as any)?.provider ?? null;
+};
+
+const flipProvider = (current: string | null) =>
+  current === "msg91" ? "generic" : "msg91";
+
+const bypassAttempts: Array<{ name: string; headers: Record<string, string> }> = [
+  { name: "no x-admin-email header", headers: {} },
+  { name: "empty x-admin-email", headers: { "x-admin-email": "" } },
+  { name: "whitespace-only x-admin-email", headers: { "x-admin-email": "   " } },
+  { name: "non-admin user email", headers: { "x-admin-email": "attacker@example.com" } },
+  { name: "lookalike admin email (extra dot)", headers: { "x-admin-email": "prakash.chinnadurai@gmail..com" } },
+  { name: "admin email with trailing junk", headers: { "x-admin-email": "prakash.chinnadurai@gmail.com.evil.com" } },
+  { name: "header with only @", headers: { "x-admin-email": "@" } },
+  { name: "SQL-ish payload as email", headers: { "x-admin-email": "' OR '1'='1" } },
+  { name: "x-admin-email set to anon api key", headers: { "x-admin-email": SUPABASE_ANON_KEY } },
+  { name: "wrong header name (X-Admin)", headers: { "X-Admin": ADMIN_EMAIL } },
+  { name: "wrong header name (admin-email)", headers: { "admin-email": ADMIN_EMAIL } },
+  { name: "role spoof header", headers: { "x-user-role": "admin" } },
+];
+
+for (const attempt of bypassAttempts) {
+  Deno.test(`bypass attempt rejected: ${attempt.name}`, async () => {
+    const before = await readProvider();
+    const target = flipProvider(before);
+
+    const res = await fetch(fnUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        ...attempt.headers,
+      },
+      body: JSON.stringify({ ...validPayload, provider: target, otp_length: 7 }),
+    });
+    const text = await res.text();
+    let parsed: any = null;
+    try { parsed = JSON.parse(text); } catch { /* non-json */ }
+
+    assert(
+      res.status >= 400 && res.status < 500,
+      `expected 4xx for "${attempt.name}", got ${res.status}: ${text}`,
+    );
+    assert(
+      !parsed?.ok,
+      `response must not report ok=true for "${attempt.name}"`,
+    );
+
+    const after = await readProvider();
+    assertEquals(
+      after,
+      before,
+      `provider must NOT change after bypass attempt "${attempt.name}" ` +
+        `(before=${before}, after=${after})`,
+    );
+  });
+}
+
+Deno.test("bypass attempt rejected: GET with spoofed non-admin header leaks no secrets", async () => {
+  const res = await fetch(fnUrl, {
+    method: "GET",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      "x-admin-email": "attacker@example.com",
+    },
+  });
+  const text = await res.text();
+  assertEquals(res.status, 401, `expected 401, got ${res.status}: ${text}`);
+  for (const needle of ["twilio_account_sid", "msg91_template_id", "generic_endpoint_url"]) {
+    assert(!text.includes(needle), `response for spoofed GET must not leak "${needle}"`);
+  }
+});

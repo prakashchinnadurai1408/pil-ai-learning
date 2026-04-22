@@ -65,6 +65,14 @@ const VideoMcqManager = () => {
   const [retryState, setRetryState] = useState<Record<string, { attempts: number; nextAttemptAt: number | null }>>({});
   const retryTimersRef = useRef<Record<string, number>>({});
   const pollRef = useRef<number | null>(null);
+  // 1Hz tick used purely to re-render live countdowns for scheduled auto-retries.
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const hasPending = Object.values(retryState).some((r) => r.nextAttemptAt && r.nextAttemptAt > Date.now());
+    if (!hasPending) return;
+    const t = window.setInterval(() => setNowTick((n) => n + 1), 1000);
+    return () => window.clearInterval(t);
+  }, [retryState]);
 
   const load = async () => {
     setLoading(true);

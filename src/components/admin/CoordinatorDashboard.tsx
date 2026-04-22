@@ -440,4 +440,67 @@ const CoordinatorDashboard = () => {
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Live status pill — shows whether the realtime websocket is connected and
+// how many seconds ago the last payload arrived. Re-renders every second
+// because its parent already ticks at 1Hz for countdowns.
+// ─────────────────────────────────────────────────────────────────────────────
+const LiveStatusIndicator = ({
+  status,
+  lastEventAt,
+}: {
+  status: "connecting" | "connected" | "disconnected";
+  lastEventAt: Date | null;
+}) => {
+  const ageSec = lastEventAt ? Math.max(0, Math.floor((Date.now() - lastEventAt.getTime()) / 1000)) : null;
+  const ageLabel = ageSec === null
+    ? "no events yet"
+    : ageSec < 60
+      ? `${ageSec}s ago`
+      : `${Math.floor(ageSec / 60)}m ${ageSec % 60}s ago`;
+
+  // Treat the channel as "stale" if we're connected but haven't received a
+  // payload in a long time — usually fine (just no DB activity), but we surface
+  // it so the operator knows the silence is expected.
+  const stale = status === "connected" && ageSec !== null && ageSec > 120;
+
+  const tone =
+    status === "connected" && !stale ? "border-success/40 bg-success/10 text-success"
+    : status === "connected" && stale ? "border-warning/40 bg-warning/10 text-warning"
+    : status === "connecting" ? "border-muted-foreground/30 bg-muted text-muted-foreground"
+    : "border-destructive/40 bg-destructive/10 text-destructive";
+
+  const Icon = status === "disconnected" ? WifiOff : Wifi;
+  const label =
+    status === "connected" ? (stale ? "Live · idle" : "Live")
+    : status === "connecting" ? "Connecting…"
+    : "Offline";
+
+  const title =
+    status === "connected"
+      ? `Realtime channel is connected. Last update ${ageLabel}.`
+      : status === "connecting"
+        ? "Connecting to the realtime channel…"
+        : "Realtime channel is disconnected — falling back to periodic refresh. Updates may lag by up to 30s.";
+
+  return (
+    <div
+      title={title}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${tone}`}
+      role="status"
+      aria-live="polite"
+    >
+      <span className="relative flex h-2 w-2">
+        {status === "connected" && !stale && (
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-60" />
+        )}
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-current" />
+      </span>
+      <Icon className="h-3 w-3" />
+      <span>{label}</span>
+      <span className="opacity-70">· {ageLabel}</span>
+    </div>
+  );
+};
+
 export default CoordinatorDashboard;

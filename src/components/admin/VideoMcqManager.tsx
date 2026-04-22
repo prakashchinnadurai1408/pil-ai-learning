@@ -97,7 +97,35 @@ const VideoMcqManager = () => {
     load();
   };
 
-  const openPreview = async (l: VideoLesson) => {
+  const handleRegenerate = async (l: VideoLesson) => {
+    const note = regenNote?.id === l.id ? regenNote.note.trim() : "";
+    setRegenNote(null);
+    toast.info(`Regenerating MCQs for "${l.title}"… (v${(l.version || 1) + 1})`);
+    const { data, error } = await supabase.functions.invoke("generate-video-mcqs", {
+      body: {
+        youtubeUrl: l.youtube_url,
+        regenerateLessonId: l.id,
+        createdBy: "admin",
+        note,
+      },
+    });
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.error || error?.message || "Regeneration failed");
+    } else {
+      toast.success(`Regenerated to v${(data as any).version}: ${(data as any).questionCount} new questions.`);
+    }
+    load();
+  };
+
+  const openHistory = async (l: VideoLesson) => {
+    setHistoryLesson(l);
+    const { data } = await supabase
+      .from("video_lesson_versions")
+      .select("*")
+      .eq("lesson_id", l.id)
+      .order("version", { ascending: false });
+    setVersions((data ?? []) as any);
+  };
     setPreviewLesson(l);
     const { data } = await supabase.from("video_lesson_questions").select("*").eq("lesson_id", l.id).order("chapter_index").order("sort_order");
     setPreviewQuestions((data ?? []) as any);

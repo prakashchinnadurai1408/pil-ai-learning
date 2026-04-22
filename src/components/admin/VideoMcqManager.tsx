@@ -255,6 +255,63 @@ const VideoMcqManager = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Regenerate confirm dialog */}
+      <Dialog open={!!regenNote} onOpenChange={(o) => !o && setRegenNote(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><RotateCw className="h-5 w-5" /> Regenerate MCQs?</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Current questions will be archived as a new version snapshot, then fresh chapter-wise MCQs will be generated from the latest YouTube data. You can roll back from the History panel.
+            </p>
+            <Textarea
+              placeholder="Optional note — e.g. 'Updated after creator added a new chapter on RAG'"
+              value={regenNote?.note || ""}
+              onChange={(e) => setRegenNote((r) => r ? { ...r, note: e.target.value } : r)}
+              rows={2}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setRegenNote(null)}>Cancel</Button>
+            <Button onClick={() => {
+              const target = lessons.find((x) => x.id === regenNote?.id);
+              if (target) handleRegenerate(target);
+            }} className="gap-1.5"><RotateCw className="h-4 w-4" /> Regenerate now</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Version history dialog */}
+      <Dialog open={!!historyLesson} onOpenChange={(o) => { if (!o) { setHistoryLesson(null); setVersions([]); } }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><History className="h-5 w-5" /> Version history — {historyLesson?.title}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+              <span className="font-semibold">Current: v{historyLesson?.version || 1}</span>
+              {historyLesson?.last_regenerated_at && <span className="text-muted-foreground"> · regenerated {new Date(historyLesson.last_regenerated_at).toLocaleString()}</span>}
+            </div>
+            {versions.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No previous versions yet. Each regenerate creates a snapshot.</p>}
+            {versions.map((v) => (
+              <details key={v.id} className="border border-border rounded-lg p-3">
+                <summary className="cursor-pointer text-sm font-medium flex items-center gap-2">
+                  <Badge variant="outline">v{v.version}</Badge>
+                  <span className="text-muted-foreground">{new Date(v.generated_at).toLocaleString()} · {v.questions?.length || 0} questions</span>
+                  {v.note && <span className="text-xs italic text-muted-foreground">— {v.note}</span>}
+                </summary>
+                <div className="mt-2 pl-2 space-y-2 text-xs">
+                  {(v.questions || []).slice(0, 12).map((q: any, i: number) => (
+                    <div key={i} className="border-l-2 border-muted pl-2">
+                      <p className="font-medium">Ch {(q.chapter_index ?? 0) + 1} · Q{(q.sort_order ?? 0) + 1}: {q.question}</p>
+                      <p className="text-success">✓ {q.options?.[q.correct]}</p>
+                    </div>
+                  ))}
+                  {(v.questions?.length || 0) > 12 && <p className="text-muted-foreground">+ {v.questions.length - 12} more</p>}
+                </div>
+              </details>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

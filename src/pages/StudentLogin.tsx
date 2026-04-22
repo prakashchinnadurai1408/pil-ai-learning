@@ -270,8 +270,13 @@ const StudentLogin = () => {
                   <InputOTPGroup>{[0, 1, 2, 3].map((i) => <InputOTPSlot key={i} index={i} />)}</InputOTPGroup>
                 </InputOTP>
               </div>
+              <div className="flex justify-center">
+                <button type="button" disabled={otpFlow.cooldownLeft > 0} onClick={() => handleResendOtp(form.mobile)} className="text-sm text-primary hover:underline disabled:text-muted-foreground disabled:no-underline disabled:cursor-not-allowed">
+                  {otpFlow.cooldownLeft > 0 ? `Resend in ${otpFlow.cooldownLeft}s` : "Resend OTP"}
+                </button>
+              </div>
               <Button className="w-full bg-gradient-primary border-0 text-primary-foreground hover:opacity-90" size="lg" onClick={handleVerifyRegisterOTP}>Verify & Register</Button>
-              <button className="w-full text-sm text-muted-foreground hover:text-primary" onClick={() => { setStep("register"); setOtp(""); }}>← Change Details</button>
+              <button className="w-full text-sm text-muted-foreground hover:text-primary" onClick={() => { setStep("register"); setOtp(""); otpFlow.reset(); }}>← Change Details</button>
             </div>
           )}
 
@@ -299,6 +304,11 @@ const StudentLogin = () => {
                 <InputOTP maxLength={4} value={otp} onChange={setOtp}>
                   <InputOTPGroup>{[0, 1, 2, 3].map((i) => <InputOTPSlot key={i} index={i} />)}</InputOTPGroup>
                 </InputOTP>
+              </div>
+              <div className="flex justify-center">
+                <button type="button" disabled={otpFlow.cooldownLeft > 0} onClick={() => handleResendOtp(forgotMobile)} className="text-sm text-primary hover:underline disabled:text-muted-foreground disabled:no-underline disabled:cursor-not-allowed">
+                  {otpFlow.cooldownLeft > 0 ? `Resend in ${otpFlow.cooldownLeft}s` : "Resend OTP"}
+                </button>
               </div>
               <Button className="w-full bg-gradient-primary border-0 text-primary-foreground hover:opacity-90" size="lg" onClick={handleVerifyResetOTP}>Verify OTP</Button>
               <button className="w-full text-sm text-muted-foreground hover:text-primary" onClick={() => setStep("forgot")}>← Change Number</button>

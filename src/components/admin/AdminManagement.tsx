@@ -99,6 +99,7 @@ const AdminManagement = () => {
 
   const submitReject = async () => {
     if (!rejectTarget) return;
+    if (!isAdmin) { toast.error("Only admins can reject trainers"); return; }
     const reason = rejectReason.trim() || "Not approved by coordinator";
     const { error } = await supabase
       .from("trainers")

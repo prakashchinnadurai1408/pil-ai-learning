@@ -20,7 +20,7 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, AlertTriangle, Clock, ShieldCheck, Eye, RefreshCw, Check, X, Lock, Activity, Search, Filter } from "lucide-react";
+import { Loader2, AlertTriangle, Clock, ShieldCheck, Eye, RefreshCw, Check, X, Lock, Activity, Search, Filter, Wifi, WifiOff } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 
 type LessonStatusFilter = "all" | "running" | "failed" | "awaiting_retry";
@@ -51,6 +51,10 @@ const CoordinatorDashboard = () => {
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
+  // Realtime channel health: tracks whether the websocket is currently
+  // SUBSCRIBED, and the wall-clock time of the most recent realtime payload.
+  const [rtStatus, setRtStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
+  const [lastRtEventAt, setLastRtEventAt] = useState<Date | null>(null);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -101,6 +105,7 @@ const CoordinatorDashboard = () => {
     const channel = supabase
       .channel("video_lessons_coord_rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "video_lessons" }, (payload) => {
+        setLastRtEventAt(new Date());
         const row = (payload.new ?? payload.old) as VideoLessonRow | undefined;
         if (!row?.id) return;
         setLessons((prev) => {
@@ -116,8 +121,13 @@ const CoordinatorDashboard = () => {
           setTimeout(() => refreshLiveCounts(), 500);
         }
       })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+      .subscribe((status) => {
+        // Supabase emits SUBSCRIBED / TIMED_OUT / CHANNEL_ERROR / CLOSED.
+        if (status === "SUBSCRIBED") setRtStatus("connected");
+        else if (status === "TIMED_OUT" || status === "CHANNEL_ERROR" || status === "CLOSED") setRtStatus("disconnected");
+        else setRtStatus("connecting");
+      });
+    return () => { supabase.removeChannel(channel); setRtStatus("disconnected"); };
   }, []);
 
   useEffect(() => {
@@ -173,9 +183,12 @@ const CoordinatorDashboard = () => {
           </h2>
           <p className="text-sm text-muted-foreground">Live status across MCQ regeneration jobs and trainer approval queue.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <LiveStatusIndicator status={rtStatus} lastEventAt={lastRtEventAt} />
+          <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {!roleLoading && isCoordinator && !isAdmin && (
@@ -423,6 +436,69 @@ const CoordinatorDashboard = () => {
       {refreshedAt && (
         <p className="text-[11px] text-muted-foreground text-right">Last refreshed {refreshedAt.toLocaleTimeString()} · auto-refreshes every {running.length ? "4s" : "30s"}</p>
       )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Live status pill — shows whether the realtime websocket is connected and
+// how many seconds ago the last payload arrived. Re-renders every second
+// because its parent already ticks at 1Hz for countdowns.
+// ─────────────────────────────────────────────────────────────────────────────
+const LiveStatusIndicator = ({
+  status,
+  lastEventAt,
+}: {
+  status: "connecting" | "connected" | "disconnected";
+  lastEventAt: Date | null;
+}) => {
+  const ageSec = lastEventAt ? Math.max(0, Math.floor((Date.now() - lastEventAt.getTime()) / 1000)) : null;
+  const ageLabel = ageSec === null
+    ? "no events yet"
+    : ageSec < 60
+      ? `${ageSec}s ago`
+      : `${Math.floor(ageSec / 60)}m ${ageSec % 60}s ago`;
+
+  // Treat the channel as "stale" if we're connected but haven't received a
+  // payload in a long time — usually fine (just no DB activity), but we surface
+  // it so the operator knows the silence is expected.
+  const stale = status === "connected" && ageSec !== null && ageSec > 120;
+
+  const tone =
+    status === "connected" && !stale ? "border-success/40 bg-success/10 text-success"
+    : status === "connected" && stale ? "border-warning/40 bg-warning/10 text-warning"
+    : status === "connecting" ? "border-muted-foreground/30 bg-muted text-muted-foreground"
+    : "border-destructive/40 bg-destructive/10 text-destructive";
+
+  const Icon = status === "disconnected" ? WifiOff : Wifi;
+  const label =
+    status === "connected" ? (stale ? "Live · idle" : "Live")
+    : status === "connecting" ? "Connecting…"
+    : "Offline";
+
+  const title =
+    status === "connected"
+      ? `Realtime channel is connected. Last update ${ageLabel}.`
+      : status === "connecting"
+        ? "Connecting to the realtime channel…"
+        : "Realtime channel is disconnected — falling back to periodic refresh. Updates may lag by up to 30s.";
+
+  return (
+    <div
+      title={title}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${tone}`}
+      role="status"
+      aria-live="polite"
+    >
+      <span className="relative flex h-2 w-2">
+        {status === "connected" && !stale && (
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-60" />
+        )}
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-current" />
+      </span>
+      <Icon className="h-3 w-3" />
+      <span>{label}</span>
+      <span className="opacity-70">· {ageLabel}</span>
     </div>
   );
 };

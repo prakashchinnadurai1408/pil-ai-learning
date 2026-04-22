@@ -493,53 +493,66 @@ const VideoMcqManager = () => {
                         <Progress value={pct} className="h-1.5" />
                       </div>
                     )}
-                    {l.generation_status === "failed" && l.generation_error && (
-                      <div className="mt-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive space-y-1.5">
-                        <div className="flex gap-2">
-                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                          <span><span className="font-semibold">Error:</span> {l.generation_error}</span>
-                        </div>
-                        {(() => {
-                          const rs = retryState[l.id];
-                          const attempts = rs?.attempts ?? 0;
-                          const nextAt = rs?.nextAttemptAt;
-                          const remaining = nextAt ? Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)) : null;
-                          if (attempts >= MAX_AUTO_RETRIES) {
-                            return <p className="text-[11px]">Auto-retry exhausted ({MAX_AUTO_RETRIES} attempts). Use the Retry button to try again manually.</p>;
-                          }
-                          if (remaining !== null) {
-                            return <p className="text-[11px]">Auto-retry #{attempts + 1} in ~{remaining}s (backoff: {RETRY_DELAYS_SEC.join("s, ")}s).</p>;
-                          }
-                          return null;
-                        })()}
-                        <div className="flex justify-end">
-                          {(() => {
-                            const rs = retryState[l.id];
-                            const nextAt = rs?.nextAttemptAt ?? null;
-                            const remaining = nextAt ? Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)) : 0;
-                            const isAwaitingRetry = remaining > 0;
-                            const tip = !isAdmin
-                              ? "Requires the Admin role."
-                              : isAwaitingRetry
-                                ? `Auto-retry in ${remaining}s — please wait or it will run automatically.`
-                                : "Retry MCQ generation now (cancels any pending auto-retry).";
-                            return (
+                    {l.generation_status === "failed" && l.generation_error && (() => {
+                      // Server timestamp is the source of truth; fall back to local state
+                      // (which mirrors it) if the row hasn't been refetched yet.
+                      const serverNextAt = l.retry_scheduled_at ? new Date(l.retry_scheduled_at).getTime() : null;
+                      const rs = retryState[l.id];
+                      const localNextAt = rs?.nextAttemptAt ?? null;
+                      const nextAt = (serverNextAt && serverNextAt > Date.now()) ? serverNextAt : localNextAt;
+                      const attempts = rs?.attempts ?? 0;
+                      const remaining = nextAt ? Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)) : 0;
+                      const isAwaitingRetry = remaining > 0;
+                      const exhausted = attempts >= MAX_AUTO_RETRIES;
+                      const retryTip = !isAdmin
+                        ? "Admin role required. Coordinators cannot trigger MCQ regeneration — they only see live status."
+                        : isAwaitingRetry
+                          ? `Admin action: regenerate MCQs immediately. Disabled for ${remaining}s while the next auto-retry is scheduled — click "Cancel auto-retry" first if you want to take over manually.`
+                          : "Admin action: retry MCQ generation now. This counts as the next attempt and clears any pending auto-retry.";
+                      const cancelTip = !isAdmin
+                        ? "Admin role required. Only admins can cancel a scheduled auto-retry."
+                        : `Admin action: stop the scheduled auto-retry that is set to run in ${remaining}s. After cancelling, the lesson will stay in "failed" state until you manually click Retry now.`;
+                      return (
+                        <div className="mt-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive space-y-1.5">
+                          <div className="flex gap-2">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                            <span><span className="font-semibold">Error:</span> {l.generation_error}</span>
+                          </div>
+                          {exhausted ? (
+                            <p className="text-[11px]">Auto-retry exhausted ({MAX_AUTO_RETRIES} attempts). Use the Retry button below to try again manually (admin only).</p>
+                          ) : isAwaitingRetry ? (
+                            <p className="text-[11px]">Auto-retry #{attempts + 1} scheduled in <span className="font-semibold tabular-nums">{remaining}s</span> (backoff: {RETRY_DELAYS_SEC.join("s, ")}s).</p>
+                          ) : null}
+                          <div className="flex justify-end gap-2">
+                            {isAwaitingRetry && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-7 text-xs gap-1.5"
-                                onClick={() => handleManualRetry(l)}
-                                disabled={!isAdmin || isAwaitingRetry}
-                                title={tip}
+                                className="h-7 text-xs gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
+                                onClick={() => setCancelRetryFor(l)}
+                                disabled={!isAdmin}
+                                title={cancelTip}
                               >
-                                <RotateCw className="h-3 w-3" />
-                                {isAwaitingRetry ? `Retry in ${remaining}s` : "Retry now"}
+                                {!isAdmin && <Lock className="h-3 w-3" />}
+                                <XCircle className="h-3 w-3" /> Cancel auto-retry ({remaining}s)
                               </Button>
-                            );
-                          })()}
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1.5"
+                              onClick={() => handleManualRetry(l)}
+                              disabled={!isAdmin || isAwaitingRetry}
+                              title={retryTip}
+                            >
+                              {!isAdmin && <Lock className="h-3 w-3" />}
+                              <RotateCw className="h-3 w-3" />
+                              {isAwaitingRetry ? `Retry in ${remaining}s` : "Retry now"}
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                   <div className="flex gap-2 sm:flex-col">
                     {(() => {

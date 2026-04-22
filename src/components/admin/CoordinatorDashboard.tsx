@@ -49,6 +49,12 @@ const CoordinatorDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
 
+  // Filters
+  const [search, setSearch] = useState("");
+  const [lessonStatus, setLessonStatus] = useState<LessonStatusFilter>("all");
+  const [dateFrom, setDateFrom] = useState<string>(""); // yyyy-mm-dd
+  const [dateTo, setDateTo] = useState<string>("");
+
   const load = async () => {
     setLoading(true);
     const [l, t, a] = await Promise.all([

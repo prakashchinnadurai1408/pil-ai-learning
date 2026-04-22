@@ -1,0 +1,2 @@
+ALTER TABLE public.video_lessons ADD COLUMN IF NOT EXISTS retry_scheduled_at timestamp with time zone;
+CREATE INDEX IF NOT EXISTS idx_video_lessons_retry_scheduled_at ON public.video_lessons (retry_scheduled_at) WHERE retry_scheduled_at IS NOT NULL;

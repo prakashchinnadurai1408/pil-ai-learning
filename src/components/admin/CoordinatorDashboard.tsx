@@ -183,9 +183,12 @@ const CoordinatorDashboard = () => {
           </h2>
           <p className="text-sm text-muted-foreground">Live status across MCQ regeneration jobs and trainer approval queue.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <LiveStatusIndicator status={rtStatus} lastEventAt={lastRtEventAt} />
+          <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {!roleLoading && isCoordinator && !isAdmin && (

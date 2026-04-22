@@ -51,6 +51,10 @@ const CoordinatorDashboard = () => {
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
+  // Realtime channel health: tracks whether the websocket is currently
+  // SUBSCRIBED, and the wall-clock time of the most recent realtime payload.
+  const [rtStatus, setRtStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
+  const [lastRtEventAt, setLastRtEventAt] = useState<Date | null>(null);
 
   // Filters
   const [search, setSearch] = useState("");

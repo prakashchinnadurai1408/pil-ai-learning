@@ -75,14 +75,14 @@ const TrainerLogin = () => {
     if (forgotMobile.length < 10) { toast.error("Enter a valid 10-digit mobile number"); return; }
     const { data } = await supabase.from("trainers").select("id").eq("mobile", forgotMobile).maybeSingle();
     if (!data) { toast.error("Mobile number not registered"); return; }
-    toast.success("OTP sent to " + forgotMobile);
-    setOtp("");
+    if (!issueOtp()) return;
+    toast.success(`OTP sent to ${forgotMobile}. Use 1234 (dev mode).`);
     setStep("reset-otp");
   };
 
   const handleVerifyResetOTP = () => {
-    if (otp.length < 4) { toast.error("Enter the complete 4-digit OTP"); return; }
-    if (otp !== "1234") { toast.error("Invalid OTP. Please enter 1234"); return; }
+    const check = otpFlow.verifyOtp(otp);
+    if (!check.ok) { toast.error(check.reason!); return; }
     setOtp("");
     setStep("new-password");
   };

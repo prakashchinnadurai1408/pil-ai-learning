@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Users, GraduationCap, Building2, ShieldCheck, Search } from "lucide-react";
+import { Users, GraduationCap, Building2, ShieldCheck, Search, Clock, Check, X } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 type Student = { id: string; name: string; mobile: string; email: string; college: string; location: string; status: string; created_at: string };
-type Trainer = { id: string; name: string; mobile: string; email: string; college: string; location: string; created_at: string };
+type Trainer = { id: string; name: string; mobile: string; email: string; college: string; location: string; status: string; rejection_reason?: string; approved_at?: string | null; created_at: string };
 type College = { id: number; name: string; created_at: string };
 type AdminUser = { id: string; email: string; created_at: string };
 
@@ -22,12 +24,14 @@ const AdminManagement = () => {
   const [search, setSearch] = useState("");
   const [newCollege, setNewCollege] = useState("");
   const [loading, setLoading] = useState(true);
+  const [rejectTarget, setRejectTarget] = useState<Trainer | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const load = async () => {
     setLoading(true);
     const [s, t, c, a] = await Promise.all([
       supabase.from("students").select("id,name,mobile,email,college,location,status,created_at").order("created_at", { ascending: false }),
-      supabase.from("trainers").select("id,name,mobile,email,college,location,created_at").order("created_at", { ascending: false }),
+      supabase.from("trainers").select("id,name,mobile,email,college,location,status,rejection_reason,approved_at,created_at").order("created_at", { ascending: false }),
       supabase.from("colleges").select("id,name,created_at").order("name"),
       supabase.from("user_roles").select("user_id,created_at").eq("role", "admin"),
     ]);
@@ -59,6 +63,29 @@ const AdminManagement = () => {
     load();
   };
 
+  const approveTrainer = async (t: Trainer) => {
+    const { error } = await supabase
+      .from("trainers")
+      .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: "admin", rejection_reason: "" })
+      .eq("id", t.id);
+    if (error) { toast.error("Failed to approve"); return; }
+    toast.success(`${t.name} approved`);
+    load();
+  };
+
+  const submitReject = async () => {
+    if (!rejectTarget) return;
+    const reason = rejectReason.trim() || "Not approved by coordinator";
+    const { error } = await supabase
+      .from("trainers")
+      .update({ status: "rejected", rejection_reason: reason, approved_by: "admin" })
+      .eq("id", rejectTarget.id);
+    if (error) { toast.error("Failed to reject"); return; }
+    toast.success(`${rejectTarget.name} rejected`);
+    setRejectTarget(null); setRejectReason("");
+    load();
+  };
+
   const filtered = <T extends { name: string; mobile?: string; email?: string }>(arr: T[]) =>
     arr.filter((r) => {
       const q = search.toLowerCase().trim();
@@ -87,10 +114,17 @@ const AdminManagement = () => {
         <Input placeholder="Search by name, mobile, or email…" className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
-      <Tabs defaultValue="students">
+      {(() => {
+        const pendingCount = trainers.filter((t) => (t.status || "pending") === "pending").length;
+        return (
+      <Tabs defaultValue={pendingCount > 0 ? "pending-trainers" : "students"}>
         <TabsList>
           <TabsTrigger value="students">Students</TabsTrigger>
           <TabsTrigger value="trainers">Trainers</TabsTrigger>
+          <TabsTrigger value="pending-trainers" className="gap-1.5">
+            <Clock className="h-3.5 w-3.5" /> Pending Trainers
+            {pendingCount > 0 && <Badge variant="destructive" className="ml-1 h-5 px-1.5">{pendingCount}</Badge>}
+          </TabsTrigger>
           <TabsTrigger value="colleges">Colleges</TabsTrigger>
           <TabsTrigger value="admins">Admins & Login Status</TabsTrigger>
         </TabsList>
@@ -190,7 +224,77 @@ const AdminManagement = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="pending-trainers">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-warning" /> Trainers awaiting approval</CardTitle>
+              <p className="text-sm text-muted-foreground">Approve or reject newly registered trainers. Approved trainers can immediately access the trainer dashboard; rejected trainers see a message with your reason.</p>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Mobile</TableHead><TableHead>College</TableHead><TableHead>Location</TableHead><TableHead>Registered</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {trainers.filter((t) => (t.status || "pending") === "pending").map((t) => (
+                    <TableRow key={t.id}>
+                      <TableCell className="font-medium">{t.name}</TableCell>
+                      <TableCell>{t.email}</TableCell>
+                      <TableCell>{t.mobile}</TableCell>
+                      <TableCell>{t.college}</TableCell>
+                      <TableCell>{t.location}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button size="sm" onClick={() => approveTrainer(t)} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve</Button>
+                        <Button size="sm" variant="outline" onClick={() => { setRejectTarget(t); setRejectReason(""); }} className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"><X className="h-3.5 w-3.5" /> Reject</Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {!trainers.filter((t) => (t.status || "pending") === "pending").length && (
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No trainers waiting for approval 🎉</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+
+              {trainers.filter((t) => t.status === "rejected").length > 0 && (
+                <div className="mt-6 space-y-2">
+                  <h4 className="text-sm font-semibold text-muted-foreground">Recently rejected</h4>
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Reason</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {trainers.filter((t) => t.status === "rejected").map((t) => (
+                        <TableRow key={t.id}>
+                          <TableCell>{t.name}</TableCell>
+                          <TableCell>{t.email}</TableCell>
+                          <TableCell className="text-xs text-destructive">{t.rejection_reason || "—"}</TableCell>
+                          <TableCell className="text-right">
+                            <Button size="sm" variant="outline" onClick={() => approveTrainer(t)} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve</Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+        );
+      })()}
+
+      <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(""); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Reject {rejectTarget?.name}?</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">Provide a reason — the trainer will see this on their next login.</p>
+            <Textarea placeholder="e.g., College not affiliated with our institute" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={3} />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRejectTarget(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={submitReject}>Confirm reject</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

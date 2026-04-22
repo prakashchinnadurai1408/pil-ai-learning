@@ -105,6 +105,7 @@ const CoordinatorDashboard = () => {
     const channel = supabase
       .channel("video_lessons_coord_rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "video_lessons" }, (payload) => {
+        setLastRtEventAt(new Date());
         const row = (payload.new ?? payload.old) as VideoLessonRow | undefined;
         if (!row?.id) return;
         setLessons((prev) => {
@@ -120,8 +121,13 @@ const CoordinatorDashboard = () => {
           setTimeout(() => refreshLiveCounts(), 500);
         }
       })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+      .subscribe((status) => {
+        // Supabase emits SUBSCRIBED / TIMED_OUT / CHANNEL_ERROR / CLOSED.
+        if (status === "SUBSCRIBED") setRtStatus("connected");
+        else if (status === "TIMED_OUT" || status === "CHANNEL_ERROR" || status === "CLOSED") setRtStatus("disconnected");
+        else setRtStatus("connecting");
+      });
+    return () => { supabase.removeChannel(channel); setRtStatus("disconnected"); };
   }, []);
 
   useEffect(() => {

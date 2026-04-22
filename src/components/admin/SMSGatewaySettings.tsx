@@ -81,9 +81,13 @@ const SMSGatewaySettings = () => {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("sms_gateway_settings" as any).select("*").limit(1).maybeSingle();
-      if (data) {
-        const r = data as any;
+      const adminEmail = sessionStorage.getItem("adminEmail") || "";
+      const { data, error } = await supabase.functions.invoke("update-sms-gateway", {
+        method: "GET",
+        headers: { "x-admin-email": adminEmail },
+      });
+      const r = (data as any)?.row;
+      if (!error && r) {
         const headers = (r.generic_headers as Record<string, string>) || {};
         setRow({
           id: r.id,

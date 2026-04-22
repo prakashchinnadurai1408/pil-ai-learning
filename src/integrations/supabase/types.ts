@@ -1576,7 +1576,24 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      sms_gateway_public: {
+        Row: {
+          enabled: boolean | null
+          otp_length: number | null
+          otp_validity_minutes: number | null
+        }
+        Insert: {
+          enabled?: boolean | null
+          otp_length?: number | null
+          otp_validity_minutes?: number | null
+        }
+        Update: {
+          enabled?: boolean | null
+          otp_length?: number | null
+          otp_validity_minutes?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

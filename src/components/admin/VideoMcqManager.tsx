@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Youtube, Sparkles, Trash2, Eye, RefreshCw, Plus, CheckCircle2, AlertTriangle, ListTodo, History, RotateCw, Save, Pencil, Undo2 } from "lucide-react";
+import { Loader2, Youtube, Sparkles, Trash2, Eye, RefreshCw, Plus, CheckCircle2, AlertTriangle, ListTodo, History, RotateCw, Save, Pencil, Undo2, Search, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminModules } from "@/hooks/useAdminModules";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface VideoLesson {
   id: string; title: string; description: string; youtube_url: string; youtube_video_id: string;

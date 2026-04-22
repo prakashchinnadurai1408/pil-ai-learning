@@ -22,6 +22,7 @@ const AdminManagement = () => {
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);
   const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [activity, setActivity] = useState<ActivityLog[]>([]);
   const [search, setSearch] = useState("");
   const [newCollege, setNewCollege] = useState("");
   const [loading, setLoading] = useState(true);
@@ -30,15 +31,17 @@ const AdminManagement = () => {
 
   const load = async () => {
     setLoading(true);
-    const [s, t, c, a] = await Promise.all([
+    const [s, t, c, a, log] = await Promise.all([
       supabase.from("students").select("id,name,mobile,email,college,location,status,created_at").order("created_at", { ascending: false }),
       supabase.from("trainers").select("id,name,mobile,email,college,location,status,rejection_reason,approved_at,created_at").order("created_at", { ascending: false }),
       supabase.from("colleges").select("id,name,created_at").order("name"),
       supabase.from("user_roles").select("user_id,created_at").eq("role", "admin"),
+      supabase.from("trainer_activity_log").select("id,trainer_id,trainer_name,action,reason,actor_name,created_at").order("created_at", { ascending: false }).limit(200),
     ]);
     setStudents((s.data ?? []) as Student[]);
     setTrainers((t.data ?? []) as Trainer[]);
     setColleges((c.data ?? []) as College[]);
+    setActivity((log.data ?? []) as ActivityLog[]);
     // We can't read auth.users from the client; show user_id + assignment date.
     setAdmins(((a.data ?? []) as any[]).map((r) => ({ id: r.user_id, email: r.user_id.slice(0, 8) + "…", created_at: r.created_at })));
     setLoading(false);

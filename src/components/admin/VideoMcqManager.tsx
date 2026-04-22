@@ -126,6 +126,8 @@ const VideoMcqManager = () => {
       .order("version", { ascending: false });
     setVersions((data ?? []) as any);
   };
+
+  const openPreview = async (l: VideoLesson) => {
     setPreviewLesson(l);
     const { data } = await supabase.from("video_lesson_questions").select("*").eq("lesson_id", l.id).order("chapter_index").order("sort_order");
     setPreviewQuestions((data ?? []) as any);

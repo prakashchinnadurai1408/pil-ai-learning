@@ -111,13 +111,31 @@ function validatePayload(p: any): { ok: true; clean: any } | { ok: false; error:
   };
 }
 
+const ADMIN_EMAILS = new Set(["prakash.chinnadurai@gmail.com"]);
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const adminEmail = req.headers.get("x-admin-email") || "";
-    if (!adminEmail || !adminEmail.includes("@")) {
+    const adminEmail = (req.headers.get("x-admin-email") || "").toLowerCase().trim();
+    if (!adminEmail || !ADMIN_EMAILS.has(adminEmail)) {
       return json(401, { error: "Admin authentication required" });
+    }
+
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    // GET → return full row (admin only) so the settings UI can populate.
+    if (req.method === "GET") {
+      const { data, error } = await supabaseAdmin
+        .from("sms_gateway_settings")
+        .select("*")
+        .limit(1)
+        .maybeSingle();
+      if (error) return json(500, { error: error.message });
+      return json(200, { row: data });
     }
 
     const payload = await req.json().catch(() => null);

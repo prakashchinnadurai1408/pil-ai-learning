@@ -24,6 +24,8 @@ const AdminManagement = () => {
   const [search, setSearch] = useState("");
   const [newCollege, setNewCollege] = useState("");
   const [loading, setLoading] = useState(true);
+  const [rejectTarget, setRejectTarget] = useState<Trainer | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -61,7 +63,28 @@ const AdminManagement = () => {
     load();
   };
 
-  const filtered = <T extends { name: string; mobile?: string; email?: string }>(arr: T[]) =>
+  const approveTrainer = async (t: Trainer) => {
+    const { error } = await supabase
+      .from("trainers")
+      .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: "admin", rejection_reason: "" })
+      .eq("id", t.id);
+    if (error) { toast.error("Failed to approve"); return; }
+    toast.success(`${t.name} approved`);
+    load();
+  };
+
+  const submitReject = async () => {
+    if (!rejectTarget) return;
+    const reason = rejectReason.trim() || "Not approved by coordinator";
+    const { error } = await supabase
+      .from("trainers")
+      .update({ status: "rejected", rejection_reason: reason, approved_by: "admin" })
+      .eq("id", rejectTarget.id);
+    if (error) { toast.error("Failed to reject"); return; }
+    toast.success(`${rejectTarget.name} rejected`);
+    setRejectTarget(null); setRejectReason("");
+    load();
+  };
     arr.filter((r) => {
       const q = search.toLowerCase().trim();
       if (!q) return true;

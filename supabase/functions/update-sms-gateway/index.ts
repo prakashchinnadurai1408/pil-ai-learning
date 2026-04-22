@@ -142,12 +142,7 @@ Deno.serve(async (req) => {
     const result = validatePayload(payload);
     if (!result.ok) return json(400, { error: result.error });
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseAdmin
       .from("sms_gateway_settings")
       .select("id")
       .limit(1)
@@ -160,13 +155,13 @@ Deno.serve(async (req) => {
     };
 
     if (existing?.id) {
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from("sms_gateway_settings")
         .update(update)
         .eq("id", existing.id);
       if (error) return json(500, { error: error.message });
     } else {
-      const { error } = await supabase.from("sms_gateway_settings").insert(update);
+      const { error } = await supabaseAdmin.from("sms_gateway_settings").insert(update);
       if (error) return json(500, { error: error.message });
     }
 

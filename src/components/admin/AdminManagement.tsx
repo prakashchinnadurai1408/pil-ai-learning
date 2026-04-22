@@ -224,7 +224,77 @@ const AdminManagement = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="pending-trainers">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-warning" /> Trainers awaiting approval</CardTitle>
+              <p className="text-sm text-muted-foreground">Approve or reject newly registered trainers. Approved trainers can immediately access the trainer dashboard; rejected trainers see a message with your reason.</p>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Mobile</TableHead><TableHead>College</TableHead><TableHead>Location</TableHead><TableHead>Registered</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {trainers.filter((t) => (t.status || "pending") === "pending").map((t) => (
+                    <TableRow key={t.id}>
+                      <TableCell className="font-medium">{t.name}</TableCell>
+                      <TableCell>{t.email}</TableCell>
+                      <TableCell>{t.mobile}</TableCell>
+                      <TableCell>{t.college}</TableCell>
+                      <TableCell>{t.location}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button size="sm" onClick={() => approveTrainer(t)} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve</Button>
+                        <Button size="sm" variant="outline" onClick={() => { setRejectTarget(t); setRejectReason(""); }} className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"><X className="h-3.5 w-3.5" /> Reject</Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {!trainers.filter((t) => (t.status || "pending") === "pending").length && (
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No trainers waiting for approval 🎉</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+
+              {trainers.filter((t) => t.status === "rejected").length > 0 && (
+                <div className="mt-6 space-y-2">
+                  <h4 className="text-sm font-semibold text-muted-foreground">Recently rejected</h4>
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Reason</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {trainers.filter((t) => t.status === "rejected").map((t) => (
+                        <TableRow key={t.id}>
+                          <TableCell>{t.name}</TableCell>
+                          <TableCell>{t.email}</TableCell>
+                          <TableCell className="text-xs text-destructive">{t.rejection_reason || "—"}</TableCell>
+                          <TableCell className="text-right">
+                            <Button size="sm" variant="outline" onClick={() => approveTrainer(t)} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve</Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+        );
+      })()}
+
+      <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(""); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Reject {rejectTarget?.name}?</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">Provide a reason — the trainer will see this on their next login.</p>
+            <Textarea placeholder="e.g., College not affiliated with our institute" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={3} />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRejectTarget(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={submitReject}>Confirm reject</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -18,8 +18,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, AlertTriangle, Clock, ShieldCheck, Eye, RefreshCw, Check, X, Lock, Activity } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, AlertTriangle, Clock, ShieldCheck, Eye, RefreshCw, Check, X, Lock, Activity, Search, Filter } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+
+type LessonStatusFilter = "all" | "running" | "failed" | "awaiting_retry";
 
 interface VideoLessonRow {
   id: string;

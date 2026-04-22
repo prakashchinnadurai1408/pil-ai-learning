@@ -20,6 +20,11 @@ interface VideoLesson {
   status: string; generation_status: string; generation_error: string;
   chapters: { title: string; startSeconds: number }[]; created_at: string;
   version: number; last_regenerated_at: string | null;
+  // Server-stored timestamp of the next scheduled auto-retry. Null means no retry scheduled.
+  // This is the SOURCE OF TRUTH (replaces the older "failed within 60s" heuristic) so that
+  // the Coordinator dashboard, multiple admin tabs, and reloaded sessions all agree on
+  // exactly when the next attempt will fire.
+  retry_scheduled_at: string | null;
 }
 interface LessonQuestion {
   id: string; lesson_id: string; chapter_index: number; chapter_title: string;

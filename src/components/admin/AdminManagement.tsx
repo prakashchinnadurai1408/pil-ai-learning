@@ -293,7 +293,7 @@ const AdminManagement = () => {
                           <TableCell>{t.email}</TableCell>
                           <TableCell className="text-xs text-destructive">{t.rejection_reason || "—"}</TableCell>
                           <TableCell className="text-right">
-                            <Button size="sm" variant="outline" onClick={() => approveTrainer(t)} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve</Button>
+                            <Button size="sm" variant="outline" onClick={() => approveTrainer(t)} disabled={!isAdmin} title={!isAdmin ? "Admin only" : undefined} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve</Button>
                           </TableCell>
                         </TableRow>
                       ))}

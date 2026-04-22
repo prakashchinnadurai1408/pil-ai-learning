@@ -79,9 +79,36 @@ serve(async (req) => {
   let lessonId: string | null = null;
   try {
     const body = await req.json().catch(() => ({}));
-    const { youtubeUrl, title: titleOverride, moduleId, createdBy } = body ?? {};
+    const { youtubeUrl, title: titleOverride, moduleId, createdBy, regenerateLessonId, note } = body ?? {};
     if (!youtubeUrl || typeof youtubeUrl !== "string") return json({ error: "youtubeUrl is required" }, 400);
     if (!LOVABLE_API_KEY) return json({ error: "LOVABLE_API_KEY not configured" }, 500);
+
+    // If regenerating: snapshot current chapters+questions into video_lesson_versions, then bump version.
+    let nextVersion = 1;
+    if (regenerateLessonId) {
+      const { data: existing } = await supabase
+        .from("video_lessons")
+        .select("id,version,chapters")
+        .eq("id", regenerateLessonId)
+        .maybeSingle();
+      if (existing) {
+        const { data: oldQs } = await supabase
+          .from("video_lesson_questions")
+          .select("chapter_index,chapter_title,chapter_start_seconds,question,options,correct,explanation,sort_order")
+          .eq("lesson_id", regenerateLessonId);
+        await supabase.from("video_lesson_versions").insert({
+          lesson_id: regenerateLessonId,
+          version: existing.version || 1,
+          chapters: existing.chapters || [],
+          questions: oldQs || [],
+          generated_by: createdBy || "admin",
+          note: note || "",
+        });
+        nextVersion = (existing.version || 1) + 1;
+        // Wipe current questions; we'll re-insert fresh ones below.
+        await supabase.from("video_lesson_questions").delete().eq("lesson_id", regenerateLessonId);
+      }
+    }
 
     const videoId = extractVideoId(youtubeUrl);
     if (!videoId) return json({ error: "Could not parse a YouTube video ID from that URL." }, 400);
@@ -117,27 +144,53 @@ serve(async (req) => {
     // Cap to 8 chapters to keep AI cost predictable
     chapters = chapters.slice(0, 8);
 
-    // 2. Insert/refresh lesson row in "running" state so the UI can poll
-    const { data: lessonRow, error: insertErr } = await supabase
-      .from("video_lessons")
-      .insert({
-        title: videoTitle,
-        description: description.slice(0, 2000),
-        youtube_url: youtubeUrl,
-        youtube_video_id: videoId,
-        thumbnail_url: thumb,
-        duration_seconds: duration,
-        module_id: moduleId ?? null,
-        status: "draft",
-        generation_status: "running",
-        chapters,
-        created_by: createdBy || "admin",
-      })
-      .select("id")
-      .single();
-    if (insertErr || !lessonRow) {
-      console.error("video_lessons insert failed:", insertErr);
-      return json({ error: "Could not create the lesson record." }, 500);
+    // 2. Insert OR update lesson row in "running" state so the UI can poll
+    let lessonRow: { id: string } | null = null;
+    if (regenerateLessonId) {
+      const { data, error } = await supabase
+        .from("video_lessons")
+        .update({
+          title: videoTitle,
+          description: description.slice(0, 2000),
+          thumbnail_url: thumb,
+          duration_seconds: duration,
+          chapters,
+          generation_status: "running",
+          generation_error: "",
+          version: nextVersion,
+          last_regenerated_at: new Date().toISOString(),
+        })
+        .eq("id", regenerateLessonId)
+        .select("id")
+        .single();
+      if (error || !data) {
+        console.error("video_lessons update failed:", error);
+        return json({ error: "Could not update the lesson record." }, 500);
+      }
+      lessonRow = data;
+    } else {
+      const { data, error } = await supabase
+        .from("video_lessons")
+        .insert({
+          title: videoTitle,
+          description: description.slice(0, 2000),
+          youtube_url: youtubeUrl,
+          youtube_video_id: videoId,
+          thumbnail_url: thumb,
+          duration_seconds: duration,
+          module_id: moduleId ?? null,
+          status: "draft",
+          generation_status: "running",
+          chapters,
+          created_by: createdBy || "admin",
+        })
+        .select("id")
+        .single();
+      if (error || !data) {
+        console.error("video_lessons insert failed:", error);
+        return json({ error: "Could not create the lesson record." }, 500);
+      }
+      lessonRow = data;
     }
     lessonId = lessonRow.id;
 
@@ -268,7 +321,7 @@ Generate three MCQs per chapter.`;
       generation_error: rows.length ? "" : "AI did not return any usable questions.",
     }).eq("id", lessonId);
 
-    return json({ lessonId, questionCount: rows.length, chapterCount: chapters.length });
+    return json({ lessonId, questionCount: rows.length, chapterCount: chapters.length, version: nextVersion });
   } catch (err) {
     console.error("generate-video-mcqs fatal:", err);
     if (lessonId) {

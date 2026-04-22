@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Users, GraduationCap, Building2, ShieldCheck, Search, Clock, Check, X } from "lucide-react";
+import { Users, GraduationCap, Building2, ShieldCheck, Search, Clock, Check, X, History } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
@@ -15,12 +15,14 @@ type Student = { id: string; name: string; mobile: string; email: string; colleg
 type Trainer = { id: string; name: string; mobile: string; email: string; college: string; location: string; status: string; rejection_reason?: string; approved_at?: string | null; created_at: string };
 type College = { id: number; name: string; created_at: string };
 type AdminUser = { id: string; email: string; created_at: string };
+type ActivityLog = { id: string; trainer_id: string; trainer_name: string; action: string; reason: string; actor_name: string; created_at: string };
 
 const AdminManagement = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);
   const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [activity, setActivity] = useState<ActivityLog[]>([]);
   const [search, setSearch] = useState("");
   const [newCollege, setNewCollege] = useState("");
   const [loading, setLoading] = useState(true);
@@ -29,15 +31,17 @@ const AdminManagement = () => {
 
   const load = async () => {
     setLoading(true);
-    const [s, t, c, a] = await Promise.all([
+    const [s, t, c, a, log] = await Promise.all([
       supabase.from("students").select("id,name,mobile,email,college,location,status,created_at").order("created_at", { ascending: false }),
       supabase.from("trainers").select("id,name,mobile,email,college,location,status,rejection_reason,approved_at,created_at").order("created_at", { ascending: false }),
       supabase.from("colleges").select("id,name,created_at").order("name"),
       supabase.from("user_roles").select("user_id,created_at").eq("role", "admin"),
+      supabase.from("trainer_activity_log").select("id,trainer_id,trainer_name,action,reason,actor_name,created_at").order("created_at", { ascending: false }).limit(200),
     ]);
     setStudents((s.data ?? []) as Student[]);
     setTrainers((t.data ?? []) as Trainer[]);
     setColleges((c.data ?? []) as College[]);
+    setActivity((log.data ?? []) as ActivityLog[]);
     // We can't read auth.users from the client; show user_id + assignment date.
     setAdmins(((a.data ?? []) as any[]).map((r) => ({ id: r.user_id, email: r.user_id.slice(0, 8) + "…", created_at: r.created_at })));
     setLoading(false);
@@ -63,12 +67,25 @@ const AdminManagement = () => {
     load();
   };
 
+  const logActivity = async (trainer: Trainer, action: "approved" | "rejected" | "re-approved", reason: string) => {
+    await supabase.from("trainer_activity_log").insert({
+      trainer_id: trainer.id,
+      trainer_name: trainer.name,
+      action,
+      reason,
+      actor_id: "admin",
+      actor_name: "Admin",
+    });
+  };
+
   const approveTrainer = async (t: Trainer) => {
+    const wasRejected = t.status === "rejected";
     const { error } = await supabase
       .from("trainers")
       .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: "admin", rejection_reason: "" })
       .eq("id", t.id);
     if (error) { toast.error("Failed to approve"); return; }
+    await logActivity(t, wasRejected ? "re-approved" : "approved", "");
     toast.success(`${t.name} approved`);
     load();
   };
@@ -81,6 +98,7 @@ const AdminManagement = () => {
       .update({ status: "rejected", rejection_reason: reason, approved_by: "admin" })
       .eq("id", rejectTarget.id);
     if (error) { toast.error("Failed to reject"); return; }
+    await logActivity(rejectTarget, "rejected", reason);
     toast.success(`${rejectTarget.name} rejected`);
     setRejectTarget(null); setRejectReason("");
     load();
@@ -275,6 +293,32 @@ const AdminManagement = () => {
                   </Table>
                 </div>
               )}
+
+              <div className="mt-6 space-y-2">
+                <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <History className="h-4 w-4" /> Approval activity log
+                </h4>
+                <p className="text-xs text-muted-foreground">Every approve/reject action is recorded here for audit.</p>
+                <Table>
+                  <TableHeader><TableRow><TableHead>When</TableHead><TableHead>Trainer</TableHead><TableHead>Action</TableHead><TableHead>By</TableHead><TableHead>Reason</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {activity.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell className="text-xs whitespace-nowrap">{new Date(row.created_at).toLocaleString()}</TableCell>
+                        <TableCell className="font-medium">{row.trainer_name}</TableCell>
+                        <TableCell>
+                          <Badge variant={row.action === "rejected" ? "destructive" : "default"} className="capitalize">{row.action}</Badge>
+                        </TableCell>
+                        <TableCell className="text-xs">{row.actor_name}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{row.reason || "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                    {!activity.length && (
+                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6 text-sm">No approval actions yet.</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

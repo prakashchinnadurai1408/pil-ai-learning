@@ -612,7 +612,15 @@ const VideoMcqManager = () => {
                       variant="outline"
                       className="gap-1.5"
                       disabled={rollingBackId === v.id || !v.questions?.length || !isAdmin || historyLesson?.generation_status === "running"}
-                      title={!isAdmin ? "Admin only" : (historyLesson?.generation_status === "running" ? "Disabled while regeneration is running" : undefined)}
+                      title={
+                        !isAdmin
+                          ? "Requires the Admin role. Coordinators can review version history but cannot rollback."
+                          : historyLesson?.generation_status === "running"
+                            ? "Disabled while this lesson is regenerating — wait for the job to finish."
+                            : !v.questions?.length
+                              ? "This snapshot has no saved questions to restore."
+                              : undefined
+                      }
                       onClick={() => rollbackToVersion(v)}
                     >
                       {rollingBackId === v.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}

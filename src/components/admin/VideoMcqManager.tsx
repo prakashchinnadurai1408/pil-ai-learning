@@ -263,7 +263,8 @@ const VideoMcqManager = () => {
   };
 
   // Manual retry button on a failed lesson — counts as the next attempt and
-  // resets the backoff window for any future auto-retries.
+  // resets the backoff window for any future auto-retries. Also clears the server-side
+  // `retry_scheduled_at` so other clients (and Coordinator dashboard) stop counting down.
   const handleManualRetry = async (l: VideoLesson) => {
     if (!isAdmin) { toast.error("Only admins can retry MCQ generation"); return; }
     // Cancel any pending auto-retry timer.
@@ -271,6 +272,7 @@ const VideoMcqManager = () => {
     if (t) { window.clearTimeout(t); delete retryTimersRef.current[l.id]; }
     const current = retryState[l.id]?.attempts ?? 0;
     setRetryState((s) => ({ ...s, [l.id]: { attempts: current + 1, nextAttemptAt: null } }));
+    await supabase.from("video_lessons").update({ retry_scheduled_at: null }).eq("id", l.id);
     await triggerRegenerate(l, { attemptNumber: current + 1 });
   };
 

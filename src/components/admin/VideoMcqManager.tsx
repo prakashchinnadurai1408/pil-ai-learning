@@ -92,6 +92,28 @@ const VideoMcqManager = () => {
   };
   useEffect(() => { load(); return () => { if (pollRef.current) window.clearInterval(pollRef.current); }; }, []);
 
+  // Realtime: react instantly to status transitions (running → failed → awaiting retry → running)
+  // pushed by other admin tabs, the auto-retry scheduler, or the regenerate edge function.
+  // This keeps Retry/Cancel buttons in sync without waiting for the 3.5s poll.
+  useEffect(() => {
+    const channel = supabase
+      .channel("video_lessons_admin_rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "video_lessons" }, (payload) => {
+        const row = (payload.new ?? payload.old) as VideoLesson | undefined;
+        if (!row?.id) return;
+        setLessons((prev) => {
+          if (payload.eventType === "DELETE") return prev.filter((l) => l.id !== row.id);
+          const idx = prev.findIndex((l) => l.id === row.id);
+          if (idx === -1) return [payload.new as VideoLesson, ...prev];
+          const next = [...prev];
+          next[idx] = { ...next[idx], ...(payload.new as VideoLesson) };
+          return next;
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   // Auto-poll while any lesson is in 'running' — also re-fetches preview question count for live progress.
   useEffect(() => {
     if (pollRef.current) { window.clearInterval(pollRef.current); pollRef.current = null; }

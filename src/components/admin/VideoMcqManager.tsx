@@ -118,9 +118,10 @@ const VideoMcqManager = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (!isAdmin) { toast.error("Only admins can delete lessons"); return; }
     if (!confirm("Delete this lesson and all its generated questions?")) return;
-    const { error } = await supabase.from("video_lessons").delete().eq("id", id);
-    if (error) { toast.error("Could not delete"); return; }
+    const { data, error } = await supabase.functions.invoke("mcq-admin-action", { body: { action: "delete", lessonId: id } });
+    if (error || (data as any)?.error) { toast.error((data as any)?.error || error?.message || "Could not delete"); return; }
     toast.success("Lesson deleted");
     load();
   };
@@ -128,19 +129,16 @@ const VideoMcqManager = () => {
   const handlePublish = async (l: VideoLesson) => {
     if (!isAdmin) { toast.error("Only admins can publish or unpublish MCQ versions"); return; }
     if (l.generation_status === "running") { toast.error("Cannot publish while regeneration is running"); return; }
-    // Block publish if any question fails validation
-    const { data: qs } = await supabase.from("video_lesson_questions").select("question,options,correct").eq("lesson_id", l.id);
+    // Block publish if any question fails validation (client-side fast check before round-trip)
     if (l.status !== "published") {
+      const { data: qs } = await supabase.from("video_lesson_questions").select("question,options,correct").eq("lesson_id", l.id);
       const bad = (qs || []).find((q: any) => validateQuestion({ question: q.question, options: q.options || [], correct: q.correct }));
-      if (bad) {
-        toast.error("Fix invalid questions before publishing — open Preview to edit.");
-        return;
-      }
+      if (bad) { toast.error("Fix invalid questions before publishing — open Preview to edit."); return; }
     }
-    const next = l.status === "published" ? "draft" : "published";
-    const { error } = await supabase.from("video_lessons").update({ status: next }).eq("id", l.id);
-    if (error) { toast.error("Update failed"); return; }
-    toast.success(`Lesson set to ${next}`);
+    const action = l.status === "published" ? "unpublish" : "publish";
+    const { data, error } = await supabase.functions.invoke("mcq-admin-action", { body: { action, lessonId: l.id } });
+    if (error || (data as any)?.error) { toast.error((data as any)?.error || error?.message || "Update failed"); return; }
+    toast.success(`Lesson ${action === "publish" ? "published" : "moved to draft"}`);
     load();
   };
 
@@ -175,46 +173,15 @@ const VideoMcqManager = () => {
     if (!confirm(`Republish version v${v.version}? Current published questions will be archived as a new snapshot before being replaced.`)) return;
     setRollingBackId(v.id);
     try {
-      // 1. Snapshot current state into versions table.
-      const { data: currentQs } = await supabase
-        .from("video_lesson_questions")
-        .select("chapter_index,chapter_title,chapter_start_seconds,question,options,correct,explanation,sort_order")
-        .eq("lesson_id", historyLesson.id);
-      await supabase.from("video_lesson_versions").insert({
-        lesson_id: historyLesson.id,
-        version: historyLesson.version || 1,
-        chapters: historyLesson.chapters || [],
-        questions: currentQs || [],
-        generated_by: "admin",
-        note: `Auto-snapshot before rollback to v${v.version}`,
+      // Server-side rollback enforces admin role + atomic snapshot/restore.
+      const { data, error } = await supabase.functions.invoke("mcq-admin-action", {
+        body: { action: "rollback", lessonId: historyLesson.id, versionId: v.id },
       });
-
-      // 2. Wipe current questions and replace with the chosen version.
-      await supabase.from("video_lesson_questions").delete().eq("lesson_id", historyLesson.id);
-      const rows = (v.questions || []).map((q: any, i: number) => ({
-        lesson_id: historyLesson.id,
-        chapter_index: q.chapter_index ?? 0,
-        chapter_title: q.chapter_title ?? "",
-        chapter_start_seconds: q.chapter_start_seconds ?? 0,
-        question: q.question,
-        options: q.options || [],
-        correct: q.correct ?? 0,
-        explanation: q.explanation ?? "",
-        sort_order: q.sort_order ?? i,
-      }));
-      if (rows.length) await supabase.from("video_lesson_questions").insert(rows);
-
-      // 3. Bump lesson to a new version pointing at restored content.
-      const newVersion = (historyLesson.version || 1) + 1;
-      await supabase.from("video_lessons").update({
-        chapters: v.chapters || historyLesson.chapters,
-        version: newVersion,
-        last_regenerated_at: new Date().toISOString(),
-        generation_status: "success",
-        generation_error: "",
-      }).eq("id", historyLesson.id);
-
-      toast.success(`Rolled back to v${v.version} (now published as v${newVersion}).`);
+      if (error || (data as any)?.error) {
+        toast.error((data as any)?.error || error?.message || "Rollback failed");
+        return;
+      }
+      toast.success(`Rolled back to v${v.version} (now published as v${(data as any).newVersion}).`);
       setHistoryLesson(null);
       setVersions([]);
       load();
@@ -319,6 +286,52 @@ const VideoMcqManager = () => {
         </CardContent>
       </Card>
 
+      {(() => {
+        const running = lessons.filter((l) => l.generation_status === "running");
+        if (running.length === 0) return null;
+        return (
+          <Card className="border-primary/40 bg-primary/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                Live regeneration in progress ({running.length} lesson{running.length > 1 ? "s" : ""})
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Preview, edit, publish, regenerate, delete and rollback are temporarily disabled for these lessons until each job completes.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {running.map((l) => {
+                const totalChapters = l.chapters?.length || 0;
+                const liveCount = liveCounts[l.id] ?? 0;
+                const chaptersProcessed = Math.min(totalChapters, Math.ceil(liveCount / 3));
+                const pct = totalChapters ? Math.round((chaptersProcessed / totalChapters) * 100) : 0;
+                const currentChapter = l.chapters?.[Math.min(chaptersProcessed, Math.max(0, totalChapters - 1))];
+                return (
+                  <div key={l.id} className="rounded-md border border-border bg-background p-3 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate">{l.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Generating v{l.version || 1} · processing chapter {Math.min(chaptersProcessed + 1, totalChapters)} of {totalChapters}
+                          {currentChapter ? ` — "${currentChapter.title}"` : ""}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-xs">{liveCount} questions saved</Badge>
+                    </div>
+                    <Progress value={pct} className="h-2" />
+                    <div className="flex justify-between text-[11px] text-muted-foreground">
+                      <span>{pct}% complete</span>
+                      <span>~3 MCQs per chapter</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center justify-between">
@@ -372,19 +385,32 @@ const VideoMcqManager = () => {
                   <div className="flex gap-2 sm:flex-col">
                     {(() => {
                       const isRunning = l.generation_status === "running";
-                      const lockTitle = isRunning ? "Disabled while regeneration is running" : undefined;
-                      const adminOnly = !isAdmin ? "Admin only" : undefined;
+                      const runningTip = "Disabled while this lesson is regenerating — wait for the job to finish.";
+                      const coordinatorTip = "Requires the Admin role. Coordinators have view-only access to MCQ workflows.";
+                      // Build the most informative tooltip per button (role first, then run-state).
+                      const previewTip = isRunning ? runningTip : undefined;
+                      const regenTip = !isAdmin ? coordinatorTip : isRunning ? runningTip : undefined;
+                      const publishTip = !isAdmin
+                        ? coordinatorTip
+                        : isRunning
+                          ? runningTip
+                          : l.generation_status !== "success"
+                            ? "Lesson must finish generating successfully before it can be published."
+                            : undefined;
+                      const deleteTip = !isAdmin ? coordinatorTip : isRunning ? runningTip : undefined;
                       return (
                         <>
-                          <Button size="sm" variant="outline" onClick={() => openPreview(l)} disabled={isRunning} title={lockTitle} className="gap-1.5"><Eye className="h-4 w-4" /> Preview & Edit</Button>
-                          <Button size="sm" variant="outline" onClick={() => setRegenNote({ id: l.id, note: "" })} disabled={isRunning || !isAdmin} title={adminOnly || lockTitle} className="gap-1.5">
+                          <Button size="sm" variant="outline" onClick={() => openPreview(l)} disabled={isRunning} title={previewTip} className="gap-1.5"><Eye className="h-4 w-4" /> Preview & Edit</Button>
+                          <Button size="sm" variant="outline" onClick={() => setRegenNote({ id: l.id, note: "" })} disabled={isRunning || !isAdmin} title={regenTip} className="gap-1.5">
                             <RotateCw className="h-4 w-4" /> Regenerate
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => openHistory(l)} className="gap-1.5"><History className="h-4 w-4" /> History</Button>
-                          <Button size="sm" variant="outline" onClick={() => handlePublish(l)} disabled={l.generation_status !== "success" || isRunning || !isAdmin} title={adminOnly || lockTitle}>
+                          <Button size="sm" variant="outline" onClick={() => openHistory(l)} className="gap-1.5" title="Anyone can view version history. Rollback is admin-only.">
+                            <History className="h-4 w-4" /> History
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handlePublish(l)} disabled={l.generation_status !== "success" || isRunning || !isAdmin} title={publishTip}>
                             {l.status === "published" ? "Unpublish" : "Publish"}
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleDelete(l.id)} disabled={isRunning || !isAdmin} title={adminOnly || lockTitle} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleDelete(l.id)} disabled={isRunning || !isAdmin} title={deleteTip} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
                         </>
                       );
                     })()}
@@ -586,7 +612,15 @@ const VideoMcqManager = () => {
                       variant="outline"
                       className="gap-1.5"
                       disabled={rollingBackId === v.id || !v.questions?.length || !isAdmin || historyLesson?.generation_status === "running"}
-                      title={!isAdmin ? "Admin only" : (historyLesson?.generation_status === "running" ? "Disabled while regeneration is running" : undefined)}
+                      title={
+                        !isAdmin
+                          ? "Requires the Admin role. Coordinators can review version history but cannot rollback."
+                          : historyLesson?.generation_status === "running"
+                            ? "Disabled while this lesson is regenerating — wait for the job to finish."
+                            : !v.questions?.length
+                              ? "This snapshot has no saved questions to restore."
+                              : undefined
+                      }
                       onClick={() => rollbackToVersion(v)}
                     >
                       {rollingBackId === v.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}

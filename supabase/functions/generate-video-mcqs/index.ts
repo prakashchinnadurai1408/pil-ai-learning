@@ -72,6 +72,7 @@ serve(async (req) => {
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY");
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -82,6 +83,18 @@ serve(async (req) => {
     const { youtubeUrl, title: titleOverride, moduleId, createdBy, regenerateLessonId, note } = body ?? {};
     if (!youtubeUrl || typeof youtubeUrl !== "string") return json({ error: "youtubeUrl is required" }, 400);
     if (!LOVABLE_API_KEY) return json({ error: "LOVABLE_API_KEY not configured" }, 500);
+
+    // --- Server-side role enforcement: regenerate requires admin role ---
+    // (Initial generation also requires authentication so anonymous bots can't burn AI credits.)
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace(/^Bearer\s+/i, "");
+    if (!token) return json({ error: "Authentication required" }, 401);
+    const userClient = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: `Bearer ${token}` } } });
+    const { data: userRes, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userRes?.user) return json({ error: "Invalid session" }, 401);
+    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userRes.user.id, _role: "admin" });
+    if (!isAdmin) return json({ error: "Admin role required to generate or regenerate MCQs" }, 403);
+
 
     // If regenerating: snapshot current chapters+questions into video_lesson_versions, then bump version.
     let nextVersion = 1;

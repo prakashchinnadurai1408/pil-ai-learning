@@ -61,7 +61,7 @@ const CoordinatorDashboard = () => {
   const load = async () => {
     setLoading(true);
     const [l, t, a] = await Promise.all([
-      supabase.from("video_lessons").select("id,title,status,generation_status,generation_error,chapters,version,last_regenerated_at").order("last_regenerated_at", { ascending: false, nullsFirst: false }).limit(50),
+      supabase.from("video_lessons").select("id,title,status,generation_status,generation_error,chapters,version,last_regenerated_at,retry_scheduled_at").order("last_regenerated_at", { ascending: false, nullsFirst: false }).limit(50),
       supabase.from("trainers").select("id,name,email,college,created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(25),
       supabase.from("trainer_activity_log").select("id,trainer_name,action,reason,actor_name,created_at").order("created_at", { ascending: false }).limit(15),
     ]);

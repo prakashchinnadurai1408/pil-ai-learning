@@ -8,6 +8,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { toast } from "sonner";
 import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 import { supabase } from "@/integrations/supabase/client";
+import { useOtpFlow } from "@/hooks/useOtpFlow";
 
 type Step = "register" | "signin" | "otp" | "forgot" | "reset-otp" | "new-password";
 
@@ -19,6 +20,14 @@ const TrainerLogin = () => {
   const [otp, setOtp] = useState("");
   const [forgotMobile, setForgotMobile] = useState("");
   const [newPassword, setNewPassword] = useState({ password: "", confirm: "" });
+  const otpFlow = useOtpFlow();
+  const issueOtp = () => {
+    const r = otpFlow.issueOtp();
+    if (!r.ok) { toast.error(r.reason!); return false; }
+    setOtp("");
+    return true;
+  };
+  const handleResendOtp = (target: string) => { if (issueOtp()) toast.success(`A new OTP was sent to ${target}.`); };
 
   const handleRegisterSendOTP = async () => {
     if (!form.name || !form.email || !form.college || !form.location || !form.mobile || !form.password) {
@@ -31,13 +40,14 @@ const TrainerLogin = () => {
     if (existing) { toast.error("Mobile number already registered. Please sign in."); return; }
     await supabase.from("locations").upsert({ name: form.location.trim() }, { onConflict: "name" });
     await supabase.from("colleges").upsert({ name: form.college.trim() }, { onConflict: "name" });
-    toast.success("OTP sent to " + form.mobile);
+    if (!issueOtp()) return;
+    toast.success(`OTP sent to ${form.mobile}. Use 1234 (dev mode).`);
     setStep("otp");
   };
 
   const handleVerifyRegisterOTP = async () => {
-    if (otp.length < 4) { toast.error("Enter the complete 4-digit OTP"); return; }
-    if (otp !== "1234") { toast.error("Invalid OTP. Please enter 1234"); return; }
+    const check = otpFlow.verifyOtp(otp);
+    if (!check.ok) { toast.error(check.reason!); return; }
     const { data: inserted, error } = await supabase.from("trainers").insert({
       name: form.name.trim(), email: form.email.trim(), mobile: form.mobile.trim(),
       college: form.college.trim(), location: form.location.trim(), password: form.password,

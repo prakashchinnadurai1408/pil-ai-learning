@@ -293,6 +293,32 @@ const AdminManagement = () => {
                   </Table>
                 </div>
               )}
+
+              <div className="mt-6 space-y-2">
+                <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <History className="h-4 w-4" /> Approval activity log
+                </h4>
+                <p className="text-xs text-muted-foreground">Every approve/reject action is recorded here for audit.</p>
+                <Table>
+                  <TableHeader><TableRow><TableHead>When</TableHead><TableHead>Trainer</TableHead><TableHead>Action</TableHead><TableHead>By</TableHead><TableHead>Reason</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {activity.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell className="text-xs whitespace-nowrap">{new Date(row.created_at).toLocaleString()}</TableCell>
+                        <TableCell className="font-medium">{row.trainer_name}</TableCell>
+                        <TableCell>
+                          <Badge variant={row.action === "rejected" ? "destructive" : "default"} className="capitalize">{row.action}</Badge>
+                        </TableCell>
+                        <TableCell className="text-xs">{row.actor_name}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{row.reason || "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                    {!activity.length && (
+                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6 text-sm">No approval actions yet.</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -23,7 +23,7 @@ const AdminLogin = () => {
 
   const handleSendOTP = () => {
     if (!form.email || !form.password) { toast.error("Please fill all fields"); return; }
-    if (form.email !== ADMIN_EMAIL || form.password !== ADMIN_PASSWORD) {
+    if (!ADMIN_EMAILS.includes(form.email) || form.password !== ADMIN_PASSWORD) {
       toast.error("Invalid admin credentials"); return;
     }
     toast.success("OTP sent to your email");
@@ -39,7 +39,7 @@ const AdminLogin = () => {
 
   const handleForgotSendOTP = () => {
     if (!forgotEmail) { toast.error("Enter your admin email"); return; }
-    if (forgotEmail !== ADMIN_EMAIL) { toast.error("Email not recognized"); return; }
+    if (!ADMIN_EMAILS.includes(forgotEmail)) { toast.error("Email not recognized"); return; }
     toast.success("OTP sent to " + forgotEmail);
     setOtp("");
     setStep("reset-otp");

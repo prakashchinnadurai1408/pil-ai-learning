@@ -126,6 +126,8 @@ const VideoMcqManager = () => {
   };
 
   const handlePublish = async (l: VideoLesson) => {
+    if (!isAdmin) { toast.error("Only admins can publish or unpublish MCQ versions"); return; }
+    if (l.generation_status === "running") { toast.error("Cannot publish while regeneration is running"); return; }
     // Block publish if any question fails validation
     const { data: qs } = await supabase.from("video_lesson_questions").select("question,options,correct").eq("lesson_id", l.id);
     if (l.status !== "published") {

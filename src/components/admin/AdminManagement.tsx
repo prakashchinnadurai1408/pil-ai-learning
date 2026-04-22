@@ -347,11 +347,13 @@ const AdminManagement = () => {
                         <TableCell className="text-xs text-muted-foreground">{row.reason || "—"}</TableCell>
                       </TableRow>
                     ))}
-                    {!activity.length && (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6 text-sm">No approval actions yet.</TableCell></TableRow>
+                    {!filteredActivity.length && (
+                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6 text-sm">{activity.length ? "No matches for current filters." : "No approval actions yet."}</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>

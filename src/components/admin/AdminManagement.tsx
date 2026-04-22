@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Users, GraduationCap, Building2, ShieldCheck, Search } from "lucide-react";
+import { Users, GraduationCap, Building2, ShieldCheck, Search, Clock, Check, X } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 type Student = { id: string; name: string; mobile: string; email: string; college: string; location: string; status: string; created_at: string };
-type Trainer = { id: string; name: string; mobile: string; email: string; college: string; location: string; created_at: string };
+type Trainer = { id: string; name: string; mobile: string; email: string; college: string; location: string; status: string; rejection_reason?: string; approved_at?: string | null; created_at: string };
 type College = { id: number; name: string; created_at: string };
 type AdminUser = { id: string; email: string; created_at: string };
 
@@ -27,7 +29,7 @@ const AdminManagement = () => {
     setLoading(true);
     const [s, t, c, a] = await Promise.all([
       supabase.from("students").select("id,name,mobile,email,college,location,status,created_at").order("created_at", { ascending: false }),
-      supabase.from("trainers").select("id,name,mobile,email,college,location,created_at").order("created_at", { ascending: false }),
+      supabase.from("trainers").select("id,name,mobile,email,college,location,status,rejection_reason,approved_at,created_at").order("created_at", { ascending: false }),
       supabase.from("colleges").select("id,name,created_at").order("name"),
       supabase.from("user_roles").select("user_id,created_at").eq("role", "admin"),
     ]);

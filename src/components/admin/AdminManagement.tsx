@@ -111,32 +111,44 @@ const AdminManagement = () => {
     });
   };
 
-  const approveTrainer = async (t: Trainer) => {
-    if (!isAdmin) { toast.error("Only admins can approve trainers"); return; }
-    const wasRejected = t.status === "rejected";
-    const { error } = await supabase
-      .from("trainers")
-      .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: "admin", rejection_reason: "" })
-      .eq("id", t.id);
-    if (error) { toast.error("Failed to approve"); return; }
-    await logActivity(t, wasRejected ? "re-approved" : "approved", "");
-    toast.success(`${t.name} approved`);
-    load();
+  // Open the multi-step review dialog. The flow is: choose reason code → add notes → confirm.
+  const startReview = (trainer: Trainer, mode: ReviewMode) => {
+    if (!isAdmin) { toast.error(`Only admins can ${mode === "approve" ? "approve" : "reject"} trainers`); return; }
+    setReview({ trainer, mode, step: "choose", codeLabel: "", notes: "" });
   };
 
-  const submitReject = async () => {
-    if (!rejectTarget) return;
-    if (!isAdmin) { toast.error("Only admins can reject trainers"); return; }
-    const reason = rejectReason.trim() || "Not approved by coordinator";
-    const { error } = await supabase
-      .from("trainers")
-      .update({ status: "rejected", rejection_reason: reason, approved_by: "admin" })
-      .eq("id", rejectTarget.id);
-    if (error) { toast.error("Failed to reject"); return; }
-    await logActivity(rejectTarget, "rejected", reason);
-    toast.success(`${rejectTarget.name} rejected`);
-    setRejectTarget(null); setRejectReason("");
-    load();
+  const submitReview = async () => {
+    if (!review) return;
+    if (!isAdmin) { toast.error("Admin role required"); return; }
+    const { trainer, mode, codeLabel, notes } = review;
+    const note = notes.trim();
+    // Persist the structured reason+note so the activity log stays human-readable.
+    const reason = note ? `${codeLabel}: ${note}` : codeLabel;
+    setSubmittingReview(true);
+    try {
+      if (mode === "approve") {
+        const wasRejected = trainer.status === "rejected";
+        const { error } = await supabase
+          .from("trainers")
+          .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: "admin", rejection_reason: "" })
+          .eq("id", trainer.id);
+        if (error) { toast.error("Failed to approve"); return; }
+        await logActivity(trainer, wasRejected ? "re-approved" : "approved", reason);
+        toast.success(`${trainer.name} approved`);
+      } else {
+        const { error } = await supabase
+          .from("trainers")
+          .update({ status: "rejected", rejection_reason: reason, approved_by: "admin" })
+          .eq("id", trainer.id);
+        if (error) { toast.error("Failed to reject"); return; }
+        await logActivity(trainer, "rejected", reason);
+        toast.success(`${trainer.name} rejected`);
+      }
+      setReview(null);
+      load();
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   const filtered = <T extends { name: string; mobile?: string; email?: string }>(arr: T[]) =>

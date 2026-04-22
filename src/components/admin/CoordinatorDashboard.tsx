@@ -87,8 +87,42 @@ const CoordinatorDashboard = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  // 1Hz tick so countdowns and "running for Xs" labels update live.
+  const [, setNowTick] = useState(0);
   useEffect(() => {
-    // Poll every 4s while any job is running, else every 30s as a soft refresh.
+    const t = window.setInterval(() => setNowTick((n) => n + 1), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  // Realtime subscription on video_lessons — instantly reflects transitions
+  // (running ↔ failed ↔ awaiting retry) without waiting for the 4s/30s poll.
+  useEffect(() => {
+    const channel = supabase
+      .channel("video_lessons_coord_rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "video_lessons" }, (payload) => {
+        const row = (payload.new ?? payload.old) as VideoLessonRow | undefined;
+        if (!row?.id) return;
+        setLessons((prev) => {
+          if (payload.eventType === "DELETE") return prev.filter((l) => l.id !== row.id);
+          const idx = prev.findIndex((l) => l.id === row.id);
+          if (idx === -1) return [payload.new as VideoLessonRow, ...prev].slice(0, 50);
+          const next = [...prev];
+          next[idx] = { ...next[idx], ...(payload.new as VideoLessonRow) };
+          return next;
+        });
+        // If a job just started, refresh question counts shortly after.
+        if ((payload.new as any)?.generation_status === "running") {
+          setTimeout(() => refreshLiveCounts(), 500);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  useEffect(() => {
+    // Fallback poll: every 4s if anything is running, else 30s as a soft refresh
+    // (covers e.g. trainer_activity_log / pending trainers which have no realtime channel).
     const anyRunning = lessons.some((l) => l.generation_status === "running");
     const interval = anyRunning ? 4000 : 30000;
     const t = window.setInterval(() => { load(); refreshLiveCounts(); }, interval);
@@ -254,18 +288,25 @@ const CoordinatorDashboard = () => {
                 const live = liveCounts[l.id] ?? 0;
                 const processed = Math.min(total, Math.ceil(live / 3));
                 const pct = total ? Math.round((processed / total) * 100) : 0;
+                const startedMs = l.last_regenerated_at ? new Date(l.last_regenerated_at).getTime() : null;
+                const elapsedSec = startedMs ? Math.max(0, Math.floor((Date.now() - startedMs) / 1000)) : null;
+                const elapsedLabel = elapsedSec === null ? null : elapsedSec >= 60 ? `${Math.floor(elapsedSec / 60)}m ${elapsedSec % 60}s` : `${elapsedSec}s`;
                 return (
-                  <div key={l.id} className="rounded-md border border-border bg-background p-3 space-y-2">
+                  <div key={l.id} className="rounded-md border border-primary/40 bg-background p-3 space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="font-semibold text-sm truncate">{l.title}</p>
-                        <p className="text-xs text-muted-foreground">v{l.version || 1} · chapter {Math.min(processed + 1, total)} of {total}</p>
+                        <p className="text-xs text-muted-foreground">v{l.version || 1} · chapter {Math.min(processed + 1, total)} of {total}{elapsedLabel ? ` · running for ${elapsedLabel}` : ""}</p>
                       </div>
-                      <Badge variant="outline" className="text-xs">{live} questions saved</Badge>
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        <Badge className="text-[10px] gap-1 bg-primary/15 text-primary border-primary/40 hover:bg-primary/15"><Loader2 className="h-2.5 w-2.5 animate-spin" /> Blocked (running)</Badge>
+                        <Badge variant="outline" className="text-xs">{live} questions saved</Badge>
+                      </div>
                     </div>
                     <Progress value={pct} className="h-2" />
-                    <div className="flex justify-end">
-                      <Button size="sm" variant="outline" disabled title={ADMIN_ONLY_TIP} className="h-7 text-xs gap-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] text-muted-foreground italic">Retry &amp; Cancel are disabled while this job is running. They will re-enable automatically when it finishes or fails.</p>
+                      <Button size="sm" variant="outline" disabled title={ADMIN_ONLY_TIP} className="h-7 text-xs gap-1.5 shrink-0">
                         <Lock className="h-3 w-3" /> Cancel job (Admin only)
                       </Button>
                     </div>

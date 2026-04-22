@@ -310,7 +310,7 @@ const CoordinatorDashboard = () => {
         <CardContent>
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : pending.length === 0 ? (
+          ) : filteredPending.length === 0 ? (
             <p className="text-sm text-muted-foreground">All caught up — no trainers awaiting approval.</p>
           ) : (
             <Table>

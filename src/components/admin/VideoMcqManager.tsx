@@ -363,15 +363,24 @@ const VideoMcqManager = () => {
                     )}
                   </div>
                   <div className="flex gap-2 sm:flex-col">
-                    <Button size="sm" variant="outline" onClick={() => openPreview(l)} className="gap-1.5"><Eye className="h-4 w-4" /> Preview & Edit</Button>
-                    <Button size="sm" variant="outline" onClick={() => setRegenNote({ id: l.id, note: "" })} disabled={l.generation_status === "running"} className="gap-1.5">
-                      <RotateCw className="h-4 w-4" /> Regenerate
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => openHistory(l)} className="gap-1.5"><History className="h-4 w-4" /> History</Button>
-                    <Button size="sm" variant="outline" onClick={() => handlePublish(l)} disabled={l.generation_status !== "success"}>
-                      {l.status === "published" ? "Unpublish" : "Publish"}
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleDelete(l.id)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                    {(() => {
+                      const isRunning = l.generation_status === "running";
+                      const lockTitle = isRunning ? "Disabled while regeneration is running" : undefined;
+                      const adminOnly = !isAdmin ? "Admin only" : undefined;
+                      return (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => openPreview(l)} disabled={isRunning} title={lockTitle} className="gap-1.5"><Eye className="h-4 w-4" /> Preview & Edit</Button>
+                          <Button size="sm" variant="outline" onClick={() => setRegenNote({ id: l.id, note: "" })} disabled={isRunning || !isAdmin} title={adminOnly || lockTitle} className="gap-1.5">
+                            <RotateCw className="h-4 w-4" /> Regenerate
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => openHistory(l)} className="gap-1.5"><History className="h-4 w-4" /> History</Button>
+                          <Button size="sm" variant="outline" onClick={() => handlePublish(l)} disabled={l.generation_status !== "success" || isRunning || !isAdmin} title={adminOnly || lockTitle}>
+                            {l.status === "published" ? "Unpublish" : "Publish"}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleDelete(l.id)} disabled={isRunning || !isAdmin} title={adminOnly || lockTitle} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               );})}

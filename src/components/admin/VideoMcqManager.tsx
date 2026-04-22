@@ -545,40 +545,69 @@ const VideoMcqManager = () => {
               <span className="font-semibold">Current: v{historyLesson?.version || 1}</span>
               {historyLesson?.last_regenerated_at && <span className="text-muted-foreground"> · regenerated {new Date(historyLesson.last_regenerated_at).toLocaleString()}</span>}
             </div>
-            {versions.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No previous versions yet. Each regenerate creates a snapshot.</p>}
-            {versions.map((v) => (
-              <div key={v.id} className="border border-border rounded-lg p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline">v{v.version}</Badge>
-                    <span className="text-xs text-muted-foreground">{new Date(v.generated_at).toLocaleString()} · {v.questions?.length || 0} questions · {v.chapters?.length || 0} chapters</span>
-                    {v.note && <span className="text-xs italic text-muted-foreground">— {v.note}</span>}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search by note, generator, version, or date (e.g. 'rag', 'admin', 'v2', '2026-04')…"
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+            {(() => {
+              const q = historySearch.toLowerCase().trim();
+              const filtered = versions.filter((v) => {
+                if (!q) return true;
+                const haystack = [
+                  v.note || "",
+                  v.generated_by || "",
+                  `v${v.version}`,
+                  new Date(v.generated_at).toLocaleString(),
+                  new Date(v.generated_at).toISOString(),
+                ].join(" ").toLowerCase();
+                return haystack.includes(q);
+              });
+              if (versions.length === 0) {
+                return <p className="text-sm text-muted-foreground text-center py-4">No previous versions yet. Each regenerate creates a snapshot.</p>;
+              }
+              if (filtered.length === 0) {
+                return <p className="text-sm text-muted-foreground text-center py-4">No versions match "{historySearch}".</p>;
+              }
+              return filtered.map((v) => (
+                <div key={v.id} className="border border-border rounded-lg p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline">v{v.version}</Badge>
+                      <span className="text-xs text-muted-foreground">{new Date(v.generated_at).toLocaleString()} · by {v.generated_by || "—"} · {v.questions?.length || 0} questions · {v.chapters?.length || 0} chapters</span>
+                      {v.note && <span className="text-xs italic text-muted-foreground">— {v.note}</span>}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      disabled={rollingBackId === v.id || !v.questions?.length || !isAdmin || historyLesson?.generation_status === "running"}
+                      title={!isAdmin ? "Admin only" : (historyLesson?.generation_status === "running" ? "Disabled while regeneration is running" : undefined)}
+                      onClick={() => rollbackToVersion(v)}
+                    >
+                      {rollingBackId === v.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
+                      Republish this version
+                    </Button>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5"
-                    disabled={rollingBackId === v.id || !v.questions?.length}
-                    onClick={() => rollbackToVersion(v)}
-                  >
-                    {rollingBackId === v.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
-                    Republish this version
-                  </Button>
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs text-muted-foreground">Show questions</summary>
+                    <div className="mt-2 pl-2 space-y-2 text-xs">
+                      {(v.questions || []).slice(0, 12).map((q: any, i: number) => (
+                        <div key={i} className="border-l-2 border-muted pl-2">
+                          <p className="font-medium">Ch {(q.chapter_index ?? 0) + 1} · Q{(q.sort_order ?? 0) + 1}: {q.question}</p>
+                          <p className="text-success">✓ {q.options?.[q.correct]}</p>
+                        </div>
+                      ))}
+                      {(v.questions?.length || 0) > 12 && <p className="text-muted-foreground">+ {v.questions.length - 12} more</p>}
+                    </div>
+                  </details>
                 </div>
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-xs text-muted-foreground">Show questions</summary>
-                  <div className="mt-2 pl-2 space-y-2 text-xs">
-                    {(v.questions || []).slice(0, 12).map((q: any, i: number) => (
-                      <div key={i} className="border-l-2 border-muted pl-2">
-                        <p className="font-medium">Ch {(q.chapter_index ?? 0) + 1} · Q{(q.sort_order ?? 0) + 1}: {q.question}</p>
-                        <p className="text-success">✓ {q.options?.[q.correct]}</p>
-                      </div>
-                    ))}
-                    {(v.questions?.length || 0) > 12 && <p className="text-muted-foreground">+ {v.questions.length - 12} more</p>}
-                  </div>
-                </details>
-              </div>
-            ))}
+              ));
+            })()}
           </div>
         </DialogContent>
       </Dialog>

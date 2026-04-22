@@ -146,22 +146,56 @@ const VideoMcqManager = () => {
     load();
   };
 
-  const handleRegenerate = async (l: VideoLesson) => {
-    if (!isAdmin) { toast.error("Only admins can regenerate MCQs"); return; }
-    const note = regenNote?.id === l.id ? regenNote.note.trim() : "";
-    setRegenNote(null);
+  const MAX_AUTO_RETRIES = 3;
+  // Backoff schedule (seconds). Index 0 → first auto-retry after the initial failure.
+  const RETRY_DELAYS_SEC = [5, 15, 45];
+
+  // Shared regenerate path. `silent` is used by auto-retries so we don't spam toasts;
+  // `attemptNumber` (1-indexed) is shown in toasts when it's a manual retry.
+  const triggerRegenerate = async (l: VideoLesson, opts: { silent?: boolean; attemptNumber?: number; note?: string } = {}) => {
+    if (!isAdmin) { if (!opts.silent) toast.error("Only admins can regenerate MCQs"); return; }
+    const note = opts.note ?? "";
     setLiveCounts((p) => ({ ...p, [l.id]: 0 }));
-    toast.info(`Regenerating MCQs for "${l.title}"… (v${(l.version || 1) + 1})`);
+    if (!opts.silent) {
+      toast.info(
+        opts.attemptNumber && opts.attemptNumber > 1
+          ? `Retrying "${l.title}" — attempt ${opts.attemptNumber}…`
+          : `Regenerating MCQs for "${l.title}"… (v${(l.version || 1) + 1})`
+      );
+    }
     const { data, error } = await supabase.functions.invoke("generate-video-mcqs", {
       body: { youtubeUrl: l.youtube_url, regenerateLessonId: l.id, createdBy: "admin", note },
     });
     if (error || (data as any)?.error) {
-      toast.error((data as any)?.error || error?.message || "Regeneration failed");
-    } else {
+      if (!opts.silent) toast.error((data as any)?.error || error?.message || "Regeneration failed");
+    } else if (!opts.silent) {
       toast.success(`Regenerated to v${(data as any).version}: ${(data as any).questionCount} new questions.`);
+      // Successful run — clear any retry tracking for this lesson.
+      setRetryState((s) => { const n = { ...s }; delete n[l.id]; return n; });
     }
     load();
   };
+
+  const handleRegenerate = async (l: VideoLesson) => {
+    const note = regenNote?.id === l.id ? regenNote.note.trim() : "";
+    setRegenNote(null);
+    // Manual user-initiated regenerate resets the auto-retry counter.
+    setRetryState((s) => ({ ...s, [l.id]: { attempts: 0, nextAttemptAt: null } }));
+    await triggerRegenerate(l, { note });
+  };
+
+  // Manual retry button on a failed lesson — counts as the next attempt and
+  // resets the backoff window for any future auto-retries.
+  const handleManualRetry = async (l: VideoLesson) => {
+    if (!isAdmin) { toast.error("Only admins can retry MCQ generation"); return; }
+    // Cancel any pending auto-retry timer.
+    const t = retryTimersRef.current[l.id];
+    if (t) { window.clearTimeout(t); delete retryTimersRef.current[l.id]; }
+    const current = retryState[l.id]?.attempts ?? 0;
+    setRetryState((s) => ({ ...s, [l.id]: { attempts: current + 1, nextAttemptAt: null } }));
+    await triggerRegenerate(l, { attemptNumber: current + 1 });
+  };
+
 
   const openHistory = async (l: VideoLesson) => {
     setHistoryLesson(l);

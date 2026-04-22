@@ -60,6 +60,10 @@ const VideoMcqManager = () => {
   const [versions, setVersions] = useState<LessonVersion[]>([]);
   const [rollingBackId, setRollingBackId] = useState<string | null>(null);
   const [regenNote, setRegenNote] = useState<{ id: string; note: string } | null>(null);
+  // Retry tracking — { lessonId: { attempts, nextAttemptAt, timer } }
+  // Backoff: 5s, 15s, 45s (cap at 3 auto-retries before requiring a manual retry).
+  const [retryState, setRetryState] = useState<Record<string, { attempts: number; nextAttemptAt: number | null }>>({});
+  const retryTimersRef = useRef<Record<string, number>>({});
   const pollRef = useRef<number | null>(null);
 
   const load = async () => {
@@ -79,6 +83,36 @@ const VideoMcqManager = () => {
     return () => { if (pollRef.current) window.clearInterval(pollRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessons.map((l) => l.id + l.generation_status).join(",")]);
+
+  // Auto-retry on failure with exponential backoff (5s → 15s → 45s, max 3 attempts).
+  // We watch every lesson that flips to "failed" and schedule the next attempt.
+  useEffect(() => {
+    if (!isAdmin) return;
+    lessons.forEach((l) => {
+      if (l.generation_status !== "failed") {
+        // Clear any scheduled timer if the lesson is no longer failed.
+        const t = retryTimersRef.current[l.id];
+        if (t) { window.clearTimeout(t); delete retryTimersRef.current[l.id]; }
+        return;
+      }
+      // Skip non-retryable errors (auth/credit/quota issues — manual fix needed).
+      const errLower = (l.generation_error || "").toLowerCase();
+      const nonRetryable = errLower.includes("credit") || errLower.includes("admin role") || errLower.includes("authentication");
+      if (nonRetryable) return;
+      const state = retryState[l.id] ?? { attempts: 0, nextAttemptAt: null };
+      if (state.attempts >= MAX_AUTO_RETRIES) return;
+      if (retryTimersRef.current[l.id]) return; // already scheduled
+      const delayMs = RETRY_DELAYS_SEC[state.attempts] * 1000;
+      const nextAt = Date.now() + delayMs;
+      setRetryState((s) => ({ ...s, [l.id]: { attempts: state.attempts, nextAttemptAt: nextAt } }));
+      retryTimersRef.current[l.id] = window.setTimeout(async () => {
+        delete retryTimersRef.current[l.id];
+        setRetryState((s) => ({ ...s, [l.id]: { attempts: state.attempts + 1, nextAttemptAt: null } }));
+        await triggerRegenerate(l, { silent: true });
+      }, delayMs);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessons.map((l) => l.id + l.generation_status + l.generation_error).join(","), isAdmin]);
 
   // Live MCQ-row counts per running lesson, used to show "X / Y chapters processed".
   const [liveCounts, setLiveCounts] = useState<Record<string, number>>({});
@@ -142,22 +176,56 @@ const VideoMcqManager = () => {
     load();
   };
 
-  const handleRegenerate = async (l: VideoLesson) => {
-    if (!isAdmin) { toast.error("Only admins can regenerate MCQs"); return; }
-    const note = regenNote?.id === l.id ? regenNote.note.trim() : "";
-    setRegenNote(null);
+  const MAX_AUTO_RETRIES = 3;
+  // Backoff schedule (seconds). Index 0 → first auto-retry after the initial failure.
+  const RETRY_DELAYS_SEC = [5, 15, 45];
+
+  // Shared regenerate path. `silent` is used by auto-retries so we don't spam toasts;
+  // `attemptNumber` (1-indexed) is shown in toasts when it's a manual retry.
+  const triggerRegenerate = async (l: VideoLesson, opts: { silent?: boolean; attemptNumber?: number; note?: string } = {}) => {
+    if (!isAdmin) { if (!opts.silent) toast.error("Only admins can regenerate MCQs"); return; }
+    const note = opts.note ?? "";
     setLiveCounts((p) => ({ ...p, [l.id]: 0 }));
-    toast.info(`Regenerating MCQs for "${l.title}"… (v${(l.version || 1) + 1})`);
+    if (!opts.silent) {
+      toast.info(
+        opts.attemptNumber && opts.attemptNumber > 1
+          ? `Retrying "${l.title}" — attempt ${opts.attemptNumber}…`
+          : `Regenerating MCQs for "${l.title}"… (v${(l.version || 1) + 1})`
+      );
+    }
     const { data, error } = await supabase.functions.invoke("generate-video-mcqs", {
       body: { youtubeUrl: l.youtube_url, regenerateLessonId: l.id, createdBy: "admin", note },
     });
     if (error || (data as any)?.error) {
-      toast.error((data as any)?.error || error?.message || "Regeneration failed");
-    } else {
+      if (!opts.silent) toast.error((data as any)?.error || error?.message || "Regeneration failed");
+    } else if (!opts.silent) {
       toast.success(`Regenerated to v${(data as any).version}: ${(data as any).questionCount} new questions.`);
+      // Successful run — clear any retry tracking for this lesson.
+      setRetryState((s) => { const n = { ...s }; delete n[l.id]; return n; });
     }
     load();
   };
+
+  const handleRegenerate = async (l: VideoLesson) => {
+    const note = regenNote?.id === l.id ? regenNote.note.trim() : "";
+    setRegenNote(null);
+    // Manual user-initiated regenerate resets the auto-retry counter.
+    setRetryState((s) => ({ ...s, [l.id]: { attempts: 0, nextAttemptAt: null } }));
+    await triggerRegenerate(l, { note });
+  };
+
+  // Manual retry button on a failed lesson — counts as the next attempt and
+  // resets the backoff window for any future auto-retries.
+  const handleManualRetry = async (l: VideoLesson) => {
+    if (!isAdmin) { toast.error("Only admins can retry MCQ generation"); return; }
+    // Cancel any pending auto-retry timer.
+    const t = retryTimersRef.current[l.id];
+    if (t) { window.clearTimeout(t); delete retryTimersRef.current[l.id]; }
+    const current = retryState[l.id]?.attempts ?? 0;
+    setRetryState((s) => ({ ...s, [l.id]: { attempts: current + 1, nextAttemptAt: null } }));
+    await triggerRegenerate(l, { attemptNumber: current + 1 });
+  };
+
 
   const openHistory = async (l: VideoLesson) => {
     setHistoryLesson(l);
@@ -376,9 +444,36 @@ const VideoMcqManager = () => {
                       </div>
                     )}
                     {l.generation_status === "failed" && l.generation_error && (
-                      <div className="mt-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive flex gap-2">
-                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                        <span><span className="font-semibold">Error:</span> {l.generation_error}</span>
+                      <div className="mt-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive space-y-1.5">
+                        <div className="flex gap-2">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                          <span><span className="font-semibold">Error:</span> {l.generation_error}</span>
+                        </div>
+                        {(() => {
+                          const rs = retryState[l.id];
+                          const attempts = rs?.attempts ?? 0;
+                          const nextAt = rs?.nextAttemptAt;
+                          const remaining = nextAt ? Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)) : null;
+                          if (attempts >= MAX_AUTO_RETRIES) {
+                            return <p className="text-[11px]">Auto-retry exhausted ({MAX_AUTO_RETRIES} attempts). Use the Retry button to try again manually.</p>;
+                          }
+                          if (remaining !== null) {
+                            return <p className="text-[11px]">Auto-retry #{attempts + 1} in ~{remaining}s (backoff: {RETRY_DELAYS_SEC.join("s, ")}s).</p>;
+                          }
+                          return null;
+                        })()}
+                        <div className="flex justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1.5"
+                            onClick={() => handleManualRetry(l)}
+                            disabled={!isAdmin}
+                            title={!isAdmin ? "Requires the Admin role." : "Retry MCQ generation now (cancels any pending auto-retry)."}
+                          >
+                            <RotateCw className="h-3 w-3" /> Retry now
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>

@@ -19,6 +19,33 @@ type College = { id: number; name: string; created_at: string };
 type AdminUser = { id: string; email: string; created_at: string };
 type ActivityLog = { id: string; trainer_id: string; trainer_name: string; action: string; reason: string; actor_name: string; created_at: string };
 
+// Reason codes for the multi-step approval workflow.
+// Stored in trainer_activity_log.reason as a single string formatted as
+// "<code label>: <reviewer note>" so existing readers stay backward-compatible.
+const APPROVE_REASON_CODES = [
+  { code: "verified_credentials", label: "Verified credentials & college affiliation" },
+  { code: "trusted_referrer", label: "Referred by an approved trainer/admin" },
+  { code: "pilot_program", label: "Pilot program / paid cohort" },
+  { code: "other_approve", label: "Other (explain in notes)" },
+];
+const REJECT_REASON_CODES = [
+  { code: "unverified_college", label: "College not affiliated / cannot verify" },
+  { code: "incomplete_profile", label: "Incomplete or invalid profile details" },
+  { code: "duplicate_account", label: "Duplicate or suspicious account" },
+  { code: "policy_violation", label: "Violates platform policy" },
+  { code: "other_reject", label: "Other (explain in notes)" },
+];
+
+type ReviewStep = "choose" | "details" | "confirm";
+type ReviewMode = "approve" | "reject";
+interface ReviewState {
+  trainer: Trainer;
+  mode: ReviewMode;
+  step: ReviewStep;
+  codeLabel: string;
+  notes: string;
+}
+
 const AdminManagement = () => {
   const { isAdmin, isCoordinator, loading: roleLoading } = useUserRole();
   const [students, setStudents] = useState<Student[]>([]);
@@ -29,8 +56,8 @@ const AdminManagement = () => {
   const [search, setSearch] = useState("");
   const [newCollege, setNewCollege] = useState("");
   const [loading, setLoading] = useState(true);
-  const [rejectTarget, setRejectTarget] = useState<Trainer | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
+  const [review, setReview] = useState<ReviewState | null>(null);
+  const [submittingReview, setSubmittingReview] = useState(false);
   const [activitySearch, setActivitySearch] = useState("");
   const [activityFrom, setActivityFrom] = useState("");
   const [activityTo, setActivityTo] = useState("");
@@ -84,32 +111,44 @@ const AdminManagement = () => {
     });
   };
 
-  const approveTrainer = async (t: Trainer) => {
-    if (!isAdmin) { toast.error("Only admins can approve trainers"); return; }
-    const wasRejected = t.status === "rejected";
-    const { error } = await supabase
-      .from("trainers")
-      .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: "admin", rejection_reason: "" })
-      .eq("id", t.id);
-    if (error) { toast.error("Failed to approve"); return; }
-    await logActivity(t, wasRejected ? "re-approved" : "approved", "");
-    toast.success(`${t.name} approved`);
-    load();
+  // Open the multi-step review dialog. The flow is: choose reason code → add notes → confirm.
+  const startReview = (trainer: Trainer, mode: ReviewMode) => {
+    if (!isAdmin) { toast.error(`Only admins can ${mode === "approve" ? "approve" : "reject"} trainers`); return; }
+    setReview({ trainer, mode, step: "choose", codeLabel: "", notes: "" });
   };
 
-  const submitReject = async () => {
-    if (!rejectTarget) return;
-    if (!isAdmin) { toast.error("Only admins can reject trainers"); return; }
-    const reason = rejectReason.trim() || "Not approved by coordinator";
-    const { error } = await supabase
-      .from("trainers")
-      .update({ status: "rejected", rejection_reason: reason, approved_by: "admin" })
-      .eq("id", rejectTarget.id);
-    if (error) { toast.error("Failed to reject"); return; }
-    await logActivity(rejectTarget, "rejected", reason);
-    toast.success(`${rejectTarget.name} rejected`);
-    setRejectTarget(null); setRejectReason("");
-    load();
+  const submitReview = async () => {
+    if (!review) return;
+    if (!isAdmin) { toast.error("Admin role required"); return; }
+    const { trainer, mode, codeLabel, notes } = review;
+    const note = notes.trim();
+    // Persist the structured reason+note so the activity log stays human-readable.
+    const reason = note ? `${codeLabel}: ${note}` : codeLabel;
+    setSubmittingReview(true);
+    try {
+      if (mode === "approve") {
+        const wasRejected = trainer.status === "rejected";
+        const { error } = await supabase
+          .from("trainers")
+          .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: "admin", rejection_reason: "" })
+          .eq("id", trainer.id);
+        if (error) { toast.error("Failed to approve"); return; }
+        await logActivity(trainer, wasRejected ? "re-approved" : "approved", reason);
+        toast.success(`${trainer.name} approved`);
+      } else {
+        const { error } = await supabase
+          .from("trainers")
+          .update({ status: "rejected", rejection_reason: reason, approved_by: "admin" })
+          .eq("id", trainer.id);
+        if (error) { toast.error("Failed to reject"); return; }
+        await logActivity(trainer, "rejected", reason);
+        toast.success(`${trainer.name} rejected`);
+      }
+      setReview(null);
+      load();
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   const filtered = <T extends { name: string; mobile?: string; email?: string }>(arr: T[]) =>
@@ -277,8 +316,8 @@ const AdminManagement = () => {
                       <TableCell>{t.location}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right space-x-2">
-                        <Button size="sm" onClick={() => approveTrainer(t)} disabled={!isAdmin} title={!isAdmin ? "Admin only" : undefined} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve</Button>
-                        <Button size="sm" variant="outline" onClick={() => { setRejectTarget(t); setRejectReason(""); }} disabled={!isAdmin} title={!isAdmin ? "Admin only" : undefined} className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"><X className="h-3.5 w-3.5" /> Reject</Button>
+                        <Button size="sm" onClick={() => startReview(t, "approve")} disabled={!isAdmin} title={!isAdmin ? "Admin only" : undefined} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve…</Button>
+                        <Button size="sm" variant="outline" onClick={() => startReview(t, "reject")} disabled={!isAdmin} title={!isAdmin ? "Admin only" : undefined} className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"><X className="h-3.5 w-3.5" /> Reject…</Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -300,7 +339,7 @@ const AdminManagement = () => {
                           <TableCell>{t.email}</TableCell>
                           <TableCell className="text-xs text-destructive">{t.rejection_reason || "—"}</TableCell>
                           <TableCell className="text-right">
-                            <Button size="sm" variant="outline" onClick={() => approveTrainer(t)} disabled={!isAdmin} title={!isAdmin ? "Admin only" : undefined} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve</Button>
+                            <Button size="sm" variant="outline" onClick={() => startReview(t, "approve")} disabled={!isAdmin} title={!isAdmin ? "Admin only" : undefined} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve…</Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -374,17 +413,107 @@ const AdminManagement = () => {
         );
       })()}
 
-      <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(""); } }}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Reject {rejectTarget?.name}?</DialogTitle></DialogHeader>
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Provide a reason — the trainer will see this on their next login.</p>
-            <Textarea placeholder="e.g., College not affiliated with our institute" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={3} />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setRejectTarget(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={submitReject}>Confirm reject</Button>
-          </DialogFooter>
+      {/* Multi-step approval/rejection workflow:
+          1. choose  — pick a structured reason code (radio list)
+          2. details — free-form reviewer note (optional for approve, recommended for reject)
+          3. confirm — full preview of what will be saved + sent to the trainer */}
+      <Dialog open={!!review} onOpenChange={(o) => { if (!o && !submittingReview) setReview(null); }}>
+        <DialogContent className="max-w-lg">
+          {review && (() => {
+            const isApprove = review.mode === "approve";
+            const codes = isApprove ? APPROVE_REASON_CODES : REJECT_REASON_CODES;
+            const stepNumber = review.step === "choose" ? 1 : review.step === "details" ? 2 : 3;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    {isApprove ? <Check className="h-5 w-5 text-success" /> : <X className="h-5 w-5 text-destructive" />}
+                    {isApprove ? "Approve" : "Reject"} {review.trainer.name}
+                  </DialogTitle>
+                  <p className="text-xs text-muted-foreground">Step {stepNumber} of 3 · {review.trainer.email} · {review.trainer.college || "no college"}</p>
+                </DialogHeader>
+
+                {review.step === "choose" && (
+                  <div className="space-y-3">
+                    <p className="text-sm">Pick the primary reason for this decision. The reason is recorded in the activity log and shown to the trainer.</p>
+                    <div className="space-y-2">
+                      {codes.map((c) => (
+                        <label key={c.code} className={`flex items-start gap-3 rounded-md border p-3 cursor-pointer transition-colors ${review.codeLabel === c.label ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"}`}>
+                          <input
+                            type="radio"
+                            name="reason-code"
+                            checked={review.codeLabel === c.label}
+                            onChange={() => setReview({ ...review, codeLabel: c.label })}
+                            className="mt-1 accent-primary"
+                          />
+                          <span className="text-sm">{c.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {review.step === "details" && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Reviewer notes {isApprove ? "(optional)" : "(strongly recommended)"}</label>
+                    <p className="text-xs text-muted-foreground">Add context the trainer should see — e.g., next steps, what was missing, or who verified them.</p>
+                    <Textarea
+                      placeholder={isApprove ? "e.g., Verified via official college email; please complete onboarding." : "e.g., We couldn't verify your college email — please re-register from your @college.edu address."}
+                      value={review.notes}
+                      onChange={(e) => setReview({ ...review, notes: e.target.value })}
+                      rows={4}
+                    />
+                    <p className="text-[11px] text-muted-foreground">Selected reason: <span className="font-medium">{review.codeLabel}</span></p>
+                  </div>
+                )}
+
+                {review.step === "confirm" && (
+                  <div className="space-y-3 text-sm">
+                    <div className="rounded-md border border-border p-3 space-y-1.5 bg-muted/30">
+                      <p><span className="text-muted-foreground">Decision:</span> <Badge variant={isApprove ? "default" : "destructive"} className="capitalize">{isApprove ? (review.trainer.status === "rejected" ? "re-approve" : "approve") : "reject"}</Badge></p>
+                      <p><span className="text-muted-foreground">Reason code:</span> {review.codeLabel}</p>
+                      <p><span className="text-muted-foreground">Notes:</span> {review.notes.trim() || <em className="text-muted-foreground">none</em>}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {isApprove
+                        ? "The trainer will be able to log in immediately. The reason and notes are saved to the activity log for audit."
+                        : "The trainer will see this reason and notes on their next login attempt. They can re-register or contact you."}
+                    </p>
+                  </div>
+                )}
+
+                <DialogFooter className="gap-2">
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      if (review.step === "choose") setReview(null);
+                      else if (review.step === "details") setReview({ ...review, step: "choose" });
+                      else setReview({ ...review, step: "details" });
+                    }}
+                    disabled={submittingReview}
+                  >
+                    {review.step === "choose" ? "Cancel" : "Back"}
+                  </Button>
+                  {review.step !== "confirm" ? (
+                    <Button
+                      onClick={() => setReview({ ...review, step: review.step === "choose" ? "details" : "confirm" })}
+                      disabled={review.step === "choose" && !review.codeLabel}
+                    >
+                      Next
+                    </Button>
+                  ) : (
+                    <Button
+                      variant={isApprove ? "default" : "destructive"}
+                      onClick={submitReview}
+                      disabled={submittingReview}
+                    >
+                      {submittingReview ? "Saving…" : `Confirm ${isApprove ? "approve" : "reject"}`}
+                    </Button>
+                  )}
+                </DialogFooter>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

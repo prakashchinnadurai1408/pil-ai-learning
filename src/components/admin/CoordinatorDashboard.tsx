@@ -346,7 +346,7 @@ const CoordinatorDashboard = () => {
           <CardTitle className="text-base flex items-center gap-2"><Eye className="h-4 w-4" /> Recent approval activity</CardTitle>
         </CardHeader>
         <CardContent>
-          {activity.length === 0 ? (
+          {filteredActivity.length === 0 ? (
             <p className="text-sm text-muted-foreground">No approval/rejection actions yet.</p>
           ) : (
             <Table>

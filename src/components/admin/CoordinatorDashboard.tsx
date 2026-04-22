@@ -155,7 +155,44 @@ const CoordinatorDashboard = () => {
         </div>
       )}
 
-      <div className="grid sm:grid-cols-3 gap-4">
+      {/* Filter bar */}
+      <Card>
+        <CardContent className="p-3 flex flex-wrap items-end gap-2">
+          <div className="flex-1 min-w-[200px]">
+            <label className="text-[11px] text-muted-foreground font-medium">Search trainer / lesson</label>
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, email, college, lesson title…" className="h-9 pl-8 text-sm" />
+            </div>
+          </div>
+          <div className="min-w-[170px]">
+            <label className="text-[11px] text-muted-foreground font-medium">Lesson status</label>
+            <Select value={lessonStatus} onValueChange={(v) => setLessonStatus(v as LessonStatusFilter)}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="running">Running</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="awaiting_retry">Awaiting retry</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-[11px] text-muted-foreground font-medium">From</label>
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 text-sm" />
+          </div>
+          <div>
+            <label className="text-[11px] text-muted-foreground font-medium">To</label>
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 text-sm" />
+          </div>
+          {hasFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1.5"><X className="h-3.5 w-3.5" /> Clear</Button>
+          )}
+          <Badge variant="outline" className="ml-auto gap-1.5 text-xs"><Filter className="h-3 w-3" /> {filteredLessons.length} lessons · {filteredPending.length} pending</Badge>
+        </CardContent>
+      </Card>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <Loader2 className={`h-8 w-8 text-primary ${running.length ? "animate-spin" : "opacity-30"}`} />
@@ -176,9 +213,18 @@ const CoordinatorDashboard = () => {
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <Clock className={`h-8 w-8 ${pending.length ? "text-warning" : "text-muted-foreground/40"}`} />
+            <RefreshCw className={`h-8 w-8 ${awaitingRetry.length ? "text-warning" : "text-muted-foreground/40"}`} />
             <div>
-              <div className="text-2xl font-bold">{pending.length}</div>
+              <div className="text-2xl font-bold">{awaitingRetry.length}</div>
+              <div className="text-xs text-muted-foreground">Awaiting auto-retry</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <Clock className={`h-8 w-8 ${filteredPending.length ? "text-warning" : "text-muted-foreground/40"}`} />
+            <div>
+              <div className="text-2xl font-bold">{filteredPending.length}</div>
               <div className="text-xs text-muted-foreground">Trainers awaiting approval</div>
             </div>
           </CardContent>

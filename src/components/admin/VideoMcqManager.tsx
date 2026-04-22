@@ -504,21 +504,32 @@ const VideoMcqManager = () => {
                       const remaining = nextAt ? Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)) : 0;
                       const isAwaitingRetry = remaining > 0;
                       const exhausted = attempts >= MAX_AUTO_RETRIES;
-                      const retryTip = !isAdmin
-                        ? "Admin role required. Coordinators cannot trigger MCQ regeneration — they only see live status."
-                        : isAwaitingRetry
-                          ? `Admin action: regenerate MCQs immediately. Disabled for ${remaining}s while the next auto-retry is scheduled — click "Cancel auto-retry" first if you want to take over manually.`
-                          : "Admin action: retry MCQ generation now. This counts as the next attempt and clears any pending auto-retry.";
-                      const cancelTip = !isAdmin
-                        ? "Admin role required. Only admins can cancel a scheduled auto-retry."
-                        : `Admin action: stop the scheduled auto-retry that is set to run in ${remaining}s. After cancelling, the lesson will stay in "failed" state until you manually click Retry now.`;
+                      // A retry could already be in-flight (e.g. an auto-retry just fired and
+                      // flipped the lesson to "running" before refetch). Block both controls
+                      // to prevent double-firing the regenerate edge function.
+                      const isRunning = (l.generation_status as string) === "running";
+                      const runningBlockTip = "Blocked while MCQ regeneration is in progress for this lesson. The current job is already running — wait for it to finish (or fail) before retrying or cancelling.";
+                      const retryTip = isRunning
+                        ? runningBlockTip
+                        : !isAdmin
+                          ? "Admin role required. Coordinators cannot trigger MCQ regeneration — they only see live status."
+                          : isAwaitingRetry
+                            ? `Admin action: regenerate MCQs immediately. Disabled for ${remaining}s while the next auto-retry is scheduled — click "Cancel auto-retry" first if you want to take over manually.`
+                            : "Admin action: retry MCQ generation now. This counts as the next attempt and clears any pending auto-retry.";
+                      const cancelTip = isRunning
+                        ? runningBlockTip
+                        : !isAdmin
+                          ? "Admin role required. Only admins can cancel a scheduled auto-retry."
+                          : `Admin action: stop the scheduled auto-retry that is set to run in ${remaining}s. After cancelling, the lesson will stay in "failed" state until you manually click Retry now.`;
                       return (
                         <div className="mt-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive space-y-1.5">
                           <div className="flex gap-2">
                             <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                             <span><span className="font-semibold">Error:</span> {l.generation_error}</span>
                           </div>
-                          {exhausted ? (
+                          {isRunning ? (
+                            <p className="text-[11px] flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" /> Regeneration in progress — retry and cancel are temporarily blocked.</p>
+                          ) : exhausted ? (
                             <p className="text-[11px]">Auto-retry exhausted ({MAX_AUTO_RETRIES} attempts). Use the Retry button below to try again manually (admin only).</p>
                           ) : isAwaitingRetry ? (
                             <p className="text-[11px]">Auto-retry #{attempts + 1} scheduled in <span className="font-semibold tabular-nums">{remaining}s</span> (backoff: {RETRY_DELAYS_SEC.join("s, ")}s).</p>
@@ -530,10 +541,10 @@ const VideoMcqManager = () => {
                                 variant="outline"
                                 className="h-7 text-xs gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
                                 onClick={() => setCancelRetryFor(l)}
-                                disabled={!isAdmin}
+                                disabled={!isAdmin || isRunning}
                                 title={cancelTip}
                               >
-                                {!isAdmin && <Lock className="h-3 w-3" />}
+                                {(!isAdmin || isRunning) && <Lock className="h-3 w-3" />}
                                 <XCircle className="h-3 w-3" /> Cancel auto-retry ({remaining}s)
                               </Button>
                             )}
@@ -542,12 +553,12 @@ const VideoMcqManager = () => {
                               variant="outline"
                               className="h-7 text-xs gap-1.5"
                               onClick={() => handleManualRetry(l)}
-                              disabled={!isAdmin || isAwaitingRetry}
+                              disabled={!isAdmin || isAwaitingRetry || isRunning}
                               title={retryTip}
                             >
-                              {!isAdmin && <Lock className="h-3 w-3" />}
-                              <RotateCw className="h-3 w-3" />
-                              {isAwaitingRetry ? `Retry in ${remaining}s` : "Retry now"}
+                              {(!isAdmin || isRunning) && <Lock className="h-3 w-3" />}
+                              <RotateCw className={`h-3 w-3 ${isRunning ? "animate-spin" : ""}`} />
+                              {isRunning ? "Regenerating…" : isAwaitingRetry ? `Retry in ${remaining}s` : "Retry now"}
                             </Button>
                           </div>
                         </div>

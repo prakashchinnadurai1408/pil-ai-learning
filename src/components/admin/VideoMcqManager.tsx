@@ -118,9 +118,10 @@ const VideoMcqManager = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (!isAdmin) { toast.error("Only admins can delete lessons"); return; }
     if (!confirm("Delete this lesson and all its generated questions?")) return;
-    const { error } = await supabase.from("video_lessons").delete().eq("id", id);
-    if (error) { toast.error("Could not delete"); return; }
+    const { data, error } = await supabase.functions.invoke("mcq-admin-action", { body: { action: "delete", lessonId: id } });
+    if (error || (data as any)?.error) { toast.error((data as any)?.error || error?.message || "Could not delete"); return; }
     toast.success("Lesson deleted");
     load();
   };
@@ -128,19 +129,16 @@ const VideoMcqManager = () => {
   const handlePublish = async (l: VideoLesson) => {
     if (!isAdmin) { toast.error("Only admins can publish or unpublish MCQ versions"); return; }
     if (l.generation_status === "running") { toast.error("Cannot publish while regeneration is running"); return; }
-    // Block publish if any question fails validation
-    const { data: qs } = await supabase.from("video_lesson_questions").select("question,options,correct").eq("lesson_id", l.id);
+    // Block publish if any question fails validation (client-side fast check before round-trip)
     if (l.status !== "published") {
+      const { data: qs } = await supabase.from("video_lesson_questions").select("question,options,correct").eq("lesson_id", l.id);
       const bad = (qs || []).find((q: any) => validateQuestion({ question: q.question, options: q.options || [], correct: q.correct }));
-      if (bad) {
-        toast.error("Fix invalid questions before publishing — open Preview to edit.");
-        return;
-      }
+      if (bad) { toast.error("Fix invalid questions before publishing — open Preview to edit."); return; }
     }
-    const next = l.status === "published" ? "draft" : "published";
-    const { error } = await supabase.from("video_lessons").update({ status: next }).eq("id", l.id);
-    if (error) { toast.error("Update failed"); return; }
-    toast.success(`Lesson set to ${next}`);
+    const action = l.status === "published" ? "unpublish" : "publish";
+    const { data, error } = await supabase.functions.invoke("mcq-admin-action", { body: { action, lessonId: l.id } });
+    if (error || (data as any)?.error) { toast.error((data as any)?.error || error?.message || "Update failed"); return; }
+    toast.success(`Lesson ${action === "publish" ? "published" : "moved to draft"}`);
     load();
   };
 

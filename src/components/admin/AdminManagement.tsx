@@ -20,6 +20,7 @@ type AdminUser = { id: string; email: string; created_at: string };
 type ActivityLog = { id: string; trainer_id: string; trainer_name: string; action: string; reason: string; actor_name: string; created_at: string };
 
 const AdminManagement = () => {
+  const { isAdmin, isCoordinator, loading: roleLoading } = useUserRole();
   const [students, setStudents] = useState<Student[]>([]);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);

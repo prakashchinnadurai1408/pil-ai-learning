@@ -60,6 +60,10 @@ const VideoMcqManager = () => {
   const [versions, setVersions] = useState<LessonVersion[]>([]);
   const [rollingBackId, setRollingBackId] = useState<string | null>(null);
   const [regenNote, setRegenNote] = useState<{ id: string; note: string } | null>(null);
+  // Retry tracking — { lessonId: { attempts, nextAttemptAt, timer } }
+  // Backoff: 5s, 15s, 45s (cap at 3 auto-retries before requiring a manual retry).
+  const [retryState, setRetryState] = useState<Record<string, { attempts: number; nextAttemptAt: number | null }>>({});
+  const retryTimersRef = useRef<Record<string, number>>({});
   const pollRef = useRef<number | null>(null);
 
   const load = async () => {

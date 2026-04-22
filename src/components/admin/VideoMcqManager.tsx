@@ -145,6 +145,7 @@ const VideoMcqManager = () => {
   };
 
   const handleRegenerate = async (l: VideoLesson) => {
+    if (!isAdmin) { toast.error("Only admins can regenerate MCQs"); return; }
     const note = regenNote?.id === l.id ? regenNote.note.trim() : "";
     setRegenNote(null);
     setLiveCounts((p) => ({ ...p, [l.id]: 0 }));

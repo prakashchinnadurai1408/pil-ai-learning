@@ -15,6 +15,7 @@ const StudentDashboard = lazy(() => import("./pages/StudentDashboard.tsx"));
 const TrainerDashboard = lazy(() => import("./pages/TrainerDashboard.tsx"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+import { AdminGuard } from "@/components/AdminGuard";
 
 const queryClient = new QueryClient();
 
@@ -33,7 +34,7 @@ const App = () => (
               <Route path="/admin-login" element={<AdminLogin />} />
               <Route path="/student-dashboard" element={<StudentDashboard />} />
               <Route path="/trainer-dashboard" element={<TrainerDashboard />} />
-              <Route path="/admin-dashboard" element={<AdminDashboard />} />
+              <Route path="/admin-dashboard" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

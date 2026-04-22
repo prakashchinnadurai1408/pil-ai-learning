@@ -93,8 +93,37 @@ const CoordinatorDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessons.map((l) => l.id + l.generation_status).join(",")]);
 
-  const running = useMemo(() => lessons.filter((l) => l.generation_status === "running"), [lessons]);
-  const failed = useMemo(() => lessons.filter((l) => l.generation_status === "failed").slice(0, 8), [lessons]);
+  const fromTs = useMemo(() => (dateFrom ? new Date(dateFrom + "T00:00:00").getTime() : null), [dateFrom]);
+  const toTs = useMemo(() => (dateTo ? new Date(dateTo + "T23:59:59.999").getTime() : null), [dateTo]);
+  const inRange = (iso: string | null | undefined) => {
+    if (!iso) return true;
+    const t = new Date(iso).getTime();
+    if (fromTs !== null && t < fromTs) return false;
+    if (toTs !== null && t > toTs) return false;
+    return true;
+  };
+  const matchesText = (s: string) => !search.trim() || s.toLowerCase().includes(search.trim().toLowerCase());
+  const isAwaitingRetry = (l: VideoLessonRow) =>
+    l.generation_status === "failed" && !!l.last_regenerated_at && Date.now() - new Date(l.last_regenerated_at).getTime() < 60_000;
+
+  const filteredLessons = useMemo(() => lessons.filter((l) => {
+    if (!matchesText(l.title)) return false;
+    if (!inRange(l.last_regenerated_at)) return false;
+    if (lessonStatus === "running" && l.generation_status !== "running") return false;
+    if (lessonStatus === "failed" && l.generation_status !== "failed") return false;
+    if (lessonStatus === "awaiting_retry" && !isAwaitingRetry(l)) return false;
+    return true;
+  }), [lessons, search, lessonStatus, fromTs, toTs]);
+
+  const running = useMemo(() => filteredLessons.filter((l) => l.generation_status === "running"), [filteredLessons]);
+  const failed = useMemo(() => filteredLessons.filter((l) => l.generation_status === "failed").slice(0, 8), [filteredLessons]);
+  const awaitingRetry = useMemo(() => filteredLessons.filter(isAwaitingRetry), [filteredLessons]);
+
+  const filteredPending = useMemo(() => pending.filter((p) => (matchesText(p.name) || matchesText(p.email) || matchesText(p.college)) && inRange(p.created_at)), [pending, search, fromTs, toTs]);
+  const filteredActivity = useMemo(() => activity.filter((a) => (matchesText(a.trainer_name) || matchesText(a.actor_name) || matchesText(a.action)) && inRange(a.created_at)), [activity, search, fromTs, toTs]);
+
+  const hasFilters = !!search || lessonStatus !== "all" || !!dateFrom || !!dateTo;
+  const clearFilters = () => { setSearch(""); setLessonStatus("all"); setDateFrom(""); setDateTo(""); };
 
   return (
     <div className="space-y-6">

@@ -87,8 +87,42 @@ const CoordinatorDashboard = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  // 1Hz tick so countdowns and "running for Xs" labels update live.
+  const [, setNowTick] = useState(0);
   useEffect(() => {
-    // Poll every 4s while any job is running, else every 30s as a soft refresh.
+    const t = window.setInterval(() => setNowTick((n) => n + 1), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  // Realtime subscription on video_lessons — instantly reflects transitions
+  // (running ↔ failed ↔ awaiting retry) without waiting for the 4s/30s poll.
+  useEffect(() => {
+    const channel = supabase
+      .channel("video_lessons_coord_rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "video_lessons" }, (payload) => {
+        const row = (payload.new ?? payload.old) as VideoLessonRow | undefined;
+        if (!row?.id) return;
+        setLessons((prev) => {
+          if (payload.eventType === "DELETE") return prev.filter((l) => l.id !== row.id);
+          const idx = prev.findIndex((l) => l.id === row.id);
+          if (idx === -1) return [payload.new as VideoLessonRow, ...prev].slice(0, 50);
+          const next = [...prev];
+          next[idx] = { ...next[idx], ...(payload.new as VideoLessonRow) };
+          return next;
+        });
+        // If a job just started, refresh question counts shortly after.
+        if ((payload.new as any)?.generation_status === "running") {
+          setTimeout(() => refreshLiveCounts(), 500);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  useEffect(() => {
+    // Fallback poll: every 4s if anything is running, else 30s as a soft refresh
+    // (covers e.g. trainer_activity_log / pending trainers which have no realtime channel).
     const anyRunning = lessons.some((l) => l.generation_status === "running");
     const interval = anyRunning ? 4000 : 30000;
     const t = window.setInterval(() => { load(); refreshLiveCounts(); }, interval);

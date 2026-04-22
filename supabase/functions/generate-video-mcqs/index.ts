@@ -79,9 +79,36 @@ serve(async (req) => {
   let lessonId: string | null = null;
   try {
     const body = await req.json().catch(() => ({}));
-    const { youtubeUrl, title: titleOverride, moduleId, createdBy } = body ?? {};
+    const { youtubeUrl, title: titleOverride, moduleId, createdBy, regenerateLessonId, note } = body ?? {};
     if (!youtubeUrl || typeof youtubeUrl !== "string") return json({ error: "youtubeUrl is required" }, 400);
     if (!LOVABLE_API_KEY) return json({ error: "LOVABLE_API_KEY not configured" }, 500);
+
+    // If regenerating: snapshot current chapters+questions into video_lesson_versions, then bump version.
+    let nextVersion = 1;
+    if (regenerateLessonId) {
+      const { data: existing } = await supabase
+        .from("video_lessons")
+        .select("id,version,chapters")
+        .eq("id", regenerateLessonId)
+        .maybeSingle();
+      if (existing) {
+        const { data: oldQs } = await supabase
+          .from("video_lesson_questions")
+          .select("chapter_index,chapter_title,chapter_start_seconds,question,options,correct,explanation,sort_order")
+          .eq("lesson_id", regenerateLessonId);
+        await supabase.from("video_lesson_versions").insert({
+          lesson_id: regenerateLessonId,
+          version: existing.version || 1,
+          chapters: existing.chapters || [],
+          questions: oldQs || [],
+          generated_by: createdBy || "admin",
+          note: note || "",
+        });
+        nextVersion = (existing.version || 1) + 1;
+        // Wipe current questions; we'll re-insert fresh ones below.
+        await supabase.from("video_lesson_questions").delete().eq("lesson_id", regenerateLessonId);
+      }
+    }
 
     const videoId = extractVideoId(youtubeUrl);
     if (!videoId) return json({ error: "Could not parse a YouTube video ID from that URL." }, 400);

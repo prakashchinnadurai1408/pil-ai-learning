@@ -13,6 +13,7 @@ interface L {
   updated_at?: string | null;
   last_regenerated_at?: string | null;
   retry_scheduled_at?: string | null;
+  [k: string]: unknown;
 }
 
 const lesson = (over: Partial<L> & { id: string }): L => ({

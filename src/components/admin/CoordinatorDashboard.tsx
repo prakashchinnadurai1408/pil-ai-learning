@@ -286,7 +286,12 @@ const CoordinatorDashboard = () => {
               <TableBody>
                 {failed.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell className="font-medium text-sm">{l.title}</TableCell>
+                    <TableCell className="font-medium text-sm">
+                      <div className="flex items-center gap-2">
+                        <span>{l.title}</span>
+                        {isAwaitingRetry(l) && <Badge variant="outline" className="text-[10px] gap-1 border-warning/50 text-warning"><RefreshCw className="h-2.5 w-2.5" /> awaiting retry</Badge>}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-xs text-destructive max-w-md truncate" title={l.generation_error}>{l.generation_error || "—"}</TableCell>
                     <TableCell className="text-xs">{l.version}</TableCell>
                     <TableCell className="text-right">

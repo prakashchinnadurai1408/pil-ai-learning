@@ -241,7 +241,7 @@ const CoordinatorDashboard = () => {
         </CardHeader>
         <CardContent>
           {running.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No regeneration jobs are currently running.</p>
+            <p className="text-sm text-muted-foreground">{hasFilters ? "No running jobs match the current filters." : "No regeneration jobs are currently running."}</p>
           ) : (
             <div className="space-y-3">
               {running.map((l) => {

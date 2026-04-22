@@ -1538,6 +1538,39 @@ export type Database = {
         }
         Relationships: []
       }
+      trainer_activity_log: {
+        Row: {
+          action: string
+          actor_id: string
+          actor_name: string
+          created_at: string
+          id: string
+          reason: string
+          trainer_id: string
+          trainer_name: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string
+          actor_name?: string
+          created_at?: string
+          id?: string
+          reason?: string
+          trainer_id: string
+          trainer_name?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          actor_name?: string
+          created_at?: string
+          id?: string
+          reason?: string
+          trainer_id?: string
+          trainer_name?: string
+        }
+        Relationships: []
+      }
       trainer_messages: {
         Row: {
           body: string
@@ -1702,6 +1735,47 @@ export type Database = {
           },
         ]
       }
+      video_lesson_versions: {
+        Row: {
+          chapters: Json
+          generated_at: string
+          generated_by: string
+          id: string
+          lesson_id: string
+          note: string
+          questions: Json
+          version: number
+        }
+        Insert: {
+          chapters?: Json
+          generated_at?: string
+          generated_by?: string
+          id?: string
+          lesson_id: string
+          note?: string
+          questions?: Json
+          version: number
+        }
+        Update: {
+          chapters?: Json
+          generated_at?: string
+          generated_by?: string
+          id?: string
+          lesson_id?: string
+          note?: string
+          questions?: Json
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_lesson_versions_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "video_lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       video_lessons: {
         Row: {
           chapters: Json
@@ -1712,11 +1786,13 @@ export type Database = {
           generation_error: string
           generation_status: string
           id: string
+          last_regenerated_at: string | null
           module_id: number | null
           status: string
           thumbnail_url: string
           title: string
           updated_at: string
+          version: number
           youtube_url: string
           youtube_video_id: string
         }
@@ -1729,11 +1805,13 @@ export type Database = {
           generation_error?: string
           generation_status?: string
           id?: string
+          last_regenerated_at?: string | null
           module_id?: number | null
           status?: string
           thumbnail_url?: string
           title: string
           updated_at?: string
+          version?: number
           youtube_url: string
           youtube_video_id?: string
         }
@@ -1746,11 +1824,13 @@ export type Database = {
           generation_error?: string
           generation_status?: string
           id?: string
+          last_regenerated_at?: string | null
           module_id?: number | null
           status?: string
           thumbnail_url?: string
           title?: string
           updated_at?: string
+          version?: number
           youtube_url?: string
           youtube_video_id?: string
         }

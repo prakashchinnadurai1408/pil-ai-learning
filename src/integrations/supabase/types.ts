@@ -718,6 +718,51 @@ export type Database = {
         }
         Relationships: []
       }
+      login_attempts: {
+        Row: {
+          audience: string
+          created_at: string
+          id: string
+          identifier: string
+          identifier_type: string
+          ip_address: string
+          reason: string
+          stage: string
+          status: string
+          user_agent: string
+          user_id: string | null
+          user_name: string
+        }
+        Insert: {
+          audience?: string
+          created_at?: string
+          id?: string
+          identifier?: string
+          identifier_type?: string
+          ip_address?: string
+          reason?: string
+          stage?: string
+          status?: string
+          user_agent?: string
+          user_id?: string | null
+          user_name?: string
+        }
+        Update: {
+          audience?: string
+          created_at?: string
+          id?: string
+          identifier?: string
+          identifier_type?: string
+          ip_address?: string
+          reason?: string
+          stage?: string
+          status?: string
+          user_agent?: string
+          user_id?: string | null
+          user_name?: string
+        }
+        Relationships: []
+      }
       menu_access_controls: {
         Row: {
           advanced_access: boolean
@@ -1540,6 +1585,8 @@ export type Database = {
       }
       trainers: {
         Row: {
+          approved_at: string | null
+          approved_by: string
           college: string
           created_at: string
           email: string
@@ -1548,9 +1595,13 @@ export type Database = {
           mobile: string
           name: string
           password: string
+          rejection_reason: string
+          status: string
           subscription_tier: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string
           college: string
           created_at?: string
           email: string
@@ -1559,9 +1610,13 @@ export type Database = {
           mobile: string
           name: string
           password?: string
+          rejection_reason?: string
+          status?: string
           subscription_tier?: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string
           college?: string
           created_at?: string
           email?: string
@@ -1570,6 +1625,8 @@ export type Database = {
           mobile?: string
           name?: string
           password?: string
+          rejection_reason?: string
+          status?: string
           subscription_tier?: string
         }
         Relationships: []
@@ -1592,6 +1649,110 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      video_lesson_questions: {
+        Row: {
+          chapter_index: number
+          chapter_start_seconds: number
+          chapter_title: string
+          correct: number
+          created_at: string
+          explanation: string
+          id: string
+          lesson_id: string
+          options: Json
+          question: string
+          sort_order: number
+        }
+        Insert: {
+          chapter_index?: number
+          chapter_start_seconds?: number
+          chapter_title?: string
+          correct?: number
+          created_at?: string
+          explanation?: string
+          id?: string
+          lesson_id: string
+          options?: Json
+          question: string
+          sort_order?: number
+        }
+        Update: {
+          chapter_index?: number
+          chapter_start_seconds?: number
+          chapter_title?: string
+          correct?: number
+          created_at?: string
+          explanation?: string
+          id?: string
+          lesson_id?: string
+          options?: Json
+          question?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_lesson_questions_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "video_lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_lessons: {
+        Row: {
+          chapters: Json
+          created_at: string
+          created_by: string
+          description: string
+          duration_seconds: number
+          generation_error: string
+          generation_status: string
+          id: string
+          module_id: number | null
+          status: string
+          thumbnail_url: string
+          title: string
+          updated_at: string
+          youtube_url: string
+          youtube_video_id: string
+        }
+        Insert: {
+          chapters?: Json
+          created_at?: string
+          created_by?: string
+          description?: string
+          duration_seconds?: number
+          generation_error?: string
+          generation_status?: string
+          id?: string
+          module_id?: number | null
+          status?: string
+          thumbnail_url?: string
+          title: string
+          updated_at?: string
+          youtube_url: string
+          youtube_video_id?: string
+        }
+        Update: {
+          chapters?: Json
+          created_at?: string
+          created_by?: string
+          description?: string
+          duration_seconds?: number
+          generation_error?: string
+          generation_status?: string
+          id?: string
+          module_id?: number | null
+          status?: string
+          thumbnail_url?: string
+          title?: string
+          updated_at?: string
+          youtube_url?: string
+          youtube_video_id?: string
         }
         Relationships: []
       }

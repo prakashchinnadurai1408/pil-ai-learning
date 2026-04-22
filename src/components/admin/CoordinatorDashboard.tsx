@@ -318,7 +318,7 @@ const CoordinatorDashboard = () => {
                 <TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>College</TableHead><TableHead>Registered</TableHead><TableHead className="text-right">Actions</TableHead></TableRow>
               </TableHeader>
               <TableBody>
-                {pending.map((t) => (
+                {filteredPending.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium">{t.name}</TableCell>
                     <TableCell className="text-xs">{t.email}</TableCell>

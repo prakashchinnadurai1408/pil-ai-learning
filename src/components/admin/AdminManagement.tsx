@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { Users, GraduationCap, Building2, ShieldCheck, Search, Clock, Check, X, History } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Lock } from "lucide-react";
 
 type Student = { id: string; name: string; mobile: string; email: string; college: string; location: string; status: string; created_at: string };
 type Trainer = { id: string; name: string; mobile: string; email: string; college: string; location: string; status: string; rejection_reason?: string; approved_at?: string | null; created_at: string };

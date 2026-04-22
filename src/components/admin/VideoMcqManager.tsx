@@ -170,6 +170,8 @@ const VideoMcqManager = () => {
 
   const rollbackToVersion = async (v: LessonVersion) => {
     if (!historyLesson) return;
+    if (!isAdmin) { toast.error("Only admins can rollback MCQ versions"); return; }
+    if (historyLesson.generation_status === "running") { toast.error("Cannot rollback while regeneration is running"); return; }
     if (!confirm(`Republish version v${v.version}? Current published questions will be archived as a new snapshot before being replaced.`)) return;
     setRollingBackId(v.id);
     try {

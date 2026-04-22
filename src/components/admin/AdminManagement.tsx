@@ -114,10 +114,17 @@ const AdminManagement = () => {
         <Input placeholder="Search by name, mobile, or email…" className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
-      <Tabs defaultValue="students">
+      {(() => {
+        const pendingCount = trainers.filter((t) => (t.status || "pending") === "pending").length;
+        return (
+      <Tabs defaultValue={pendingCount > 0 ? "pending-trainers" : "students"}>
         <TabsList>
           <TabsTrigger value="students">Students</TabsTrigger>
           <TabsTrigger value="trainers">Trainers</TabsTrigger>
+          <TabsTrigger value="pending-trainers" className="gap-1.5">
+            <Clock className="h-3.5 w-3.5" /> Pending Trainers
+            {pendingCount > 0 && <Badge variant="destructive" className="ml-1 h-5 px-1.5">{pendingCount}</Badge>}
+          </TabsTrigger>
           <TabsTrigger value="colleges">Colleges</TabsTrigger>
           <TabsTrigger value="admins">Admins & Login Status</TabsTrigger>
         </TabsList>

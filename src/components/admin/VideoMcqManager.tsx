@@ -104,6 +104,8 @@ const VideoMcqManager = () => {
 
   // Auto-retry on failure with exponential backoff (5s → 15s → 45s, max 3 attempts).
   // We watch every lesson that flips to "failed" and schedule the next attempt.
+  // The scheduled timestamp is also persisted to `video_lessons.retry_scheduled_at` so
+  // the Coordinator dashboard and any other client can show the same countdown.
   useEffect(() => {
     if (!isAdmin) return;
     lessons.forEach((l) => {
@@ -120,17 +122,45 @@ const VideoMcqManager = () => {
       const state = retryState[l.id] ?? { attempts: 0, nextAttemptAt: null };
       if (state.attempts >= MAX_AUTO_RETRIES) return;
       if (retryTimersRef.current[l.id]) return; // already scheduled
-      const delayMs = RETRY_DELAYS_SEC[state.attempts] * 1000;
-      const nextAt = Date.now() + delayMs;
+
+      // If the server already has a future retry_scheduled_at, rehydrate from it
+      // instead of double-scheduling (e.g. after a page reload or another admin tab).
+      const serverNextAt = l.retry_scheduled_at ? new Date(l.retry_scheduled_at).getTime() : null;
+      const useServer = serverNextAt && serverNextAt > Date.now();
+      const nextAt = useServer ? serverNextAt! : Date.now() + RETRY_DELAYS_SEC[state.attempts] * 1000;
+      const delayMs = Math.max(0, nextAt - Date.now());
+
       setRetryState((s) => ({ ...s, [l.id]: { attempts: state.attempts, nextAttemptAt: nextAt } }));
+      // Persist to server only if we generated a new schedule (avoids redundant writes).
+      if (!useServer) {
+        supabase.from("video_lessons").update({ retry_scheduled_at: new Date(nextAt).toISOString() }).eq("id", l.id).then(() => {});
+      }
       retryTimersRef.current[l.id] = window.setTimeout(async () => {
         delete retryTimersRef.current[l.id];
         setRetryState((s) => ({ ...s, [l.id]: { attempts: state.attempts + 1, nextAttemptAt: null } }));
+        // Clear the server timestamp before firing — the regenerate run itself will set status=running.
+        await supabase.from("video_lessons").update({ retry_scheduled_at: null }).eq("id", l.id);
         await triggerRegenerate(l, { silent: true });
       }, delayMs);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lessons.map((l) => l.id + l.generation_status + l.generation_error).join(","), isAdmin]);
+  }, [lessons.map((l) => l.id + l.generation_status + l.generation_error + (l.retry_scheduled_at || "")).join(","), isAdmin]);
+
+  // Admin action: cancel a scheduled auto-retry (called from confirmation dialog).
+  const cancelScheduledRetry = async (l: VideoLesson) => {
+    if (!isAdmin) { toast.error("Only admins can cancel scheduled retries"); return; }
+    setCancellingRetry(true);
+    const t = retryTimersRef.current[l.id];
+    if (t) { window.clearTimeout(t); delete retryTimersRef.current[l.id]; }
+    // Mark as max-attempts so the auto-retry effect doesn't immediately reschedule.
+    setRetryState((s) => ({ ...s, [l.id]: { attempts: MAX_AUTO_RETRIES, nextAttemptAt: null } }));
+    const { error } = await supabase.from("video_lessons").update({ retry_scheduled_at: null }).eq("id", l.id);
+    setCancellingRetry(false);
+    if (error) { toast.error("Could not cancel scheduled retry"); return; }
+    toast.success(`Scheduled auto-retry cancelled for "${l.title}". Use Retry now if you want to try again.`);
+    setCancelRetryFor(null);
+    load();
+  };
 
   // Live MCQ-row counts per running lesson, used to show "X / Y chapters processed".
   const [liveCounts, setLiveCounts] = useState<Record<string, number>>({});

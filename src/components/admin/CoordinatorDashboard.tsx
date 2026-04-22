@@ -20,7 +20,7 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, AlertTriangle, Clock, ShieldCheck, Eye, RefreshCw, Check, X, Lock, Activity, Search, Filter } from "lucide-react";
+import { Loader2, AlertTriangle, Clock, ShieldCheck, Eye, RefreshCw, Check, X, Lock, Activity, Search, Filter, Wifi, WifiOff } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 
 type LessonStatusFilter = "all" | "running" | "failed" | "awaiting_retry";

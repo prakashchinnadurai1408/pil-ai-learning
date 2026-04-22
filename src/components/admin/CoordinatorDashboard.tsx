@@ -34,6 +34,9 @@ interface VideoLessonRow {
   chapters: { title: string; startSeconds: number }[];
   version: number;
   last_regenerated_at: string | null;
+  // Explicit server-stored timestamp for the next scheduled auto-retry.
+  // Replaces the previous heuristic of "failed within the last 60s".
+  retry_scheduled_at: string | null;
 }
 interface PendingTrainer { id: string; name: string; email: string; college: string; created_at: string }
 interface ActivityRow { id: string; trainer_name: string; action: string; reason: string; actor_name: string; created_at: string }

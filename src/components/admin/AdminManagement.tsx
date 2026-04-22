@@ -56,8 +56,8 @@ const AdminManagement = () => {
   const [search, setSearch] = useState("");
   const [newCollege, setNewCollege] = useState("");
   const [loading, setLoading] = useState(true);
-  const [rejectTarget, setRejectTarget] = useState<Trainer | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
+  const [review, setReview] = useState<ReviewState | null>(null);
+  const [submittingReview, setSubmittingReview] = useState(false);
   const [activitySearch, setActivitySearch] = useState("");
   const [activityFrom, setActivityFrom] = useState("");
   const [activityTo, setActivityTo] = useState("");

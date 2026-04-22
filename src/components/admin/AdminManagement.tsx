@@ -85,6 +85,8 @@ const AdminManagement = () => {
     setRejectTarget(null); setRejectReason("");
     load();
   };
+
+  const filtered = <T extends { name: string; mobile?: string; email?: string }>(arr: T[]) =>
     arr.filter((r) => {
       const q = search.toLowerCase().trim();
       if (!q) return true;

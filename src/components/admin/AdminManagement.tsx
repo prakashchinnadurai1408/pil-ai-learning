@@ -270,8 +270,8 @@ const AdminManagement = () => {
                       <TableCell>{t.location}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right space-x-2">
-                        <Button size="sm" onClick={() => approveTrainer(t)} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve</Button>
-                        <Button size="sm" variant="outline" onClick={() => { setRejectTarget(t); setRejectReason(""); }} className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"><X className="h-3.5 w-3.5" /> Reject</Button>
+                        <Button size="sm" onClick={() => approveTrainer(t)} disabled={!isAdmin} title={!isAdmin ? "Admin only" : undefined} className="gap-1.5"><Check className="h-3.5 w-3.5" /> Approve</Button>
+                        <Button size="sm" variant="outline" onClick={() => { setRejectTarget(t); setRejectReason(""); }} disabled={!isAdmin} title={!isAdmin ? "Admin only" : undefined} className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"><X className="h-3.5 w-3.5" /> Reject</Button>
                       </TableCell>
                     </TableRow>
                   ))}

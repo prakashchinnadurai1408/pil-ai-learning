@@ -173,46 +173,15 @@ const VideoMcqManager = () => {
     if (!confirm(`Republish version v${v.version}? Current published questions will be archived as a new snapshot before being replaced.`)) return;
     setRollingBackId(v.id);
     try {
-      // 1. Snapshot current state into versions table.
-      const { data: currentQs } = await supabase
-        .from("video_lesson_questions")
-        .select("chapter_index,chapter_title,chapter_start_seconds,question,options,correct,explanation,sort_order")
-        .eq("lesson_id", historyLesson.id);
-      await supabase.from("video_lesson_versions").insert({
-        lesson_id: historyLesson.id,
-        version: historyLesson.version || 1,
-        chapters: historyLesson.chapters || [],
-        questions: currentQs || [],
-        generated_by: "admin",
-        note: `Auto-snapshot before rollback to v${v.version}`,
+      // Server-side rollback enforces admin role + atomic snapshot/restore.
+      const { data, error } = await supabase.functions.invoke("mcq-admin-action", {
+        body: { action: "rollback", lessonId: historyLesson.id, versionId: v.id },
       });
-
-      // 2. Wipe current questions and replace with the chosen version.
-      await supabase.from("video_lesson_questions").delete().eq("lesson_id", historyLesson.id);
-      const rows = (v.questions || []).map((q: any, i: number) => ({
-        lesson_id: historyLesson.id,
-        chapter_index: q.chapter_index ?? 0,
-        chapter_title: q.chapter_title ?? "",
-        chapter_start_seconds: q.chapter_start_seconds ?? 0,
-        question: q.question,
-        options: q.options || [],
-        correct: q.correct ?? 0,
-        explanation: q.explanation ?? "",
-        sort_order: q.sort_order ?? i,
-      }));
-      if (rows.length) await supabase.from("video_lesson_questions").insert(rows);
-
-      // 3. Bump lesson to a new version pointing at restored content.
-      const newVersion = (historyLesson.version || 1) + 1;
-      await supabase.from("video_lessons").update({
-        chapters: v.chapters || historyLesson.chapters,
-        version: newVersion,
-        last_regenerated_at: new Date().toISOString(),
-        generation_status: "success",
-        generation_error: "",
-      }).eq("id", historyLesson.id);
-
-      toast.success(`Rolled back to v${v.version} (now published as v${newVersion}).`);
+      if (error || (data as any)?.error) {
+        toast.error((data as any)?.error || error?.message || "Rollback failed");
+        return;
+      }
+      toast.success(`Rolled back to v${v.version} (now published as v${(data as any).newVersion}).`);
       setHistoryLesson(null);
       setVersions([]);
       load();

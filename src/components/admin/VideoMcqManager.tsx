@@ -290,6 +290,13 @@ const VideoMcqManager = () => {
         <p className="text-muted-foreground text-sm">Paste a YouTube URL — chapters are detected and chapter-wise multiple-choice questions are generated automatically.</p>
       </div>
 
+      {isCoordinator && (
+        <div className="rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-sm flex items-center gap-2">
+          <Lock className="h-4 w-4 text-warning" />
+          <span><strong>Coordinator view</strong> — you can preview lessons and review version history, but only admins can publish, regenerate, or rollback MCQ versions.</span>
+        </div>
+      )}
+
       <Card>
         <CardHeader><CardTitle className="text-base flex items-center gap-2"><Plus className="h-4 w-4" /> Add a new video lesson</CardTitle></CardHeader>
         <CardContent className="space-y-3">

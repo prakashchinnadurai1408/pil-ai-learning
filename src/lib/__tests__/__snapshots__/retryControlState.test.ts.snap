@@ -1,0 +1,301 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`retry/cancel control state — snapshot per role × scenario > admin | failed (no retry scheduled) 1`] = `
+{
+  "cancelJob": {
+    "disabled": true,
+    "reason": "not-failed",
+    "title": "No regeneration job is currently running for this lesson.",
+  },
+  "cancelRetry": {
+    "disabled": true,
+    "reason": "no-retry-scheduled",
+    "title": "No auto-retry is currently scheduled for this lesson.",
+  },
+  "regenerate": {
+    "disabled": false,
+    "reason": "ok",
+    "title": "Admin role required. Re-generates MCQs from scratch — existing questions will be replaced.",
+  },
+  "retryNow": {
+    "disabled": false,
+    "reason": "ok",
+    "title": "Admin role required. Triggers a fresh MCQ generation run for this lesson.",
+  },
+}
+`;
+
+exports[`retry/cancel control state — snapshot per role × scenario > admin | failed + auto-retry already due 1`] = `
+{
+  "cancelJob": {
+    "disabled": true,
+    "reason": "not-failed",
+    "title": "No regeneration job is currently running for this lesson.",
+  },
+  "cancelRetry": {
+    "disabled": true,
+    "reason": "no-retry-scheduled",
+    "title": "No auto-retry is currently scheduled for this lesson.",
+  },
+  "regenerate": {
+    "disabled": false,
+    "reason": "ok",
+    "title": "Admin role required. Re-generates MCQs from scratch — existing questions will be replaced.",
+  },
+  "retryNow": {
+    "disabled": false,
+    "reason": "ok",
+    "title": "Admin role required. Triggers a fresh MCQ generation run for this lesson.",
+  },
+}
+`;
+
+exports[`retry/cancel control state — snapshot per role × scenario > admin | failed + auto-retry in 30s 1`] = `
+{
+  "cancelJob": {
+    "disabled": true,
+    "reason": "not-failed",
+    "title": "No regeneration job is currently running for this lesson.",
+  },
+  "cancelRetry": {
+    "disabled": false,
+    "reason": "ok",
+    "title": "Admin role required. Cancels the scheduled auto-retry; the lesson stays in failed state until you retry manually. (Auto-retry fires in 30s.)",
+  },
+  "regenerate": {
+    "disabled": true,
+    "reason": "awaiting-retry",
+    "title": "Auto-retry scheduled in 30s — manual retry is locked until then. Cancel the auto-retry first if you want to retry now.",
+  },
+  "retryNow": {
+    "disabled": true,
+    "reason": "awaiting-retry",
+    "title": "Auto-retry scheduled in 30s — retry is locked until then.",
+  },
+}
+`;
+
+exports[`retry/cancel control state — snapshot per role × scenario > admin | idle (no retry scheduled) 1`] = `
+{
+  "cancelJob": {
+    "disabled": true,
+    "reason": "not-failed",
+    "title": "No regeneration job is currently running for this lesson.",
+  },
+  "cancelRetry": {
+    "disabled": true,
+    "reason": "no-retry-scheduled",
+    "title": "No auto-retry is currently scheduled for this lesson.",
+  },
+  "regenerate": {
+    "disabled": false,
+    "reason": "ok",
+    "title": "Admin role required. Re-generates MCQs from scratch — existing questions will be replaced.",
+  },
+  "retryNow": {
+    "disabled": true,
+    "reason": "not-failed",
+    "title": "Retry is only available for failed lessons.",
+  },
+}
+`;
+
+exports[`retry/cancel control state — snapshot per role × scenario > admin | running 1`] = `
+{
+  "cancelJob": {
+    "disabled": true,
+    "reason": "ok",
+    "title": "Cancel job (Admin only) — not yet supported by the generation worker.",
+  },
+  "cancelRetry": {
+    "disabled": true,
+    "reason": "blocked-running",
+    "title": "Blocked while MCQ regeneration is in progress. Wait for it to finish (or fail) before retrying or cancelling.",
+  },
+  "regenerate": {
+    "disabled": true,
+    "reason": "blocked-running",
+    "title": "Blocked while MCQ regeneration is in progress. Wait for it to finish (or fail) before retrying or cancelling.",
+  },
+  "retryNow": {
+    "disabled": true,
+    "reason": "blocked-running",
+    "title": "Blocked while MCQ regeneration is in progress. Wait for it to finish (or fail) before retrying or cancelling.",
+  },
+}
+`;
+
+exports[`retry/cancel control state — snapshot per role × scenario > admin | succeeded 1`] = `
+{
+  "cancelJob": {
+    "disabled": true,
+    "reason": "not-failed",
+    "title": "No regeneration job is currently running for this lesson.",
+  },
+  "cancelRetry": {
+    "disabled": true,
+    "reason": "no-retry-scheduled",
+    "title": "No auto-retry is currently scheduled for this lesson.",
+  },
+  "regenerate": {
+    "disabled": false,
+    "reason": "ok",
+    "title": "Admin role required. Re-generates MCQs from scratch — existing questions will be replaced.",
+  },
+  "retryNow": {
+    "disabled": true,
+    "reason": "not-failed",
+    "title": "Retry is only available for failed lessons.",
+  },
+}
+`;
+
+exports[`retry/cancel control state — snapshot per role × scenario > coordinator | failed (no retry scheduled) 1`] = `
+{
+  "cancelJob": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "cancelRetry": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "regenerate": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "retryNow": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+}
+`;
+
+exports[`retry/cancel control state — snapshot per role × scenario > coordinator | failed + auto-retry already due 1`] = `
+{
+  "cancelJob": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "cancelRetry": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "regenerate": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "retryNow": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+}
+`;
+
+exports[`retry/cancel control state — snapshot per role × scenario > coordinator | failed + auto-retry in 30s 1`] = `
+{
+  "cancelJob": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "cancelRetry": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "regenerate": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "retryNow": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+}
+`;
+
+exports[`retry/cancel control state — snapshot per role × scenario > coordinator | idle (no retry scheduled) 1`] = `
+{
+  "cancelJob": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "cancelRetry": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "regenerate": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "retryNow": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+}
+`;
+
+exports[`retry/cancel control state — snapshot per role × scenario > coordinator | running 1`] = `
+{
+  "cancelJob": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "cancelRetry": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "regenerate": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "retryNow": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+}
+`;
+
+exports[`retry/cancel control state — snapshot per role × scenario > coordinator | succeeded 1`] = `
+{
+  "cancelJob": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "cancelRetry": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "regenerate": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+  "retryNow": {
+    "disabled": true,
+    "reason": "role-coordinator",
+    "title": "Requires the Admin role. Coordinators have read-only access — ask an admin to take this action.",
+  },
+}
+`;

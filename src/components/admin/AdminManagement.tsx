@@ -67,12 +67,25 @@ const AdminManagement = () => {
     load();
   };
 
+  const logActivity = async (trainer: Trainer, action: "approved" | "rejected" | "re-approved", reason: string) => {
+    await supabase.from("trainer_activity_log").insert({
+      trainer_id: trainer.id,
+      trainer_name: trainer.name,
+      action,
+      reason,
+      actor_id: "admin",
+      actor_name: "Admin",
+    });
+  };
+
   const approveTrainer = async (t: Trainer) => {
+    const wasRejected = t.status === "rejected";
     const { error } = await supabase
       .from("trainers")
       .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: "admin", rejection_reason: "" })
       .eq("id", t.id);
     if (error) { toast.error("Failed to approve"); return; }
+    await logActivity(t, wasRejected ? "re-approved" : "approved", "");
     toast.success(`${t.name} approved`);
     load();
   };
@@ -85,6 +98,7 @@ const AdminManagement = () => {
       .update({ status: "rejected", rejection_reason: reason, approved_by: "admin" })
       .eq("id", rejectTarget.id);
     if (error) { toast.error("Failed to reject"); return; }
+    await logActivity(rejectTarget, "rejected", reason);
     toast.success(`${rejectTarget.name} rejected`);
     setRejectTarget(null); setRejectReason("");
     load();

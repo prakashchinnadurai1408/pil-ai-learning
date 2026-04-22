@@ -40,6 +40,7 @@ const LLMSettings = lazy(() => import("@/components/admin/LLMSettings"));
 const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytics"));
 const TrainerAssignments = lazy(() => import("@/components/admin/TrainerAssignments"));
 const ModuleGroupsManager = lazy(() => import("@/components/admin/ModuleGroupsManager"));
+const AdminManagement = lazy(() => import("@/components/admin/AdminManagement"));
 
 const TabSkeleton = () => (
   <div className="space-y-4 animate-pulse">
@@ -65,6 +66,7 @@ const SECTIONS: { label: string; items: MenuItem[] }[] = [
     label: "Manage",
     items: [
       { key: "users", label: "Users", icon: Users, component: UserManagement },
+      { key: "management", label: "Management", icon: UserCheck, component: AdminManagement },
       { key: "trainer-assignments", label: "Trainer Assignments", icon: UserCheck, component: TrainerAssignments },
       { key: "subscriptions", label: "Subscriptions", icon: CreditCard, component: SubscriptionManagement },
       { key: "learning-paths", label: "Learning Paths", icon: Route, component: LearningPathsManager },

@@ -8,7 +8,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { toast } from "sonner";
 import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 
-const ADMIN_EMAIL = "prakash.chinnadurai@gmail.com";
+const ADMIN_EMAILS = ["prakash.chinnadurai@gmail.com", "prakash_mumbai@yahoo.com"];
 const ADMIN_PASSWORD = "Chandra@1408";
 
 type Step = "form" | "otp" | "forgot" | "reset-otp" | "new-password";

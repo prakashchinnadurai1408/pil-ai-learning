@@ -404,6 +404,24 @@ const StudentDashboard = () => {
                   </div>
                 )}
 
+                {studentId && activeTab === "overview" && (
+                  <div className="mb-8 grid gap-6 lg:grid-cols-2">
+                    <Suspense fallback={<ContentSkeleton />}>
+                      <OnboardingChecklist
+                        studentId={studentId}
+                        studentCollege={studentCollege}
+                        studentDepartment={studentDepartment}
+                        studentDegree={studentDegree}
+                        onNavigate={(tab) => { setActiveTab(tab as TabKey); setSelectedModuleId(null); }}
+                        onOpenProfile={() => setShowProfile(true)}
+                      />
+                    </Suspense>
+                    <Suspense fallback={<ContentSkeleton />}>
+                      <PerfMetricsPanel />
+                    </Suspense>
+                  </div>
+                )}
+
                 {pathNames.length > 0 && (
                   <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
                     <BookOpen className="h-4 w-4 text-primary" />
@@ -411,6 +429,7 @@ const StudentDashboard = () => {
                   </div>
                 )}
 
+                <SectionPerf key={activeTab} section={activeTab} />
                 <ErrorBoundary>{renderActive()}</ErrorBoundary>
               </>
             )}

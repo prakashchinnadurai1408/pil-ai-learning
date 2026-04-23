@@ -94,6 +94,8 @@ const AIPlayground = () => {
     setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
+    // Onboarding: mark first AI chat
+    import("./OnboardingChecklist").then(({ markFirstAiChat }) => markFirstAiChat()).catch(() => {});
 
     const selectedLang = LANGUAGES.find(l => l.code === lang);
 

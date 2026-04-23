@@ -45,6 +45,9 @@ const StudentAssessmentsAnalytics = lazy(() => import("@/components/dashboard/St
 const StudentProctoringAnalytics = lazy(() => import("@/components/dashboard/StudentProctoringAnalytics"));
 const StudentProjectsAnalytics = lazy(() => import("@/components/dashboard/StudentProjectsAnalytics"));
 const StudentOverview = lazy(() => import("@/components/dashboard/StudentOverview"));
+const OnboardingChecklist = lazy(() => import("@/components/dashboard/OnboardingChecklist"));
+const PerfMetricsPanel = lazy(() => import("@/components/dashboard/PerfMetricsPanel"));
+import SectionPerf from "@/components/dashboard/SectionPerf";
 
 type TabKey =
   | "overview" | "subscription"

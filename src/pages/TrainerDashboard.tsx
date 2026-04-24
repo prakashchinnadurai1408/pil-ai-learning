@@ -49,7 +49,7 @@ type TabKey =
   | "analytics" | "projects" | "assigned-projects" | "coding"
   | "modules" | "content" | "question-bank" | "coding-bank" | "learning-paths"
   | "module-groups"
-  | "proctoring" | "llm-usage";
+  | "proctoring" | "llm-usage" | "coordinator-review";
 
 // Map dashboard tabs to access-control menu keys (trainer audience)
 const TAB_TO_MENU_KEY: Partial<Record<TabKey, string>> = {
@@ -108,6 +108,7 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
     items: [
       { key: "projects", label: "Projects", icon: FolderKanban },
       { key: "assigned-projects", label: "Assigned Projects", icon: FolderKanban },
+      { key: "coordinator-review", label: "Coordinator Review", icon: Users },
     ],
   },
 ];

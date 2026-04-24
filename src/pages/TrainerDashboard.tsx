@@ -24,6 +24,7 @@ import { StudentDetailModal } from "@/components/trainer/StudentDetailModal";
 import ComposeMessageDialog from "@/components/trainer/ComposeMessageDialog";
 import TrainerProjectReview from "@/components/trainer/TrainerProjectReview";
 import TrainerAssignedProjects from "@/components/trainer/TrainerAssignedProjects";
+import CoordinatorReview from "@/components/shared/CoordinatorReview";
 import type { StudentData } from "@/hooks/useTrainerData";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -522,6 +523,8 @@ const TrainerDashboard = () => {
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><LLMUsageAnalytics /></Suspense>;
       case "assigned-projects":
         return <TrainerAssignedProjects trainerId={trainerId} />;
+      case "coordinator-review":
+        return <CoordinatorReview reviewerId={trainerId} reviewerName={trainerName} reviewerRole="trainer" />;
       case "module-groups":
         return (
           <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>

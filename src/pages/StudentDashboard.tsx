@@ -47,12 +47,15 @@ const StudentProjectsAnalytics = lazy(() => import("@/components/dashboard/Stude
 const StudentOverview = lazy(() => import("@/components/dashboard/StudentOverview"));
 const OnboardingChecklist = lazy(() => import("@/components/dashboard/OnboardingChecklist"));
 const PerfMetricsPanel = lazy(() => import("@/components/dashboard/PerfMetricsPanel"));
+const RagStudySandbox = lazy(() => import("@/components/dashboard/RagStudySandbox"));
+const VideoQuizSandbox = lazy(() => import("@/components/dashboard/VideoQuizSandbox"));
+const PracticePlanWidget = lazy(() => import("@/components/dashboard/PracticePlanWidget"));
 import SectionPerf from "@/components/dashboard/SectionPerf";
 
 type TabKey =
   | "overview" | "subscription"
   | "ai_path" | "module_groups" | "modules"
-  | "playground" | "tools" | "question_bank" | "coding" | "prompts"
+  | "playground" | "tools" | "question_bank" | "coding" | "prompts" | "rag_sandbox" | "video_quiz"
   | "assessments" | "projects"
   | "analytics_assessments" | "analytics_proctoring" | "analytics_projects";
 
@@ -72,6 +75,8 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
     { key: "question_bank", label: "Question Bank", icon: Library },
     { key: "coding", label: "Coding Challenges", icon: Code2 },
     { key: "prompts", label: "Prompts", icon: Pencil },
+    { key: "rag_sandbox", label: "RAG Study Sandbox", icon: Library },
+    { key: "video_quiz", label: "Video → Quiz", icon: BookOpen },
   ]},
   { label: "Assessments", items: [
     { key: "assessments", label: "Assessments", icon: ClipboardCheck },
@@ -296,6 +301,10 @@ const StudentDashboard = () => {
         return <Suspense fallback={<ContentSkeleton />}><ProgrammingModule /></Suspense>;
       case "prompts":
         return <Suspense fallback={<ContentSkeleton />}><PromptEngineeringLab /></Suspense>;
+      case "rag_sandbox":
+        return <Suspense fallback={<ContentSkeleton />}><RagStudySandbox /></Suspense>;
+      case "video_quiz":
+        return <Suspense fallback={<ContentSkeleton />}><VideoQuizSandbox /></Suspense>;
       case "assessments":
         return (
           <>
@@ -401,6 +410,24 @@ const StudentDashboard = () => {
                         />
                       </Suspense>
                     </ErrorBoundary>
+                  </div>
+                )}
+
+                {studentId && activeTab === "overview" && (
+                  <div className="mb-8">
+                    <Suspense fallback={<ContentSkeleton />}>
+                      <PracticePlanWidget
+                        studentId={studentId}
+                        studentName={studentName}
+                        onNavigate={(tool) => {
+                          const t = tool.toLowerCase();
+                          if (t.includes("playground") || t.includes("chat")) setActiveTab("playground");
+                          else if (t.includes("prompt")) setActiveTab("prompts");
+                          else if (t.includes("tool")) setActiveTab("tools");
+                          else if (t.includes("cod")) setActiveTab("coding");
+                        }}
+                      />
+                    </Suspense>
                   </div>
                 )}
 

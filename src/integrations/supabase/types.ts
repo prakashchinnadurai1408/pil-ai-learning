@@ -519,6 +519,48 @@ export type Database = {
         }
         Relationships: []
       }
+      coordinator_feedback: {
+        Row: {
+          category: string
+          created_at: string
+          feedback: string
+          id: string
+          rating: number | null
+          reference_id: string
+          reviewer_id: string
+          reviewer_name: string
+          reviewer_role: string
+          student_id: string
+          student_name: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          feedback: string
+          id?: string
+          rating?: number | null
+          reference_id?: string
+          reviewer_id?: string
+          reviewer_name?: string
+          reviewer_role?: string
+          student_id: string
+          student_name?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          feedback?: string
+          id?: string
+          rating?: number | null
+          reference_id?: string
+          reviewer_id?: string
+          reviewer_name?: string
+          reviewer_role?: string
+          student_id?: string
+          student_name?: string
+        }
+        Relationships: []
+      }
       learning_path_assignments: {
         Row: {
           college: string
@@ -959,6 +1001,92 @@ export type Database = {
         }
         Relationships: []
       }
+      practice_plan_tasks: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          description: string
+          estimated_minutes: number
+          id: string
+          plan_id: string
+          related_module_id: number | null
+          sort_order: number
+          suggested_tool: string
+          task_type: string
+          title: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          estimated_minutes?: number
+          id?: string
+          plan_id: string
+          related_module_id?: number | null
+          sort_order?: number
+          suggested_tool?: string
+          task_type?: string
+          title: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          estimated_minutes?: number
+          id?: string
+          plan_id?: string
+          related_module_id?: number | null
+          sort_order?: number
+          suggested_tool?: string
+          task_type?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_plan_tasks_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "practice_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practice_plans: {
+        Row: {
+          completed_modules: Json
+          generated_at: string
+          id: string
+          model_used: string
+          plan_date: string
+          student_id: string
+          student_name: string
+          summary: string
+        }
+        Insert: {
+          completed_modules?: Json
+          generated_at?: string
+          id?: string
+          model_used?: string
+          plan_date?: string
+          student_id: string
+          student_name?: string
+          summary?: string
+        }
+        Update: {
+          completed_modules?: Json
+          generated_at?: string
+          id?: string
+          model_used?: string
+          plan_date?: string
+          student_id?: string
+          student_name?: string
+          summary?: string
+        }
+        Relationships: []
+      }
       proctoring_active_sessions: {
         Row: {
           assessment_id: string
@@ -1210,6 +1338,98 @@ export type Database = {
           question?: string
           question_type?: string
           source?: string
+        }
+        Relationships: []
+      }
+      rag_document_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          document_id: string
+          embedding: string | null
+          id: string
+          page_number: number | null
+        }
+        Insert: {
+          chunk_index?: number
+          content: string
+          created_at?: string
+          document_id: string
+          embedding?: string | null
+          id?: string
+          page_number?: number | null
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          document_id?: string
+          embedding?: string | null
+          id?: string
+          page_number?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rag_document_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "rag_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rag_documents: {
+        Row: {
+          chunk_count: number
+          created_at: string
+          embedding_model: string
+          error_message: string
+          file_name: string
+          file_size: number
+          id: string
+          mime_type: string
+          module_id: number | null
+          status: string
+          storage_path: string
+          student_id: string | null
+          student_name: string
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          chunk_count?: number
+          created_at?: string
+          embedding_model?: string
+          error_message?: string
+          file_name: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          module_id?: number | null
+          status?: string
+          storage_path?: string
+          student_id?: string | null
+          student_name?: string
+          topic?: string
+          updated_at?: string
+        }
+        Update: {
+          chunk_count?: number
+          created_at?: string
+          embedding_model?: string
+          error_message?: string
+          file_name?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          module_id?: number | null
+          status?: string
+          storage_path?: string
+          student_id?: string | null
+          student_name?: string
+          topic?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1787,12 +2007,17 @@ export type Database = {
           generation_status: string
           id: string
           last_regenerated_at: string | null
+          media_url: string
           module_id: number | null
           retry_scheduled_at: string | null
+          source_type: string
           status: string
           thumbnail_url: string
           title: string
+          transcript: string
           updated_at: string
+          uploader_id: string
+          uploader_role: string
           version: number
           youtube_url: string
           youtube_video_id: string
@@ -1807,12 +2032,17 @@ export type Database = {
           generation_status?: string
           id?: string
           last_regenerated_at?: string | null
+          media_url?: string
           module_id?: number | null
           retry_scheduled_at?: string | null
+          source_type?: string
           status?: string
           thumbnail_url?: string
           title: string
+          transcript?: string
           updated_at?: string
+          uploader_id?: string
+          uploader_role?: string
           version?: number
           youtube_url: string
           youtube_video_id?: string
@@ -1827,15 +2057,59 @@ export type Database = {
           generation_status?: string
           id?: string
           last_regenerated_at?: string | null
+          media_url?: string
           module_id?: number | null
           retry_scheduled_at?: string | null
+          source_type?: string
           status?: string
           thumbnail_url?: string
           title?: string
+          transcript?: string
           updated_at?: string
+          uploader_id?: string
+          uploader_role?: string
           version?: number
           youtube_url?: string
           youtube_video_id?: string
+        }
+        Relationships: []
+      }
+      video_quiz_attempts: {
+        Row: {
+          answers: Json
+          correct_answers: number
+          created_at: string
+          id: string
+          lesson_id: string
+          score: number
+          student_id: string | null
+          student_name: string
+          time_taken_seconds: number
+          total_questions: number
+        }
+        Insert: {
+          answers?: Json
+          correct_answers?: number
+          created_at?: string
+          id?: string
+          lesson_id: string
+          score?: number
+          student_id?: string | null
+          student_name?: string
+          time_taken_seconds?: number
+          total_questions?: number
+        }
+        Update: {
+          answers?: Json
+          correct_answers?: number
+          created_at?: string
+          id?: string
+          lesson_id?: string
+          score?: number
+          student_id?: string | null
+          student_name?: string
+          time_taken_seconds?: number
+          total_questions?: number
         }
         Relationships: []
       }
@@ -1867,6 +2141,16 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      match_rag_chunks: {
+        Args: { doc_id: string; match_count?: number; query_embedding: string }
+        Returns: {
+          chunk_index: number
+          content: string
+          id: string
+          page_number: number
+          similarity: number
+        }[]
       }
     }
     Enums: {

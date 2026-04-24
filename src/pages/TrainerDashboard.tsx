@@ -24,6 +24,7 @@ import { StudentDetailModal } from "@/components/trainer/StudentDetailModal";
 import ComposeMessageDialog from "@/components/trainer/ComposeMessageDialog";
 import TrainerProjectReview from "@/components/trainer/TrainerProjectReview";
 import TrainerAssignedProjects from "@/components/trainer/TrainerAssignedProjects";
+import CoordinatorReview from "@/components/shared/CoordinatorReview";
 import type { StudentData } from "@/hooks/useTrainerData";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -49,7 +50,7 @@ type TabKey =
   | "analytics" | "projects" | "assigned-projects" | "coding"
   | "modules" | "content" | "question-bank" | "coding-bank" | "learning-paths"
   | "module-groups"
-  | "proctoring" | "llm-usage";
+  | "proctoring" | "llm-usage" | "coordinator-review";
 
 // Map dashboard tabs to access-control menu keys (trainer audience)
 const TAB_TO_MENU_KEY: Partial<Record<TabKey, string>> = {
@@ -108,6 +109,7 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
     items: [
       { key: "projects", label: "Projects", icon: FolderKanban },
       { key: "assigned-projects", label: "Assigned Projects", icon: FolderKanban },
+      { key: "coordinator-review", label: "Coordinator Review", icon: Users },
     ],
   },
 ];
@@ -521,6 +523,8 @@ const TrainerDashboard = () => {
         return <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}><LLMUsageAnalytics /></Suspense>;
       case "assigned-projects":
         return <TrainerAssignedProjects trainerId={trainerId} />;
+      case "coordinator-review":
+        return <CoordinatorReview reviewerId={trainerId} reviewerName={trainerName} reviewerRole="trainer" />;
       case "module-groups":
         return (
           <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>

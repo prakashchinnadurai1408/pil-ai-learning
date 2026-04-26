@@ -15,6 +15,7 @@ export async function streamChat({
   featureTag,
   onDelta,
   onDone,
+  onFallback,
 }: {
   messages: Msg[];
   tool?: string;

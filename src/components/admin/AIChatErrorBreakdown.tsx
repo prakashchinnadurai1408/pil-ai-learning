@@ -171,6 +171,56 @@ const AIChatErrorBreakdown = () => {
   const totalErrors = summary.billing + summary.rate_limit + summary.server + summary.client + summary.model + summary.other;
   const errorRate = rows.length ? ((totalErrors / rows.length) * 100).toFixed(1) : "0.0";
 
+  const billingErrors = useMemo(
+    () => recentErrors.filter((r) => categorize(r.status) === "billing"),
+    [recentErrors]
+  );
+
+  const handleRowRetry = async (row: UsageRow) => {
+    setRetryStatus((s) => ({ ...s, [row.id]: { status: "running" } }));
+    const r = await runRetry(row);
+    setRetryStatus((s) => ({ ...s, [row.id]: { status: r.status, message: r.message } }));
+    if (r.status === "ok") {
+      markCreditsRestored("admin_retry");
+      toast.success(`Live AI restored on ${row.model || "default model"}`);
+    } else if (r.status === "still_failing") {
+      toast.warning(`Still failing: ${r.message}`);
+    } else {
+      toast.error(`Retry failed: ${r.message}`);
+    }
+  };
+
+  const handleBulkRetryBilling = async () => {
+    if (billingErrors.length === 0) {
+      toast.info("No billing-related errors to retry.");
+      return;
+    }
+    setBulkRunning(true);
+    const initial: Record<string, { status: RetryStatus; message?: string }> = { ...retryStatus };
+    billingErrors.forEach((r) => { initial[r.id] = { status: "queued" }; });
+    setRetryStatus(initial);
+    setBulkProgress({ done: 0, total: billingErrors.length, ok: 0, failed: 0 });
+    let ok = 0;
+    let failed = 0;
+    let anyOk = false;
+    for (let i = 0; i < billingErrors.length; i++) {
+      const row = billingErrors[i];
+      setRetryStatus((s) => ({ ...s, [row.id]: { status: "running" } }));
+      // eslint-disable-next-line no-await-in-loop
+      const r = await runRetry(row);
+      setRetryStatus((s) => ({ ...s, [row.id]: { status: r.status, message: r.message } }));
+      if (r.status === "ok") { ok += 1; anyOk = true; } else { failed += 1; }
+      setBulkProgress({ done: i + 1, total: billingErrors.length, ok, failed });
+    }
+    setBulkRunning(false);
+    if (anyOk) {
+      markCreditsRestored("admin_bulk_retry");
+      toast.success(`Bulk retry complete — ${ok} OK, ${failed} still failing. Credits look restored ✅`);
+    } else {
+      toast.warning(`Bulk retry complete — all ${failed} attempts still failing (likely credits not yet topped up).`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-10">
@@ -180,6 +230,7 @@ const AIChatErrorBreakdown = () => {
   }
 
   const categories: Category[] = ["billing", "rate_limit", "server", "client", "model", "other"];
+
 
   return (
     <Card>

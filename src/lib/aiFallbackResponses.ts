@@ -2,12 +2,16 @@
 // These let students continue practicing prompts even when the live model is unavailable.
 
 interface FallbackExample {
+  id: string;
+  title: string;
   keywords: string[];
   response: string;
 }
 
 const EXAMPLES: FallbackExample[] = [
   {
+    id: "rag-overview",
+    title: "RAG overview",
     keywords: ["rag", "retrieval", "augmented"],
     response: `## Retrieval Augmented Generation (RAG) — cached example
 
@@ -23,6 +27,8 @@ const EXAMPLES: FallbackExample[] = [
 > ⚠️ This is a cached fallback response (AI credits are temporarily exhausted). Live answers will resume once credits are added.`,
   },
   {
+    id: "prompt-engineering-basics",
+    title: "Prompt engineering basics",
     keywords: ["prompt", "engineering", "write a prompt"],
     response: `## Prompt Engineering — cached example
 
@@ -41,6 +47,8 @@ A strong prompt usually has **four parts**:
 > ⚠️ This is a cached fallback response (AI credits are temporarily exhausted).`,
   },
   {
+    id: "chain-of-thought",
+    title: "Chain-of-thought reasoning",
     keywords: ["chain of thought", "cot", "reasoning"],
     response: `## Chain of Thought (CoT) Prompting — cached example
 
@@ -57,6 +65,8 @@ CoT asks the model to **show its reasoning** before giving the final answer.
 > ⚠️ Cached fallback response — credits exhausted.`,
   },
   {
+    id: "ai-agents-intro",
+    title: "AI agents intro",
     keywords: ["agent", "ai agent", "agents"],
     response: `## AI Agents — cached example
 
@@ -73,6 +83,8 @@ An **AI Agent** is an LLM that can use **tools** in a loop to accomplish a goal.
 > ⚠️ Cached fallback response — credits exhausted.`,
   },
   {
+    id: "model-comparison",
+    title: "Frontier model comparison",
     keywords: ["gpt", "claude", "gemini", "compare", "model"],
     response: `## Comparing Frontier Models — cached overview
 
@@ -87,6 +99,8 @@ Pick by **cost vs. capability** and **context window** required.
 > ⚠️ Cached fallback response — credits exhausted.`,
   },
   {
+    id: "college-project-ideas",
+    title: "College project ideas",
     keywords: ["project", "college", "idea"],
     response: `## AI for College Projects — cached suggestions
 
@@ -103,6 +117,8 @@ Pick by **cost vs. capability** and **context window** required.
   },
 ];
 
+export const GENERIC_FALLBACK_KEY = "generic-practice-mode";
+
 const GENERIC_FALLBACK = `## Practice Mode (cached response)
 
 I'm currently in **read-only practice mode** because AI credits are temporarily exhausted. Live answers will resume once credits are topped up.
@@ -115,14 +131,25 @@ In the meantime, you can:
 
 Try one of the example questions above to see a worked-through answer.`;
 
-export function getFallbackResponse(userQuestion: string): string {
+export interface FallbackMatch {
+  key: string;
+  title: string;
+  response: string;
+}
+
+export function getFallbackMatch(userQuestion: string): FallbackMatch {
   const q = userQuestion.toLowerCase();
   for (const example of EXAMPLES) {
     if (example.keywords.some((k) => q.includes(k))) {
-      return example.response;
+      return { key: example.id, title: example.title, response: example.response };
     }
   }
-  return GENERIC_FALLBACK;
+  return { key: GENERIC_FALLBACK_KEY, title: "Generic practice mode", response: GENERIC_FALLBACK };
+}
+
+// Backward-compatible helper
+export function getFallbackResponse(userQuestion: string): string {
+  return getFallbackMatch(userQuestion).response;
 }
 
 export const FALLBACK_BANNER =

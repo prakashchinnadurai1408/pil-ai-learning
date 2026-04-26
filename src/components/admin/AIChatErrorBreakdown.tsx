@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, CreditCard, WifiOff, Cpu, CheckCircle2, Loader2, RefreshCw, FileDown } from "lucide-react";
+import { AlertTriangle, CreditCard, WifiOff, Cpu, CheckCircle2, Loader2, RefreshCw, FileDown, PlayCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { markCreditsRestored } from "@/lib/aiChatDebug";
 
 interface UsageRow {
   id: string;
@@ -88,8 +89,9 @@ const downloadIncident = (row: UsageRow) => {
   toast.success("Incident report downloaded");
 };
 
-const retryHealthCheck = async (row: UsageRow): Promise<void> => {
-  const tId = toast.loading(`Retrying ${row.model || "chat"}…`);
+type RetryStatus = "idle" | "queued" | "running" | "ok" | "still_failing" | "error";
+
+const runRetry = async (row: UsageRow): Promise<{ status: RetryStatus; message: string }> => {
   try {
     const { data, error } = await supabase.functions.invoke("chat", {
       body: {
@@ -99,21 +101,31 @@ const retryHealthCheck = async (row: UsageRow): Promise<void> => {
         featureTag: "admin_retry_check",
       },
     });
-    if (error) throw error;
+    if (error) return { status: "error", message: error.message || "invoke error" };
     if ((data as any)?.fallback) {
-      toast.warning(`Still failing: ${(data as any).error || "AI unavailable"}`, { id: tId });
-    } else {
-      toast.success("Live AI is responding again ✅", { id: tId });
+      return { status: "still_failing", message: (data as any).error || "AI unavailable" };
     }
+    return { status: "ok", message: "Live AI responding" };
   } catch (e) {
-    toast.error(`Retry failed: ${e instanceof Error ? e.message : "unknown"}`, { id: tId });
+    return { status: "error", message: e instanceof Error ? e.message : "unknown" };
   }
+};
+
+const retryHealthCheck = async (row: UsageRow): Promise<void> => {
+  const tId = toast.loading(`Retrying ${row.model || "chat"}…`);
+  const r = await runRetry(row);
+  if (r.status === "ok") toast.success("Live AI is responding again ✅", { id: tId });
+  else if (r.status === "still_failing") toast.warning(`Still failing: ${r.message}`, { id: tId });
+  else toast.error(`Retry failed: ${r.message}`, { id: tId });
 };
 
 const AIChatErrorBreakdown = () => {
   const [rows, setRows] = useState<UsageRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [retryStatus, setRetryStatus] = useState<Record<string, { status: RetryStatus; message?: string }>>({});
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0, ok: 0, failed: 0 });
 
   useEffect(() => {
     (async () => {
@@ -159,6 +171,56 @@ const AIChatErrorBreakdown = () => {
   const totalErrors = summary.billing + summary.rate_limit + summary.server + summary.client + summary.model + summary.other;
   const errorRate = rows.length ? ((totalErrors / rows.length) * 100).toFixed(1) : "0.0";
 
+  const billingErrors = useMemo(
+    () => recentErrors.filter((r) => categorize(r.status) === "billing"),
+    [recentErrors]
+  );
+
+  const handleRowRetry = async (row: UsageRow) => {
+    setRetryStatus((s) => ({ ...s, [row.id]: { status: "running" } }));
+    const r = await runRetry(row);
+    setRetryStatus((s) => ({ ...s, [row.id]: { status: r.status, message: r.message } }));
+    if (r.status === "ok") {
+      markCreditsRestored("admin_retry");
+      toast.success(`Live AI restored on ${row.model || "default model"}`);
+    } else if (r.status === "still_failing") {
+      toast.warning(`Still failing: ${r.message}`);
+    } else {
+      toast.error(`Retry failed: ${r.message}`);
+    }
+  };
+
+  const handleBulkRetryBilling = async () => {
+    if (billingErrors.length === 0) {
+      toast.info("No billing-related errors to retry.");
+      return;
+    }
+    setBulkRunning(true);
+    const initial: Record<string, { status: RetryStatus; message?: string }> = { ...retryStatus };
+    billingErrors.forEach((r) => { initial[r.id] = { status: "queued" }; });
+    setRetryStatus(initial);
+    setBulkProgress({ done: 0, total: billingErrors.length, ok: 0, failed: 0 });
+    let ok = 0;
+    let failed = 0;
+    let anyOk = false;
+    for (let i = 0; i < billingErrors.length; i++) {
+      const row = billingErrors[i];
+      setRetryStatus((s) => ({ ...s, [row.id]: { status: "running" } }));
+      // eslint-disable-next-line no-await-in-loop
+      const r = await runRetry(row);
+      setRetryStatus((s) => ({ ...s, [row.id]: { status: r.status, message: r.message } }));
+      if (r.status === "ok") { ok += 1; anyOk = true; } else { failed += 1; }
+      setBulkProgress({ done: i + 1, total: billingErrors.length, ok, failed });
+    }
+    setBulkRunning(false);
+    if (anyOk) {
+      markCreditsRestored("admin_bulk_retry");
+      toast.success(`Bulk retry complete — ${ok} OK, ${failed} still failing. Credits look restored ✅`);
+    } else {
+      toast.warning(`Bulk retry complete — all ${failed} attempts still failing (likely credits not yet topped up).`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-10">
@@ -168,6 +230,7 @@ const AIChatErrorBreakdown = () => {
   }
 
   const categories: Category[] = ["billing", "rate_limit", "server", "client", "model", "other"];
+
 
   return (
     <Card>
@@ -240,7 +303,33 @@ const AIChatErrorBreakdown = () => {
         )}
 
         <div>
-          <h4 className="text-sm font-medium mb-2">Recent failures</h4>
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+            <h4 className="text-sm font-medium">Recent failures</h4>
+            <div className="flex items-center gap-2">
+              {bulkRunning && (
+                <span className="text-xs text-muted-foreground font-mono">
+                  {bulkProgress.done}/{bulkProgress.total} · ✅ {bulkProgress.ok} · ❌ {bulkProgress.failed}
+                </span>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8"
+                disabled={bulkRunning || billingErrors.length === 0}
+                onClick={handleBulkRetryBilling}
+                title="Retry every billing-related (402) error in the table"
+              >
+                {bulkRunning ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <PlayCircle className="h-3.5 w-3.5" />
+                )}
+                <span className="ml-1.5">
+                  Retry all billing errors{billingErrors.length > 0 && ` (${billingErrors.length})`}
+                </span>
+              </Button>
+            </div>
+          </div>
           {recentErrors.length === 0 ? (
             <p className="text-xs text-muted-foreground py-6 text-center">🎉 No errors in the last 7 days.</p>
           ) : (
@@ -254,6 +343,7 @@ const AIChatErrorBreakdown = () => {
                     <th className="p-2 text-left font-medium">Model</th>
                     <th className="p-2 text-left font-medium">User</th>
                     <th className="p-2 text-left font-medium">Feature</th>
+                    <th className="p-2 text-left font-medium">Retry status</th>
                     <th className="p-2 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
@@ -261,6 +351,7 @@ const AIChatErrorBreakdown = () => {
                   {recentErrors.map((r) => {
                     const cat = categorize(r.status);
                     const meta = CATEGORY_META[cat];
+                    const rs = retryStatus[r.id];
                     return (
                       <tr key={r.id} className="hover:bg-muted/30">
                         <td className="p-2 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</td>
@@ -269,9 +360,24 @@ const AIChatErrorBreakdown = () => {
                         <td className="p-2 text-xs font-mono">{r.model}</td>
                         <td className="p-2 text-xs">{r.user_name || "—"} <span className="text-muted-foreground">({r.user_role})</span></td>
                         <td className="p-2 text-xs">{r.feature}</td>
+                        <td className="p-2 text-xs">
+                          {!rs ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : rs.status === "queued" ? (
+                            <Badge variant="outline" className="text-[10px]">Queued</Badge>
+                          ) : rs.status === "running" ? (
+                            <Badge variant="outline" className="text-[10px] gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Running</Badge>
+                          ) : rs.status === "ok" ? (
+                            <Badge variant="secondary" className="text-[10px] gap-1 text-success"><CheckCircle2 className="h-3 w-3" /> Live</Badge>
+                          ) : rs.status === "still_failing" ? (
+                            <Badge variant="destructive" className="text-[10px] gap-1" title={rs.message}><XCircle className="h-3 w-3" /> Still failing</Badge>
+                          ) : (
+                            <Badge variant="destructive" className="text-[10px] gap-1" title={rs.message}><XCircle className="h-3 w-3" /> Error</Badge>
+                          )}
+                        </td>
                         <td className="p-2 text-xs text-right">
                           <div className="flex justify-end gap-1">
-                            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => retryHealthCheck(r)} title="Retry — sends a tiny health-check call to this model">
+                            <Button size="sm" variant="ghost" className="h-7 px-2" disabled={bulkRunning || rs?.status === "running"} onClick={() => handleRowRetry(r)} title="Retry — sends a tiny health-check call to this model">
                               <RefreshCw className="h-3.5 w-3.5" /> <span className="ml-1 hidden md:inline">Retry</span>
                             </Button>
                             <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => downloadIncident(r)} title="Download incident report (JSON)">

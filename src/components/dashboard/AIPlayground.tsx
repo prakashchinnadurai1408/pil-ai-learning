@@ -120,15 +120,15 @@ const AIPlayground = () => {
         tool: lang !== "en-IN" ? `lang:${selectedLang?.aiLabel}` : undefined,
         studentContext: studentCtx,
         onDelta: (chunk) => upsertAssistant(chunk),
-        onFallback: ({ status, reason }) => {
+        onFallback: ({ status, reason, fallbackKey, fallbackTitle, cachedResponse }) => {
           // Read-only practice mode: serve cached example so students can keep practicing.
-          const cached = getFallbackResponse(userMsg.content);
+          const cached = cachedResponse || getFallbackResponse(userMsg.content);
           const banner = status === 402
-            ? FALLBACK_BANNER
-            : `⚠️ ${reason} — showing a cached example instead.`;
+            ? `${FALLBACK_BANNER}\n\n_Cached example used: **${fallbackTitle}** (\`${fallbackKey}\`)_`
+            : `⚠️ ${reason} — showing cached example **${fallbackTitle}** (\`${fallbackKey}\`).`;
           assistantSoFar = `${banner}\n\n${cached}`;
           setMessages(prev => [...prev, { role: "assistant", content: assistantSoFar }]);
-          toast.info(status === 402 ? "Practice Mode — using cached examples" : "AI unavailable — cached response", { duration: 4000 });
+          toast.info(status === 402 ? `Practice Mode — cached: ${fallbackTitle}` : "AI unavailable — cached response", { duration: 4000 });
         },
         onDone: () => {
           setIsLoading(false);

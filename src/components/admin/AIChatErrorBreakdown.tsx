@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, CreditCard, WifiOff, Cpu, CheckCircle2, Loader2, RefreshCw, FileDown } from "lucide-react";
+import { AlertTriangle, CreditCard, WifiOff, Cpu, CheckCircle2, Loader2, RefreshCw, FileDown, PlayCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { markCreditsRestored } from "@/lib/aiChatDebug";
 
 interface UsageRow {
   id: string;

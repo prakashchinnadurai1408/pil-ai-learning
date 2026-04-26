@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Search, Download, Loader2, FileText, MessageSquare, Send } from "lucide-react";
 import { toast } from "sonner";
+import AIChatErrorBreakdown from "@/components/admin/AIChatErrorBreakdown";
 
 interface Props {
   reviewerId: string;

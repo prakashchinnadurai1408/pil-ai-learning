@@ -1,4 +1,5 @@
 import { recordChatAttempt } from "./aiChatDebug";
+import { getFallbackMatch } from "./aiFallbackResponses";
 
 type ContentPart =
   | { type: "text"; text: string }
@@ -27,7 +28,7 @@ export async function streamChat({
   featureTag?: string;
   onDelta: (deltaText: string) => void;
   onDone: () => void;
-  onFallback?: (info: { status: number; reason: string }) => void;
+  onFallback?: (info: { status: number; reason: string; fallbackKey: string; fallbackTitle: string; fallbackStreaming: boolean; cachedResponse: string }) => void;
 }) {
   // Auto-resolve userMeta from sessionStorage if not provided.
   let resolvedMeta = userMeta;
@@ -67,12 +68,33 @@ export async function streamChat({
   if (contentType.includes("application/json")) {
     const data = await resp.json().catch(() => ({}));
     if (data?.fallback) {
+      // Find best cached example for this user prompt.
+      const lastUser = [...messages].reverse().find((m) => m.role === "user");
+      const userText = typeof lastUser?.content === "string"
+        ? lastUser.content
+        : Array.isArray(lastUser?.content)
+          ? (lastUser!.content.find((p) => p.type === "text") as any)?.text || ""
+          : "";
+      const match = getFallbackMatch(userText);
+      // Streaming flag: true unless caller explicitly sent nonStream upstream.
+      const fallbackStreaming = true;
       recordChatAttempt({
         timestamp: Date.now(), feature: featureTag || tool || "chat", model: modelOverride,
         upstreamStatus: data.status || 0, errorReason: data.error || "AI unavailable",
-        fallbackUsed: true, fallbackKey: "cached_example", durationMs: Date.now() - startedAt,
+        fallbackUsed: true,
+        fallbackKey: match.key,
+        fallbackTitle: match.title,
+        fallbackStreaming,
+        durationMs: Date.now() - startedAt,
       });
-      onFallback?.({ status: data.status || 0, reason: data.error || "AI unavailable" });
+      onFallback?.({
+        status: data.status || 0,
+        reason: data.error || "AI unavailable",
+        fallbackKey: match.key,
+        fallbackTitle: match.title,
+        fallbackStreaming,
+        cachedResponse: match.response,
+      });
       onDone();
       return;
     }

@@ -24,6 +24,7 @@ export async function streamChat({
   featureTag?: string;
   onDelta: (deltaText: string) => void;
   onDone: () => void;
+  onFallback?: (info: { status: number; reason: string }) => void;
 }) {
   // Auto-resolve userMeta from sessionStorage if not provided.
   let resolvedMeta = userMeta;

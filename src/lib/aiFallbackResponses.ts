@@ -131,14 +131,25 @@ In the meantime, you can:
 
 Try one of the example questions above to see a worked-through answer.`;
 
-export function getFallbackResponse(userQuestion: string): string {
+export interface FallbackMatch {
+  key: string;
+  title: string;
+  response: string;
+}
+
+export function getFallbackMatch(userQuestion: string): FallbackMatch {
   const q = userQuestion.toLowerCase();
   for (const example of EXAMPLES) {
     if (example.keywords.some((k) => q.includes(k))) {
-      return example.response;
+      return { key: example.id, title: example.title, response: example.response };
     }
   }
-  return GENERIC_FALLBACK;
+  return { key: GENERIC_FALLBACK_KEY, title: "Generic practice mode", response: GENERIC_FALLBACK };
+}
+
+// Backward-compatible helper
+export function getFallbackResponse(userQuestion: string): string {
+  return getFallbackMatch(userQuestion).response;
 }
 
 export const FALLBACK_BANNER =

@@ -74,10 +74,28 @@ const ChatDebugPanel = () => {
               <dt className="text-xs text-muted-foreground">Fallback used</dt>
               <dd>
                 <Badge variant={attempt.fallbackUsed ? "destructive" : "secondary"} className="text-xs">
-                  {attempt.fallbackUsed ? `Yes — ${attempt.fallbackKey || "cached"}` : "No (live response)"}
+                  {attempt.fallbackUsed ? `Yes — ${attempt.fallbackTitle || attempt.fallbackKey || "cached"}` : "No (live response)"}
                 </Badge>
               </dd>
             </div>
+            {attempt.fallbackUsed && (
+              <>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Cached example key</dt>
+                  <dd className="font-mono text-xs">
+                    <code className="bg-muted/60 px-1.5 py-0.5 rounded">{attempt.fallbackKey || "—"}</code>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Served via</dt>
+                  <dd>
+                    <Badge variant="outline" className="text-xs">
+                      {attempt.fallbackStreaming === false ? "Non-streaming (JSON)" : "Streaming (SSE)"}
+                    </Badge>
+                  </dd>
+                </div>
+              </>
+            )}
             <div className="md:col-span-2">
               <dt className="text-xs text-muted-foreground">Error reason (from edge function)</dt>
               <dd className="text-xs bg-muted/40 rounded p-2 font-mono whitespace-pre-wrap">

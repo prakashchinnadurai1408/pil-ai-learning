@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Sparkles, Lightbulb } from "lucide-react";
 import { streamChat } from "@/lib/streamChat";
+import { getFallbackResponse, FALLBACK_BANNER } from "@/lib/aiFallbackResponses";
 import { toast } from "sonner";
 import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
 import { modules } from "@/data/modules";
@@ -119,6 +120,16 @@ const AIPlayground = () => {
         tool: lang !== "en-IN" ? `lang:${selectedLang?.aiLabel}` : undefined,
         studentContext: studentCtx,
         onDelta: (chunk) => upsertAssistant(chunk),
+        onFallback: ({ status, reason }) => {
+          // Read-only practice mode: serve cached example so students can keep practicing.
+          const cached = getFallbackResponse(userMsg.content);
+          const banner = status === 402
+            ? FALLBACK_BANNER
+            : `⚠️ ${reason} — showing a cached example instead.`;
+          assistantSoFar = `${banner}\n\n${cached}`;
+          setMessages(prev => [...prev, { role: "assistant", content: assistantSoFar }]);
+          toast.info(status === 402 ? "Practice Mode — using cached examples" : "AI unavailable — cached response", { duration: 4000 });
+        },
         onDone: () => {
           setIsLoading(false);
           if (!assistantSoFar.trim()) {

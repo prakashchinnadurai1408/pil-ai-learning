@@ -15,6 +15,7 @@ export async function streamChat({
   featureTag,
   onDelta,
   onDone,
+  onFallback,
 }: {
   messages: Msg[];
   tool?: string;
@@ -24,6 +25,7 @@ export async function streamChat({
   featureTag?: string;
   onDelta: (deltaText: string) => void;
   onDone: () => void;
+  onFallback?: (info: { status: number; reason: string }) => void;
 }) {
   // Auto-resolve userMeta from sessionStorage if not provided.
   let resolvedMeta = userMeta;
@@ -50,6 +52,20 @@ export async function streamChat({
   if (!resp.ok || !resp.body) {
     const errorData = await resp.json().catch(() => ({ error: "Failed to connect to AI" }));
     throw new Error(errorData.error || "Failed to start stream");
+  }
+
+  // Detect non-stream JSON fallback response (sent by edge fn when upstream returns 402/429/5xx).
+  const contentType = resp.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    const data = await resp.json().catch(() => ({}));
+    if (data?.fallback) {
+      onFallback?.({ status: data.status || 0, reason: data.error || "AI unavailable" });
+      onDone();
+      return;
+    }
+    if (data?.error) throw new Error(data.error);
+    onDone();
+    return;
   }
 
   const reader = resp.body.getReader();

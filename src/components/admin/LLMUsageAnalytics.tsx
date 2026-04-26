@@ -9,6 +9,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import LLMUsageCohortPanel from "./LLMUsageCohortPanel";
+import AIChatErrorBreakdown from "./AIChatErrorBreakdown";
 
 interface UsageRow {
   id: string;
@@ -148,6 +149,9 @@ const LLMUsageAnalytics = () => {
           );
         })}
       </div>
+
+      {/* Error breakdown — billing vs network vs model */}
+      <AIChatErrorBreakdown />
 
       {/* Cohort / college aggregation with per-feature sparklines */}
       <LLMUsageCohortPanel />

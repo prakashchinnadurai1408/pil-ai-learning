@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Search, Download, Loader2, FileText, MessageSquare, Send } from "lucide-react";
 import { toast } from "sonner";
+import AIChatErrorBreakdown from "@/components/admin/AIChatErrorBreakdown";
 
 interface Props {
   reviewerId: string;
@@ -209,7 +210,9 @@ const CoordinatorReview = ({ reviewerId, reviewerName, reviewerRole }: Props) =>
   };
 
   return (
-    <Card>
+    <div className="space-y-6">
+      <AIChatErrorBreakdown />
+      <Card>
       <CardHeader>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -321,7 +324,8 @@ const CoordinatorReview = ({ reviewerId, reviewerName, reviewerRole }: Props) =>
           )}
         </DialogContent>
       </Dialog>
-    </Card>
+      </Card>
+    </div>
   );
 };
 

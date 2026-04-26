@@ -303,7 +303,33 @@ const AIChatErrorBreakdown = () => {
         )}
 
         <div>
-          <h4 className="text-sm font-medium mb-2">Recent failures</h4>
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+            <h4 className="text-sm font-medium">Recent failures</h4>
+            <div className="flex items-center gap-2">
+              {bulkRunning && (
+                <span className="text-xs text-muted-foreground font-mono">
+                  {bulkProgress.done}/{bulkProgress.total} · ✅ {bulkProgress.ok} · ❌ {bulkProgress.failed}
+                </span>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8"
+                disabled={bulkRunning || billingErrors.length === 0}
+                onClick={handleBulkRetryBilling}
+                title="Retry every billing-related (402) error in the table"
+              >
+                {bulkRunning ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <PlayCircle className="h-3.5 w-3.5" />
+                )}
+                <span className="ml-1.5">
+                  Retry all billing errors{billingErrors.length > 0 && ` (${billingErrors.length})`}
+                </span>
+              </Button>
+            </div>
+          </div>
           {recentErrors.length === 0 ? (
             <p className="text-xs text-muted-foreground py-6 text-center">🎉 No errors in the last 7 days.</p>
           ) : (

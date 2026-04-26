@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Sparkles, Lightbulb } from "lucide-react";
 import { streamChat } from "@/lib/streamChat";
+import { getFallbackResponse, FALLBACK_BANNER } from "@/lib/aiFallbackResponses";
 import { toast } from "sonner";
 import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
 import { modules } from "@/data/modules";

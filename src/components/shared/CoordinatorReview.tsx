@@ -324,7 +324,8 @@ const CoordinatorReview = ({ reviewerId, reviewerName, reviewerRole }: Props) =>
           )}
         </DialogContent>
       </Dialog>
-    </Card>
+      </Card>
+    </div>
   );
 };
 

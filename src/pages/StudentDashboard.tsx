@@ -24,6 +24,7 @@ import { getMenuAccess, isAllowed, TIER_META, TIERS, type MenuAccessConfig, type
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { toast } from "sonner";
 import NotificationsPanel from "@/components/dashboard/NotificationsPanel";
+import PracticeModeBanner from "@/components/dashboard/PracticeModeBanner";
 import { ContentSkeleton } from "@/components/LoadingFallback";
 
 const AIPlayground = lazy(() => import("@/components/dashboard/AIPlayground"));
@@ -377,6 +378,7 @@ const StudentDashboard = () => {
           </header>
 
           <main className="flex-1 px-6 py-8" role="main">
+            <div className="mb-4"><PracticeModeBanner /></div>
             {showProfile ? (
               <ErrorBoundary>
                 <Suspense fallback={<ContentSkeleton />}>

@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import LLMUsageCohortPanel from "./LLMUsageCohortPanel";
 import AIChatErrorBreakdown from "./AIChatErrorBreakdown";
+import ChatDebugPanel from "./ChatDebugPanel";
 
 interface UsageRow {
   id: string;
@@ -152,6 +153,9 @@ const LLMUsageAnalytics = () => {
 
       {/* Error breakdown — billing vs network vs model */}
       <AIChatErrorBreakdown />
+
+      {/* Admin-only: last chat attempt diagnostics in this browser session */}
+      <ChatDebugPanel />
 
       {/* Cohort / college aggregation with per-feature sparklines */}
       <LLMUsageCohortPanel />

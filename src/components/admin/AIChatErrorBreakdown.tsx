@@ -2,16 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CreditCard, WifiOff, Cpu, CheckCircle2, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, CreditCard, WifiOff, Cpu, CheckCircle2, Loader2, RefreshCw, FileDown } from "lucide-react";
+import { toast } from "sonner";
 
 interface UsageRow {
   id: string;
   created_at: string;
   status: string;
   model: string;
+  provider: string;
   feature: string;
   user_name: string;
   user_role: string;
+  latency_ms: number;
+  total_tokens: number;
 }
 
 type Category = "billing" | "rate_limit" | "server" | "client" | "model" | "success" | "other";
@@ -37,28 +42,113 @@ const CATEGORY_META: Record<Category, { label: string; hint: string; icon: typeo
   other: { label: "Other", hint: "Unclassified status codes", icon: AlertTriangle, tone: "text-muted-foreground" },
 };
 
+const providerFamily = (model: string, provider: string): string => {
+  const m = (model || "").toLowerCase();
+  if (m.includes("gpt")) return "OpenAI / GPT";
+  if (m.includes("claude")) return "Anthropic / Claude";
+  if (m.includes("gemini")) return "Google / Gemini";
+  if (m.includes("grok")) return "xAI / Grok";
+  if (m.includes("deepseek")) return "DeepSeek";
+  return provider || "Other";
+};
+
+const downloadIncident = (row: UsageRow) => {
+  const cat = categorize(row.status);
+  const meta = CATEGORY_META[cat];
+  const incident = {
+    incident_id: `INC-${row.id.slice(0, 8).toUpperCase()}`,
+    generated_at: new Date().toISOString(),
+    summary: `AI chat ${meta.label} for user "${row.user_name || "unknown"}"`,
+    occurred_at: row.created_at,
+    category: meta.label,
+    likely_cause: meta.hint,
+    upstream_status: row.status,
+    model: row.model,
+    provider: row.provider,
+    feature: row.feature,
+    user: { name: row.user_name, role: row.user_role },
+    latency_ms: row.latency_ms,
+    tokens: row.total_tokens,
+    suggested_actions:
+      cat === "billing"
+        ? ["Top up Lovable AI credits at Settings → Workspace → Usage", "Verify Practice Mode fallback is serving cached examples to students"]
+        : cat === "rate_limit"
+        ? ["Wait a few minutes — rate limits self-recover", "Consider switching to a less-constrained model"]
+        : cat === "server"
+        ? ["Check Lovable AI gateway status", "Retry after a short delay", "Contact support if persistent"]
+        : ["Inspect edge function logs for chat", "Verify request payload"],
+  };
+  const blob = new Blob([JSON.stringify(incident, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${incident.incident_id}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast.success("Incident report downloaded");
+};
+
+const retryHealthCheck = async (row: UsageRow): Promise<void> => {
+  const tId = toast.loading(`Retrying ${row.model || "chat"}…`);
+  try {
+    const { data, error } = await supabase.functions.invoke("chat", {
+      body: {
+        messages: [{ role: "user", content: "ping" }],
+        modelOverride: row.model,
+        nonStream: true,
+        featureTag: "admin_retry_check",
+      },
+    });
+    if (error) throw error;
+    if ((data as any)?.fallback) {
+      toast.warning(`Still failing: ${(data as any).error || "AI unavailable"}`, { id: tId });
+    } else {
+      toast.success("Live AI is responding again ✅", { id: tId });
+    }
+  } catch (e) {
+    toast.error(`Retry failed: ${e instanceof Error ? e.message : "unknown"}`, { id: tId });
+  }
+};
+
 const AIChatErrorBreakdown = () => {
   const [rows, setRows] = useState<UsageRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     (async () => {
+      setLoading(true);
       const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data } = await supabase
         .from("llm_usage_logs")
-        .select("id, created_at, status, model, feature, user_name, user_role")
+        .select("id, created_at, status, model, provider, feature, user_name, user_role, latency_ms, total_tokens")
         .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(2000);
       setRows((data as UsageRow[]) || []);
       setLoading(false);
     })();
-  }, []);
+  }, [refreshKey]);
 
   const summary = useMemo(() => {
     const counts: Record<Category, number> = { billing: 0, rate_limit: 0, server: 0, client: 0, model: 0, success: 0, other: 0 };
     rows.forEach((r) => { counts[categorize(r.status)] += 1; });
     return counts;
+  }, [rows]);
+
+  // Errors grouped by provider/model family
+  const byProvider = useMemo(() => {
+    const map = new Map<string, Record<Category, number> & { total: number }>();
+    rows.forEach((r) => {
+      const cat = categorize(r.status);
+      if (cat === "success") return;
+      const key = providerFamily(r.model, r.provider);
+      const cur = map.get(key) || { billing: 0, rate_limit: 0, server: 0, client: 0, model: 0, success: 0, other: 0, total: 0 };
+      cur[cat] += 1;
+      cur.total += 1;
+      map.set(key, cur);
+    });
+    return Array.from(map.entries()).sort((a, b) => b[1].total - a[1].total);
   }, [rows]);
 
   const recentErrors = useMemo(
@@ -84,12 +174,17 @@ const AIChatErrorBreakdown = () => {
       <CardHeader>
         <CardTitle className="text-base flex items-center justify-between flex-wrap gap-2">
           <span>AI chat error breakdown — last 7 days</span>
-          <Badge variant={totalErrors > 0 ? "destructive" : "secondary"} className="text-xs">
-            {totalErrors} errors / {rows.length} calls ({errorRate}%)
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={totalErrors > 0 ? "destructive" : "secondary"} className="text-xs">
+              {totalErrors} errors / {rows.length} calls ({errorRate}%)
+            </Badge>
+            <Button size="sm" variant="ghost" className="h-7" onClick={() => setRefreshKey((k) => k + 1)}>
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {categories.map((cat) => {
             const meta = CATEGORY_META[cat];
@@ -108,6 +203,42 @@ const AIChatErrorBreakdown = () => {
           })}
         </div>
 
+        {byProvider.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-2">Errors by provider / model family</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-xs text-muted-foreground">
+                  <tr>
+                    <th className="p-2 text-left font-medium">Provider</th>
+                    <th className="p-2 text-right font-medium">Total</th>
+                    <th className="p-2 text-right font-medium">Billing</th>
+                    <th className="p-2 text-right font-medium">Rate limit</th>
+                    <th className="p-2 text-right font-medium">Server</th>
+                    <th className="p-2 text-right font-medium">Client</th>
+                    <th className="p-2 text-right font-medium">Model</th>
+                    <th className="p-2 text-right font-medium">Other</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {byProvider.map(([name, c]) => (
+                    <tr key={name} className="hover:bg-muted/30">
+                      <td className="p-2 text-xs font-medium">{name}</td>
+                      <td className="p-2 text-xs text-right font-semibold">{c.total}</td>
+                      <td className="p-2 text-xs text-right">{c.billing || "—"}</td>
+                      <td className="p-2 text-xs text-right">{c.rate_limit || "—"}</td>
+                      <td className="p-2 text-xs text-right">{c.server || "—"}</td>
+                      <td className="p-2 text-xs text-right">{c.client || "—"}</td>
+                      <td className="p-2 text-xs text-right">{c.model || "—"}</td>
+                      <td className="p-2 text-xs text-right">{c.other || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         <div>
           <h4 className="text-sm font-medium mb-2">Recent failures</h4>
           {recentErrors.length === 0 ? (
@@ -123,6 +254,7 @@ const AIChatErrorBreakdown = () => {
                     <th className="p-2 text-left font-medium">Model</th>
                     <th className="p-2 text-left font-medium">User</th>
                     <th className="p-2 text-left font-medium">Feature</th>
+                    <th className="p-2 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -137,6 +269,16 @@ const AIChatErrorBreakdown = () => {
                         <td className="p-2 text-xs font-mono">{r.model}</td>
                         <td className="p-2 text-xs">{r.user_name || "—"} <span className="text-muted-foreground">({r.user_role})</span></td>
                         <td className="p-2 text-xs">{r.feature}</td>
+                        <td className="p-2 text-xs text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => retryHealthCheck(r)} title="Retry — sends a tiny health-check call to this model">
+                              <RefreshCw className="h-3.5 w-3.5" /> <span className="ml-1 hidden md:inline">Retry</span>
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => downloadIncident(r)} title="Download incident report (JSON)">
+                              <FileDown className="h-3.5 w-3.5" /> <span className="ml-1 hidden md:inline">Report</span>
+                            </Button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}

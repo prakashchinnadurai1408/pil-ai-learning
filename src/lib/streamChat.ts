@@ -1,3 +1,5 @@
+import { recordChatAttempt } from "./aiChatDebug";
+
 type ContentPart =
   | { type: "text"; text: string }
   | { type: "image_url"; image_url: { url: string } };
@@ -40,6 +42,7 @@ export async function streamChat({
     } catch { /* ignore */ }
   }
 
+  const startedAt = Date.now();
   const resp = await fetch(CHAT_URL, {
     method: "POST",
     headers: {
@@ -51,6 +54,11 @@ export async function streamChat({
 
   if (!resp.ok || !resp.body) {
     const errorData = await resp.json().catch(() => ({ error: "Failed to connect to AI" }));
+    recordChatAttempt({
+      timestamp: Date.now(), feature: featureTag || tool || "chat", model: modelOverride,
+      upstreamStatus: resp.status, errorReason: errorData.error || "Failed to start stream",
+      fallbackUsed: false, durationMs: Date.now() - startedAt,
+    });
     throw new Error(errorData.error || "Failed to start stream");
   }
 
@@ -59,11 +67,23 @@ export async function streamChat({
   if (contentType.includes("application/json")) {
     const data = await resp.json().catch(() => ({}));
     if (data?.fallback) {
+      recordChatAttempt({
+        timestamp: Date.now(), feature: featureTag || tool || "chat", model: modelOverride,
+        upstreamStatus: data.status || 0, errorReason: data.error || "AI unavailable",
+        fallbackUsed: true, fallbackKey: "cached_example", durationMs: Date.now() - startedAt,
+      });
       onFallback?.({ status: data.status || 0, reason: data.error || "AI unavailable" });
       onDone();
       return;
     }
-    if (data?.error) throw new Error(data.error);
+    if (data?.error) {
+      recordChatAttempt({
+        timestamp: Date.now(), feature: featureTag || tool || "chat", model: modelOverride,
+        upstreamStatus: resp.status, errorReason: data.error,
+        fallbackUsed: false, durationMs: Date.now() - startedAt,
+      });
+      throw new Error(data.error);
+    }
     onDone();
     return;
   }
@@ -120,5 +140,9 @@ export async function streamChat({
     }
   }
 
+  recordChatAttempt({
+    timestamp: Date.now(), feature: featureTag || tool || "chat", model: modelOverride,
+    upstreamStatus: 200, fallbackUsed: false, durationMs: Date.now() - startedAt,
+  });
   onDone();
 }

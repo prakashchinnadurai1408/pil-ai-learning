@@ -89,8 +89,9 @@ const downloadIncident = (row: UsageRow) => {
   toast.success("Incident report downloaded");
 };
 
-const retryHealthCheck = async (row: UsageRow): Promise<void> => {
-  const tId = toast.loading(`Retrying ${row.model || "chat"}…`);
+type RetryStatus = "idle" | "queued" | "running" | "ok" | "still_failing" | "error";
+
+const runRetry = async (row: UsageRow): Promise<{ status: RetryStatus; message: string }> => {
   try {
     const { data, error } = await supabase.functions.invoke("chat", {
       body: {
@@ -100,15 +101,22 @@ const retryHealthCheck = async (row: UsageRow): Promise<void> => {
         featureTag: "admin_retry_check",
       },
     });
-    if (error) throw error;
+    if (error) return { status: "error", message: error.message || "invoke error" };
     if ((data as any)?.fallback) {
-      toast.warning(`Still failing: ${(data as any).error || "AI unavailable"}`, { id: tId });
-    } else {
-      toast.success("Live AI is responding again ✅", { id: tId });
+      return { status: "still_failing", message: (data as any).error || "AI unavailable" };
     }
+    return { status: "ok", message: "Live AI responding" };
   } catch (e) {
-    toast.error(`Retry failed: ${e instanceof Error ? e.message : "unknown"}`, { id: tId });
+    return { status: "error", message: e instanceof Error ? e.message : "unknown" };
   }
+};
+
+const retryHealthCheck = async (row: UsageRow): Promise<void> => {
+  const tId = toast.loading(`Retrying ${row.model || "chat"}…`);
+  const r = await runRetry(row);
+  if (r.status === "ok") toast.success("Live AI is responding again ✅", { id: tId });
+  else if (r.status === "still_failing") toast.warning(`Still failing: ${r.message}`, { id: tId });
+  else toast.error(`Retry failed: ${r.message}`, { id: tId });
 };
 
 const AIChatErrorBreakdown = () => {

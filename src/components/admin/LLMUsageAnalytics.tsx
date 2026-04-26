@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import LLMUsageCohortPanel from "./LLMUsageCohortPanel";
 import AIChatErrorBreakdown from "./AIChatErrorBreakdown";
+import ChatDebugPanel from "./ChatDebugPanel";
 
 interface UsageRow {
   id: string;

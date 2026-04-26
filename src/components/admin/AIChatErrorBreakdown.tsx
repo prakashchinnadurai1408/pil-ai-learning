@@ -123,6 +123,9 @@ const AIChatErrorBreakdown = () => {
   const [rows, setRows] = useState<UsageRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [retryStatus, setRetryStatus] = useState<Record<string, { status: RetryStatus; message?: string }>>({});
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0, ok: 0, failed: 0 });
 
   useEffect(() => {
     (async () => {

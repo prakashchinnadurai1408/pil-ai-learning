@@ -343,6 +343,7 @@ const AIChatErrorBreakdown = () => {
                     <th className="p-2 text-left font-medium">Model</th>
                     <th className="p-2 text-left font-medium">User</th>
                     <th className="p-2 text-left font-medium">Feature</th>
+                    <th className="p-2 text-left font-medium">Retry status</th>
                     <th className="p-2 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
@@ -350,6 +351,7 @@ const AIChatErrorBreakdown = () => {
                   {recentErrors.map((r) => {
                     const cat = categorize(r.status);
                     const meta = CATEGORY_META[cat];
+                    const rs = retryStatus[r.id];
                     return (
                       <tr key={r.id} className="hover:bg-muted/30">
                         <td className="p-2 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</td>
@@ -358,9 +360,24 @@ const AIChatErrorBreakdown = () => {
                         <td className="p-2 text-xs font-mono">{r.model}</td>
                         <td className="p-2 text-xs">{r.user_name || "—"} <span className="text-muted-foreground">({r.user_role})</span></td>
                         <td className="p-2 text-xs">{r.feature}</td>
+                        <td className="p-2 text-xs">
+                          {!rs ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : rs.status === "queued" ? (
+                            <Badge variant="outline" className="text-[10px]">Queued</Badge>
+                          ) : rs.status === "running" ? (
+                            <Badge variant="outline" className="text-[10px] gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Running</Badge>
+                          ) : rs.status === "ok" ? (
+                            <Badge variant="secondary" className="text-[10px] gap-1 text-success"><CheckCircle2 className="h-3 w-3" /> Live</Badge>
+                          ) : rs.status === "still_failing" ? (
+                            <Badge variant="destructive" className="text-[10px] gap-1" title={rs.message}><XCircle className="h-3 w-3" /> Still failing</Badge>
+                          ) : (
+                            <Badge variant="destructive" className="text-[10px] gap-1" title={rs.message}><XCircle className="h-3 w-3" /> Error</Badge>
+                          )}
+                        </td>
                         <td className="p-2 text-xs text-right">
                           <div className="flex justify-end gap-1">
-                            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => retryHealthCheck(r)} title="Retry — sends a tiny health-check call to this model">
+                            <Button size="sm" variant="ghost" className="h-7 px-2" disabled={bulkRunning || rs?.status === "running"} onClick={() => handleRowRetry(r)} title="Retry — sends a tiny health-check call to this model">
                               <RefreshCw className="h-3.5 w-3.5" /> <span className="ml-1 hidden md:inline">Retry</span>
                             </Button>
                             <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => downloadIncident(r)} title="Download incident report (JSON)">

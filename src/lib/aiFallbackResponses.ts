@@ -2,12 +2,16 @@
 // These let students continue practicing prompts even when the live model is unavailable.
 
 interface FallbackExample {
+  id: string;
+  title: string;
   keywords: string[];
   response: string;
 }
 
 const EXAMPLES: FallbackExample[] = [
   {
+    id: "rag-overview",
+    title: "RAG overview",
     keywords: ["rag", "retrieval", "augmented"],
     response: `## Retrieval Augmented Generation (RAG) — cached example
 

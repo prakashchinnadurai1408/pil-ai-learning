@@ -145,3 +145,4 @@ export async function streamChat({
     upstreamStatus: 200, fallbackUsed: false, durationMs: Date.now() - startedAt,
   });
   onDone();
+}

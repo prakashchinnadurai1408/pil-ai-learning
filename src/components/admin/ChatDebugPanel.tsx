@@ -1,9 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Bug, RefreshCw } from "lucide-react";
-import { getLastChatAttempt, subscribeChatDebug, type LastChatAttempt } from "@/lib/aiChatDebug";
+import { toast } from "sonner";
+import {
+  getLastChatAttempt,
+  getRestoredState,
+  clearRestoredState,
+  startCreditsRestoredWatcher,
+  subscribeChatDebug,
+  type LastChatAttempt,
+} from "@/lib/aiChatDebug";
 
 const statusTone = (s: number) => {
   if (s === 200 || s === 0) return "secondary";
@@ -23,9 +31,28 @@ const reasonHint = (s: number) => {
 
 const ChatDebugPanel = () => {
   const [attempt, setAttempt] = useState<LastChatAttempt | null>(getLastChatAttempt());
+  const lastNotifiedRestoredAt = useRef<number | null>(null);
 
   useEffect(() => {
-    return subscribeChatDebug(() => setAttempt(getLastChatAttempt()));
+    // Start the auto-probe so admins are notified the moment credits return,
+    // even before any student sends a new prompt.
+    startCreditsRestoredWatcher();
+    const unsub = subscribeChatDebug(() => {
+      setAttempt(getLastChatAttempt());
+      const r = getRestoredState();
+      if (r.restored && r.at && r.at !== lastNotifiedRestoredAt.current) {
+        lastNotifiedRestoredAt.current = r.at;
+        toast.success(
+          r.via === "auto_probe"
+            ? "✅ AI credits restored — detected automatically by background probe."
+            : "✅ AI credits restored — live responses are working again.",
+          { duration: 8000 }
+        );
+        // Auto-clear after 30s so the success state doesn't linger forever.
+        window.setTimeout(() => clearRestoredState(), 30_000);
+      }
+    });
+    return unsub;
   }, []);
 
   return (

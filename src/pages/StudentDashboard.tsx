@@ -378,6 +378,7 @@ const StudentDashboard = () => {
           </header>
 
           <main className="flex-1 px-6 py-8" role="main">
+            <div className="mb-4"><PracticeModeBanner /></div>
             {showProfile ? (
               <ErrorBoundary>
                 <Suspense fallback={<ContentSkeleton />}>

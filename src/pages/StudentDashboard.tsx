@@ -24,6 +24,7 @@ import { getMenuAccess, isAllowed, TIER_META, TIERS, type MenuAccessConfig, type
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { toast } from "sonner";
 import NotificationsPanel from "@/components/dashboard/NotificationsPanel";
+import PracticeModeBanner from "@/components/dashboard/PracticeModeBanner";
 import { ContentSkeleton } from "@/components/LoadingFallback";
 
 const AIPlayground = lazy(() => import("@/components/dashboard/AIPlayground"));

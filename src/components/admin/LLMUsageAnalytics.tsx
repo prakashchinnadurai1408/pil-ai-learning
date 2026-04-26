@@ -9,6 +9,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import LLMUsageCohortPanel from "./LLMUsageCohortPanel";
+import AIChatErrorBreakdown from "./AIChatErrorBreakdown";
 
 interface UsageRow {
   id: string;

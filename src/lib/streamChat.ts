@@ -140,5 +140,8 @@ export async function streamChat({
     }
   }
 
+  recordChatAttempt({
+    timestamp: Date.now(), feature: featureTag || tool || "chat", model: modelOverride,
+    upstreamStatus: 200, fallbackUsed: false, durationMs: Date.now() - startedAt,
+  });
   onDone();
-}

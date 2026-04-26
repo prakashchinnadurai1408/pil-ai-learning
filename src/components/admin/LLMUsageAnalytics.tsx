@@ -150,6 +150,9 @@ const LLMUsageAnalytics = () => {
         })}
       </div>
 
+      {/* Error breakdown — billing vs network vs model */}
+      <AIChatErrorBreakdown />
+
       {/* Cohort / college aggregation with per-feature sparklines */}
       <LLMUsageCohortPanel />
 

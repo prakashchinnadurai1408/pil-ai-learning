@@ -2113,6 +2113,45 @@ export type Database = {
         }
         Relationships: []
       }
+      video_quiz_progress: {
+        Row: {
+          answers: Json
+          id: string
+          last_question_id: string | null
+          lesson_id: string
+          remaining_seconds: number | null
+          score: number
+          started_at_ms: number | null
+          student_id: string
+          submitted: boolean
+          updated_at: string
+        }
+        Insert: {
+          answers?: Json
+          id?: string
+          last_question_id?: string | null
+          lesson_id: string
+          remaining_seconds?: number | null
+          score?: number
+          started_at_ms?: number | null
+          student_id: string
+          submitted?: boolean
+          updated_at?: string
+        }
+        Update: {
+          answers?: Json
+          id?: string
+          last_question_id?: string | null
+          lesson_id?: string
+          remaining_seconds?: number | null
+          score?: number
+          started_at_ms?: number | null
+          student_id?: string
+          submitted?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       sms_gateway_public: {

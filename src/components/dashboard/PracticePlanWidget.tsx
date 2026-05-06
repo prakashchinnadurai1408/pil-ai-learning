@@ -37,6 +37,7 @@ const PracticePlanWidget = ({ studentId, studentName, onNavigate }: Props) => {
   const [tasks, setTasks] = useState<PlanTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [history, setHistory] = useState<{ plan_date: string; done: number; total: number }[]>([]);
 
   const load = async () => {
     if (!studentId) return;
@@ -53,6 +54,33 @@ const PracticePlanWidget = ({ studentId, studentName, onNavigate }: Props) => {
       setSummary("");
       setTasks([]);
     }
+
+    // Build 7-day history strip
+    const since = new Date(Date.now() - 6 * 86400_000).toISOString().slice(0, 10);
+    const { data: recent } = await supabase.from("practice_plans")
+      .select("id, plan_date").eq("student_id", studentId).gte("plan_date", since);
+    const planIds = (recent || []).map((r: any) => r.id);
+    let countsByPlan: Record<string, { done: number; total: number }> = {};
+    if (planIds.length) {
+      const { data: allTasks } = await supabase.from("practice_plan_tasks")
+        .select("plan_id, completed").in("plan_id", planIds);
+      for (const t of allTasks || []) {
+        const k = (t as any).plan_id as string;
+        countsByPlan[k] = countsByPlan[k] || { done: 0, total: 0 };
+        countsByPlan[k].total += 1;
+        if ((t as any).completed) countsByPlan[k].done += 1;
+      }
+    }
+    const map = new Map<string, { done: number; total: number }>();
+    for (const r of recent || []) {
+      map.set((r as any).plan_date, countsByPlan[(r as any).id] || { done: 0, total: 0 });
+    }
+    const days: { plan_date: string; done: number; total: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400_000).toISOString().slice(0, 10);
+      days.push({ plan_date: d, ...(map.get(d) || { done: 0, total: 0 }) });
+    }
+    setHistory(days);
     setLoading(false);
   };
 
@@ -96,6 +124,7 @@ const PracticePlanWidget = ({ studentId, studentName, onNavigate }: Props) => {
             Today's AI Practice Plan
           </CardTitle>
           <div className="flex items-center gap-2">
+            {(() => { let s = 0; for (let i = history.length - 1; i >= 0; i--) { if (history[i].done > 0) s++; else break; } return s > 0 ? <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">🔥 {s}-day streak</Badge> : null; })()}
             {tasks.length > 0 && (
               <Badge variant="outline">{completedCount}/{tasks.length} done</Badge>
             )}
@@ -104,6 +133,15 @@ const PracticePlanWidget = ({ studentId, studentName, onNavigate }: Props) => {
             </Button>
           </div>
         </div>
+        {history.length > 0 && (
+          <div className="flex items-center gap-1 mt-2" aria-label="7-day practice history">
+            {history.map((d) => {
+              const ratio = d.total ? d.done / d.total : 0;
+              const cls = d.total === 0 ? "bg-muted" : ratio >= 1 ? "bg-success" : ratio >= 0.5 ? "bg-primary" : ratio > 0 ? "bg-warning" : "bg-muted-foreground/30";
+              return <div key={d.plan_date} className={`h-1.5 flex-1 rounded ${cls}`} title={`${d.plan_date} · ${d.done}/${d.total}`} />;
+            })}
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-3">
         {loading && <Loader2 className="h-4 w-4 animate-spin text-primary" />}

@@ -124,6 +124,7 @@ const PracticePlanWidget = ({ studentId, studentName, onNavigate }: Props) => {
             Today's AI Practice Plan
           </CardTitle>
           <div className="flex items-center gap-2">
+            {(() => { let s = 0; for (let i = history.length - 1; i >= 0; i--) { if (history[i].done > 0) s++; else break; } return s > 0 ? <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">🔥 {s}-day streak</Badge> : null; })()}
             {tasks.length > 0 && (
               <Badge variant="outline">{completedCount}/{tasks.length} done</Badge>
             )}
@@ -132,6 +133,15 @@ const PracticePlanWidget = ({ studentId, studentName, onNavigate }: Props) => {
             </Button>
           </div>
         </div>
+        {history.length > 0 && (
+          <div className="flex items-center gap-1 mt-2" aria-label="7-day practice history">
+            {history.map((d) => {
+              const ratio = d.total ? d.done / d.total : 0;
+              const cls = d.total === 0 ? "bg-muted" : ratio >= 1 ? "bg-success" : ratio >= 0.5 ? "bg-primary" : ratio > 0 ? "bg-warning" : "bg-muted-foreground/30";
+              return <div key={d.plan_date} className={`h-1.5 flex-1 rounded ${cls}`} title={`${d.plan_date} · ${d.done}/${d.total}`} />;
+            })}
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-3">
         {loading && <Loader2 className="h-4 w-4 animate-spin text-primary" />}

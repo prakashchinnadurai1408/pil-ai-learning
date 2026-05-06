@@ -37,6 +37,7 @@ const PracticePlanWidget = ({ studentId, studentName, onNavigate }: Props) => {
   const [tasks, setTasks] = useState<PlanTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [history, setHistory] = useState<{ plan_date: string; done: number; total: number }[]>([]);
 
   const load = async () => {
     if (!studentId) return;
@@ -53,6 +54,33 @@ const PracticePlanWidget = ({ studentId, studentName, onNavigate }: Props) => {
       setSummary("");
       setTasks([]);
     }
+
+    // Build 7-day history strip
+    const since = new Date(Date.now() - 6 * 86400_000).toISOString().slice(0, 10);
+    const { data: recent } = await supabase.from("practice_plans")
+      .select("id, plan_date").eq("student_id", studentId).gte("plan_date", since);
+    const planIds = (recent || []).map((r: any) => r.id);
+    let countsByPlan: Record<string, { done: number; total: number }> = {};
+    if (planIds.length) {
+      const { data: allTasks } = await supabase.from("practice_plan_tasks")
+        .select("plan_id, completed").in("plan_id", planIds);
+      for (const t of allTasks || []) {
+        const k = (t as any).plan_id as string;
+        countsByPlan[k] = countsByPlan[k] || { done: 0, total: 0 };
+        countsByPlan[k].total += 1;
+        if ((t as any).completed) countsByPlan[k].done += 1;
+      }
+    }
+    const map = new Map<string, { done: number; total: number }>();
+    for (const r of recent || []) {
+      map.set((r as any).plan_date, countsByPlan[(r as any).id] || { done: 0, total: 0 });
+    }
+    const days: { plan_date: string; done: number; total: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400_000).toISOString().slice(0, 10);
+      days.push({ plan_date: d, ...(map.get(d) || { done: 0, total: 0 }) });
+    }
+    setHistory(days);
     setLoading(false);
   };
 

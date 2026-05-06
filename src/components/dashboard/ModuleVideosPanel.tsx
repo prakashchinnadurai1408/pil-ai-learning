@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Play, Video, Clock, ExternalLink } from "lucide-react";
 import { videoLessons } from "@/data/videoContent";
 import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
@@ -14,12 +14,34 @@ interface ModuleVideosPanelProps {
   activeTopicTitle?: string | null;
 }
 
+interface Chapter { index: number; title: string; start: number }
+
+const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.max(0, Math.floor(s)) % 60).padStart(2, "0")}`;
+
+// Inject YT API once
+let ytLoading: Promise<void> | null = null;
+const loadYouTubeAPI = () => {
+  if (typeof window === "undefined") return Promise.resolve();
+  if ((window as any).YT?.Player) return Promise.resolve();
+  if (ytLoading) return ytLoading;
+  ytLoading = new Promise((resolve) => {
+    const tag = document.createElement("script");
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(tag);
+    (window as any).onYouTubeIframeAPIReady = () => resolve();
+  });
+  return ytLoading;
+};
+
 const ModuleVideosPanel = ({ moduleId, topics = [], activeTopicId, activeTopicTitle }: ModuleVideosPanelProps) => {
   const { items: adminVideos } = usePublishedSectionContent("videos");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [currentTime, setCurrentTime] = useState(0);
+  const playerRef = useRef<any>(null);
+  const playerElId = useRef(`yt-player-${Math.random().toString(36).slice(2)}`);
 
   const videos = useMemo(() => {
-    // Admin videos: filter by topic_id when a topic is active
     const adminVids = adminVideos
       .filter((v) => v.module_id === moduleId)
       .filter((v) => !activeTopicId || v.topic_id === activeTopicId)
@@ -27,31 +49,75 @@ const ModuleVideosPanel = ({ moduleId, topics = [], activeTopicId, activeTopicTi
         const c = v.content as any;
         return { id: `a-${v.id}`, title: c?.title || v.title, duration: c?.duration || "—", youtubeId: c?.youtubeId };
       });
-
-    // Static videos: auto-match to active topic by keyword overlap with its title
     const staticVids = videoLessons
       .filter((v) => v.moduleId === moduleId)
       .filter((v) => {
         if (!activeTopicId || !topics.length) return true;
-        const matchedId = bestTopicId(v.title, topics);
-        return matchedId === activeTopicId;
+        return bestTopicId(v.title, topics) === activeTopicId;
       })
       .map((v) => ({ id: `s-${v.id}`, title: v.title, duration: v.duration, youtubeId: v.youtubeId }));
-
     return [...adminVids, ...staticVids];
   }, [adminVideos, moduleId, activeTopicId, topics]);
 
-  // Reset selection whenever the topic context changes so playback starts at #1.
-  useEffect(() => { setSelectedId(null); }, [activeTopicId, moduleId]);
+  useEffect(() => { setSelectedId(null); setChapters([]); setCurrentTime(0); }, [activeTopicId, moduleId]);
 
   const selected = videos.find((v) => v.id === selectedId) || videos[0];
   const currentIdx = videos.findIndex((v) => v.id === (selected?.id ?? ""));
 
   const playNext = () => {
-    if (currentIdx >= 0 && currentIdx < videos.length - 1) {
-      setSelectedId(videos[currentIdx + 1].id);
-    }
+    if (currentIdx >= 0 && currentIdx < videos.length - 1) setSelectedId(videos[currentIdx + 1].id);
   };
+
+  // Initialize YouTube player when video changes
+  useEffect(() => {
+    if (!selected?.youtubeId) return;
+    let pollTimer: any;
+    let cancelled = false;
+    (async () => {
+      await loadYouTubeAPI();
+      if (cancelled) return;
+      const YT = (window as any).YT;
+      if (playerRef.current?.destroy) { try { playerRef.current.destroy(); } catch {/* ignore */} }
+      playerRef.current = new YT.Player(playerElId.current, {
+        videoId: selected.youtubeId,
+        playerVars: { enablejsapi: 1, rel: 0 },
+        events: {
+          onReady: () => {
+            pollTimer = setInterval(() => {
+              try {
+                const t = playerRef.current?.getCurrentTime?.();
+                if (typeof t === "number") setCurrentTime(t);
+              } catch {/* ignore */}
+            }, 500);
+          },
+        },
+      });
+    })();
+    return () => {
+      cancelled = true;
+      if (pollTimer) clearInterval(pollTimer);
+      try { playerRef.current?.destroy?.(); } catch {/* ignore */}
+      playerRef.current = null;
+    };
+  }, [selected?.youtubeId]);
+
+  const seekTo = (seconds: number) => {
+    try {
+      playerRef.current?.seekTo?.(seconds, true);
+      playerRef.current?.playVideo?.();
+      setCurrentTime(seconds);
+    } catch {/* ignore */}
+  };
+
+  // Determine active chapter from currentTime
+  const activeChapterIndex = useMemo(() => {
+    if (chapters.length === 0) return -1;
+    let idx = 0;
+    for (let i = 0; i < chapters.length; i++) {
+      if (currentTime >= chapters[i].start) idx = i;
+    }
+    return chapters[idx]?.index ?? -1;
+  }, [chapters, currentTime]);
 
   if (videos.length === 0) {
     return (
@@ -68,21 +134,46 @@ const ModuleVideosPanel = ({ moduleId, topics = [], activeTopicId, activeTopicTi
     <div className="grid lg:grid-cols-3 gap-4 p-4">
       <div className="lg:col-span-2 space-y-3">
         {selected?.youtubeId ? (
-          <div className="aspect-video rounded-lg overflow-hidden bg-black">
-            <iframe
-              key={selected.id}
-              src={`https://www.youtube.com/embed/${selected.youtubeId}?enablejsapi=1`}
-              className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              title={selected.title}
-            />
+          <div className="relative aspect-video rounded-lg overflow-hidden bg-black">
+            <div id={playerElId.current} key={selected.id} className="w-full h-full" />
+            {/* Synced timer overlay */}
+            <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-black/70 text-white text-xs font-mono flex items-center gap-1 pointer-events-none">
+              <Clock className="h-3 w-3" /> {fmt(currentTime)}
+            </div>
+            {chapters.length > 0 && activeChapterIndex >= 0 && (
+              <div className="absolute bottom-2 left-2 px-2 py-1 rounded-md bg-primary/90 text-primary-foreground text-[10px] font-medium pointer-events-none max-w-[60%] truncate">
+                Ch {activeChapterIndex + 1}: {chapters.find((c) => c.index === activeChapterIndex)?.title}
+              </div>
+            )}
           </div>
         ) : (
           <div className="aspect-video rounded-lg bg-muted flex items-center justify-center">
             <p className="text-sm text-muted-foreground">Select a video to play</p>
           </div>
         )}
+
+        {/* Chapter navigation strip */}
+        {chapters.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-border bg-muted/20">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase mr-1 self-center">Jump to:</span>
+            {chapters.map((c, i) => {
+              const isActive = c.index === activeChapterIndex;
+              return (
+                <button
+                  key={c.index}
+                  onClick={() => seekTo(c.start)}
+                  className={`text-[10px] px-2 py-0.5 rounded-full border transition ${
+                    isActive ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-primary/10 hover:border-primary"
+                  }`}
+                  title={c.title}
+                >
+                  {i + 1}. {fmt(c.start)} · {c.title.length > 22 ? c.title.slice(0, 22) + "…" : c.title}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {selected && (
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -108,6 +199,8 @@ const ModuleVideosPanel = ({ moduleId, topics = [], activeTopicId, activeTopicTi
             videoTitle={selected.title}
             youtubeId={selected.youtubeId}
             moduleId={moduleId}
+            onSeek={seekTo}
+            onChapters={setChapters}
           />
         )}
       </div>

@@ -3,6 +3,7 @@ import { Play, Video, Clock, ExternalLink } from "lucide-react";
 import { videoLessons } from "@/data/videoContent";
 import { usePublishedSectionContent } from "@/hooks/useAdminSectionContent";
 import { bestTopicId } from "@/lib/topicMatch";
+import InModuleVideoQuiz from "./InModuleVideoQuiz";
 
 interface TopicLite { id: string; title: string }
 
@@ -101,6 +102,13 @@ const ModuleVideosPanel = ({ moduleId, topics = [], activeTopicId, activeTopicTi
               </button>
             )}
           </div>
+        )}
+        {selected && (
+          <InModuleVideoQuiz
+            videoTitle={selected.title}
+            youtubeId={selected.youtubeId}
+            moduleId={moduleId}
+          />
         )}
       </div>
       <div className="space-y-2 max-h-[480px] overflow-y-auto">

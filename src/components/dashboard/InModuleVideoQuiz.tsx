@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ListChecks, Clock, CheckCircle2, XCircle, Sparkles, RotateCcw, Trophy, BookOpen } from "lucide-react";
+import { Loader2, ListChecks, Clock, CheckCircle2, XCircle, Sparkles, RotateCcw, Trophy, BookOpen, Cloud, CloudOff, Keyboard } from "lucide-react";
 import { toast } from "sonner";
 
 interface Question {
@@ -32,6 +32,7 @@ interface SavedState {
   remaining: number | null;
   submitted: boolean;
   score: number;
+  lastQid?: string | null;
   savedAt: number;
 }
 
@@ -51,7 +52,11 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [resumed, setResumed] = useState(false);
   const [activeQid, setActiveQid] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "synced" | "offline">("idle");
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const qRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const syncTimer = useRef<number | null>(null);
 
   // Reset on video change
   useEffect(() => {
@@ -64,6 +69,7 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
     setTimeLeft(null);
     setResumed(false);
     setActiveQid(null);
+    setSyncStatus("idle");
   }, [youtubeId, videoTitle]);
 
   // Look up cached quiz on mount
@@ -90,13 +96,46 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
     return () => { cancelled = true; };
   }, [youtubeId]);
 
-  // Restore saved state when both lessonId & questions are ready
+  // Restore saved state — prefer cloud (Supabase) then fall back to localStorage
   useEffect(() => {
     if (!lessonId || questions.length === 0 || resumed) return;
-    try {
-      const raw = localStorage.getItem(storageKey(lessonId, studentId));
-      if (!raw) { setResumed(true); return; }
-      const saved: SavedState = JSON.parse(raw);
+    let cancelled = false;
+    (async () => {
+      let saved: SavedState | null = null;
+      let fromCloud = false;
+
+      if (studentId) {
+        try {
+          const { data, error } = await supabase
+            .from("video_quiz_progress")
+            .select("answers, remaining_seconds, submitted, score, last_question_id, updated_at")
+            .eq("lesson_id", lessonId)
+            .eq("student_id", studentId)
+            .maybeSingle();
+          if (!error && data) {
+            saved = {
+              answers: (data.answers as Record<string, number>) || {},
+              remaining: data.remaining_seconds,
+              submitted: !!data.submitted,
+              score: data.score || 0,
+              lastQid: data.last_question_id,
+              savedAt: new Date(data.updated_at).getTime(),
+            };
+            fromCloud = true;
+          }
+        } catch { /* ignore — fall back to local */ }
+      }
+
+      if (!saved) {
+        try {
+          const raw = localStorage.getItem(storageKey(lessonId, studentId));
+          if (raw) saved = JSON.parse(raw) as SavedState;
+        } catch {/* ignore */}
+      }
+
+      if (cancelled) return;
+      if (!saved) { setResumed(true); return; }
+
       setAnswers(saved.answers || {});
       if (saved.submitted) {
         setSubmitted(true);
@@ -105,11 +144,22 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
         const total = questions.length * 60;
         const elapsed = total - saved.remaining;
         setStartedAt(Date.now() - elapsed * 1000);
-        toast.info(`Resumed quiz · ${fmt(saved.remaining)} remaining`);
+
+        // Auto-seek to last active question's chapter
+        const lastQ = (saved.lastQid && questions.find((q) => q.id === saved.lastQid)) || null;
+        if (lastQ) {
+          setActiveQid(lastQ.id);
+          onSeek?.(lastQ.chapter_start_seconds);
+          setTimeout(() => qRefs.current[lastQ.id]?.scrollIntoView({ behavior: "smooth", block: "center" }), 200);
+        }
+
+        toast.info(`Resumed quiz · ${fmt(saved.remaining)} remaining${fromCloud ? " (synced)" : ""}`);
       }
-    } catch {/* ignore */}
-    setResumed(true);
-  }, [lessonId, questions, studentId, resumed]);
+      if (fromCloud) setSyncStatus("synced");
+      setResumed(true);
+    })();
+    return () => { cancelled = true; };
+  }, [lessonId, questions, studentId, resumed, onSeek]);
 
   // Notify parent of chapters
   useEffect(() => {
@@ -124,6 +174,26 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
     onChapters(chapters);
   }, [questions, onChapters]);
 
+  const submit = useCallback(async () => {
+    if (submitted || !lessonId) return;
+    let correct = 0;
+    questions.forEach((q) => { if (answers[q.id] === q.correct) correct += 1; });
+    const sc = questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0;
+    setScore(sc);
+    setSubmitted(true);
+    const time = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
+    await supabase.from("video_quiz_attempts").insert({
+      lesson_id: lessonId,
+      student_id: studentId,
+      student_name: studentName,
+      total_questions: questions.length,
+      correct_answers: correct,
+      score: sc,
+      time_taken_seconds: time,
+      answers: questions.map((q) => ({ questionId: q.id, answer: answers[q.id] ?? null, correct: q.correct })),
+    });
+  }, [submitted, lessonId, questions, answers, startedAt, studentId, studentName]);
+
   // Timer
   useEffect(() => {
     if (!startedAt || submitted || questions.length === 0) return;
@@ -136,21 +206,37 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
     tick();
     const t = setInterval(tick, 1000);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startedAt, submitted, questions.length]);
+  }, [startedAt, submitted, questions.length, submit]);
 
-  // Persist progress on every change
+  // Persist progress (local immediately + debounced cloud sync)
   useEffect(() => {
     if (!lessonId || !resumed) return;
     const saved: SavedState = {
-      answers,
-      remaining: timeLeft,
-      submitted,
-      score,
-      savedAt: Date.now(),
+      answers, remaining: timeLeft, submitted, score, lastQid: activeQid, savedAt: Date.now(),
     };
     try { localStorage.setItem(storageKey(lessonId, studentId), JSON.stringify(saved)); } catch {/* ignore */}
-  }, [answers, timeLeft, submitted, score, lessonId, studentId, resumed]);
+
+    if (!studentId) return;
+    setSyncStatus("syncing");
+    if (syncTimer.current) window.clearTimeout(syncTimer.current);
+    syncTimer.current = window.setTimeout(async () => {
+      try {
+        const { error } = await supabase.from("video_quiz_progress").upsert({
+          lesson_id: lessonId,
+          student_id: studentId,
+          answers,
+          remaining_seconds: timeLeft,
+          submitted,
+          score,
+          last_question_id: activeQid,
+        }, { onConflict: "lesson_id,student_id" });
+        setSyncStatus(error ? "offline" : "synced");
+      } catch {
+        setSyncStatus("offline");
+      }
+    }, 800);
+    return () => { if (syncTimer.current) window.clearTimeout(syncTimer.current); };
+  }, [answers, timeLeft, submitted, score, activeQid, lessonId, studentId, resumed]);
 
   const generate = async () => {
     setGenerating(true);
@@ -170,41 +256,29 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
     }
   };
 
-  const submit = async () => {
-    if (submitted || !lessonId) return;
-    let correct = 0;
-    questions.forEach((q) => { if (answers[q.id] === q.correct) correct += 1; });
-    const sc = questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0;
-    setScore(sc);
-    setSubmitted(true);
-    const time = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
-    await supabase.from("video_quiz_attempts").insert({
-      lesson_id: lessonId,
-      student_id: studentId,
-      student_name: studentName,
-      total_questions: questions.length,
-      correct_answers: correct,
-      score: sc,
-      time_taken_seconds: time,
-      answers: questions.map((q) => ({ questionId: q.id, answer: answers[q.id] ?? null, correct: q.correct })),
-    });
-  };
-
   const retake = () => {
     if (!lessonId) return;
     try { localStorage.removeItem(storageKey(lessonId, studentId)); } catch {/* ignore */}
+    if (studentId) {
+      supabase.from("video_quiz_progress")
+        .delete()
+        .eq("lesson_id", lessonId)
+        .eq("student_id", studentId)
+        .then(() => {/* noop */});
+    }
     setAnswers({});
     setSubmitted(false);
     setScore(0);
     setStartedAt(null);
     setTimeLeft(null);
+    setActiveQid(null);
   };
 
-  const jumpTo = (q: Question) => {
+  const jumpTo = useCallback((q: Question) => {
     setActiveQid(q.id);
     onSeek?.(q.chapter_start_seconds);
     qRefs.current[q.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
-  };
+  }, [onSeek]);
 
   const chapters = useMemo(() => {
     const seen = new Set<number>();
@@ -212,6 +286,49 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
       .filter((q) => (seen.has(q.chapter_index) ? false : (seen.add(q.chapter_index), true)))
       .map((q) => ({ index: q.chapter_index, title: q.chapter_title, start: q.chapter_start_seconds, qid: q.id }));
   }, [questions]);
+
+  // Keyboard navigation: 1-9 / A-Z select option, J/K or ↑/↓ move between questions, Enter submits
+  useEffect(() => {
+    if (submitted || !startedAt || questions.length === 0) return;
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
+
+      const currentIdx = activeQid ? questions.findIndex((q) => q.id === activeQid) : 0;
+      const cur = questions[currentIdx] ?? questions[0];
+      if (!cur) return;
+
+      // Option selection: 1-9 or A-Z
+      let optIdx = -1;
+      if (/^[1-9]$/.test(e.key)) optIdx = parseInt(e.key, 10) - 1;
+      else if (/^[a-zA-Z]$/.test(e.key)) optIdx = e.key.toUpperCase().charCodeAt(0) - 65;
+
+      if (optIdx >= 0 && optIdx < cur.options.length) {
+        e.preventDefault();
+        setAnswers((a) => ({ ...a, [cur.id]: optIdx }));
+        setActiveQid(cur.id);
+        return;
+      }
+
+      if (e.key === "ArrowDown" || e.key === "j" || e.key === "J") {
+        e.preventDefault();
+        const next = questions[Math.min(questions.length - 1, currentIdx + 1)];
+        if (next) jumpTo(next);
+      } else if (e.key === "ArrowUp" || e.key === "k" || e.key === "K") {
+        e.preventDefault();
+        const prev = questions[Math.max(0, currentIdx - 1)];
+        if (prev) jumpTo(prev);
+      } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        submit();
+      } else if (e.key === "?") {
+        e.preventDefault();
+        setShowShortcuts((s) => !s);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [activeQid, questions, submitted, startedAt, jumpTo, submit]);
 
   if (!youtubeId) {
     return <p className="text-xs text-muted-foreground p-3">Pick a YouTube video to enable quiz generation.</p>;
@@ -326,17 +443,43 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
     );
   }
 
+  const SyncIcon = syncStatus === "offline" ? CloudOff : Cloud;
+  const syncLabel = syncStatus === "synced" ? "Synced" : syncStatus === "syncing" ? "Syncing…" : syncStatus === "offline" ? "Offline" : "Local";
+
   // Active quiz
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" ref={containerRef}>
       <div className="flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur py-1 z-10">
         <p className="text-sm font-semibold">Video quiz</p>
-        {timeLeft !== null && (
-          <Badge variant="outline" className="flex items-center gap-1">
-            <Clock className="h-3 w-3" /> {fmt(timeLeft)}
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowShortcuts((s) => !s)}
+            className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-border hover:bg-muted"
+            title="Keyboard shortcuts (?)"
+          >
+            <Keyboard className="h-3 w-3" /> Keys
+          </button>
+          {studentId && (
+            <Badge variant="outline" className="flex items-center gap-1 text-[10px]" title={`Cloud sync: ${syncLabel}`}>
+              <SyncIcon className={`h-3 w-3 ${syncStatus === "syncing" ? "animate-pulse" : ""}`} /> {syncLabel}
+            </Badge>
+          )}
+          {timeLeft !== null && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              <Clock className="h-3 w-3" /> {fmt(timeLeft)}
+            </Badge>
+          )}
+        </div>
       </div>
+
+      {showShortcuts && (
+        <div className="p-2 rounded-lg border border-border bg-muted/30 text-[11px] grid grid-cols-2 gap-1">
+          <div><kbd className="font-mono px-1 border rounded">1-9</kbd> / <kbd className="font-mono px-1 border rounded">A-D</kbd> select option</div>
+          <div><kbd className="font-mono px-1 border rounded">↑</kbd>/<kbd className="font-mono px-1 border rounded">↓</kbd> or <kbd className="font-mono px-1 border rounded">J</kbd>/<kbd className="font-mono px-1 border rounded">K</kbd> next/prev</div>
+          <div><kbd className="font-mono px-1 border rounded">Ctrl/⌘ + Enter</kbd> submit</div>
+          <div><kbd className="font-mono px-1 border rounded">?</kbd> toggle this help</div>
+        </div>
+      )}
 
       {chapters.length > 1 && (
         <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-border bg-muted/20">
@@ -359,16 +502,18 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
 
       {questions.map((q, qi) => {
         const picked = answers[q.id];
+        const isActive = activeQid === q.id;
         return (
           <div
             key={q.id}
             ref={(el) => (qRefs.current[q.id] = el)}
-            className={`p-3 rounded-lg border space-y-2 ${activeQid === q.id ? "border-primary ring-1 ring-primary" : "border-border"}`}
+            onClick={() => setActiveQid(q.id)}
+            className={`p-3 rounded-lg border space-y-2 cursor-pointer ${isActive ? "border-primary ring-1 ring-primary" : "border-border"}`}
           >
             <div className="flex items-start justify-between gap-2">
               <p className="text-sm font-medium">{qi + 1}. {q.question}</p>
               <button
-                onClick={() => { onSeek?.(q.chapter_start_seconds); setActiveQid(q.id); }}
+                onClick={(e) => { e.stopPropagation(); jumpTo(q); }}
                 className="text-[10px] shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-border hover:bg-muted"
               >
                 <Clock className="h-3 w-3" /> {fmt(q.chapter_start_seconds)}
@@ -380,7 +525,8 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
                 return (
                   <button
                     key={i}
-                    onClick={() => setAnswers((a) => ({ ...a, [q.id]: i }))}
+                    onClick={(e) => { e.stopPropagation(); setAnswers((a) => ({ ...a, [q.id]: i })); setActiveQid(q.id); }}
+                    aria-pressed={isPicked}
                     className={`text-left text-sm p-2 rounded border transition ${
                       isPicked ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
                     }`}
@@ -393,7 +539,7 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
           </div>
         );
       })}
-      <Button onClick={submit} className="w-full">Submit quiz</Button>
+      <Button onClick={submit} className="w-full">Submit quiz <span className="ml-2 text-[10px] opacity-70">(⌘/Ctrl + Enter)</span></Button>
     </div>
   );
 };

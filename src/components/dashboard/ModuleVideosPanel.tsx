@@ -83,6 +83,7 @@ const ModuleVideosPanel = ({ moduleId, topics = [], activeTopicId, activeTopicTi
         playerVars: { enablejsapi: 1, rel: 0 },
         events: {
           onReady: () => {
+            (window as any).__ytPlayer = playerRef.current;
             pollTimer = setInterval(() => {
               try {
                 const t = playerRef.current?.getCurrentTime?.();
@@ -97,6 +98,7 @@ const ModuleVideosPanel = ({ moduleId, topics = [], activeTopicId, activeTopicTi
       cancelled = true;
       if (pollTimer) clearInterval(pollTimer);
       try { playerRef.current?.destroy?.(); } catch {/* ignore */}
+      if ((window as any).__ytPlayer === playerRef.current) (window as any).__ytPlayer = null;
       playerRef.current = null;
     };
   }, [selected?.youtubeId]);

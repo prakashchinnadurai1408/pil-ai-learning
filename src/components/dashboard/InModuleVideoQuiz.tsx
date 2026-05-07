@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ListChecks, Clock, CheckCircle2, XCircle, Sparkles, RotateCcw, Trophy, BookOpen, Cloud, CloudOff, Keyboard } from "lucide-react";
+import { Loader2, ListChecks, Clock, CheckCircle2, XCircle, Sparkles, RotateCcw, Trophy, BookOpen, Cloud, CloudOff, Keyboard, Crosshair } from "lucide-react";
 import { toast } from "sonner";
 
 interface Question {
@@ -41,6 +41,8 @@ const storageKey = (lessonId: string, studentId: string) => `videoQuiz:${lessonI
 const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, onSeek, onChapters }: Props) => {
   const studentId = sessionStorage.getItem("studentId") || "";
   const studentName = sessionStorage.getItem("studentName") || "Student";
+  const studentMobile = sessionStorage.getItem("studentMobile") || "";
+  const canSync = !!(studentId && studentMobile);
 
   const [lessonId, setLessonId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -96,45 +98,70 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
     return () => { cancelled = true; };
   }, [youtubeId]);
 
-  // Restore saved state — prefer cloud (Supabase) then fall back to localStorage
+  // Verified seek — re-issues onSeek if the player drifts beyond tolerance,
+  // keeping the video aligned with the MCQ segment despite player timing jitter.
+  const verifiedSeek = useCallback((seconds: number) => {
+    if (!onSeek) return;
+    const TOLERANCE = 0.75;
+    onSeek(seconds);
+    let attempts = 0;
+    const tick = () => {
+      attempts += 1;
+      const yt = (window as any).__ytPlayer;
+      let cur: number | null = null;
+      try { cur = yt?.getCurrentTime?.() ?? null; } catch {/* ignore */}
+      if (cur != null && Math.abs(cur - seconds) > TOLERANCE && attempts <= 3) {
+        onSeek(seconds);
+        setTimeout(tick, 350);
+      }
+    };
+    setTimeout(tick, 400);
+  }, [onSeek]);
+
+  // Restore saved state — merge cloud + local using last-updated timestamp wins.
   useEffect(() => {
     if (!lessonId || questions.length === 0 || resumed) return;
     let cancelled = false;
     (async () => {
-      let saved: SavedState | null = null;
-      let fromCloud = false;
+      let cloud: SavedState | null = null;
+      let local: SavedState | null = null;
 
-      if (studentId) {
+      if (canSync) {
         try {
-          const { data, error } = await supabase
-            .from("video_quiz_progress")
-            .select("answers, remaining_seconds, submitted, score, last_question_id, updated_at")
-            .eq("lesson_id", lessonId)
-            .eq("student_id", studentId)
-            .maybeSingle();
-          if (!error && data) {
-            saved = {
-              answers: (data.answers as Record<string, number>) || {},
-              remaining: data.remaining_seconds,
-              submitted: !!data.submitted,
-              score: data.score || 0,
-              lastQid: data.last_question_id,
-              savedAt: new Date(data.updated_at).getTime(),
+          const { data, error } = await supabase.rpc("get_video_quiz_progress", {
+            _student_id: studentId, _mobile: studentMobile, _lesson_id: lessonId,
+          });
+          const row = Array.isArray(data) ? data[0] : null;
+          if (!error && row) {
+            cloud = {
+              answers: (row.answers as Record<string, number>) || {},
+              remaining: row.remaining_seconds,
+              submitted: !!row.submitted,
+              score: row.score || 0,
+              lastQid: row.last_question_id,
+              savedAt: new Date(row.updated_at).getTime(),
             };
-            fromCloud = true;
           }
-        } catch { /* ignore — fall back to local */ }
+        } catch { /* fall back */ }
       }
 
-      if (!saved) {
-        try {
-          const raw = localStorage.getItem(storageKey(lessonId, studentId));
-          if (raw) saved = JSON.parse(raw) as SavedState;
-        } catch {/* ignore */}
-      }
+      try {
+        const raw = localStorage.getItem(storageKey(lessonId, studentId));
+        if (raw) local = JSON.parse(raw) as SavedState;
+      } catch {/* ignore */}
 
       if (cancelled) return;
-      if (!saved) { setResumed(true); return; }
+
+      // Conflict resolution: pick the most recently updated copy.
+      let saved: SavedState | null = null;
+      let source: "cloud" | "local" | null = null;
+      if (cloud && local) {
+        if ((cloud.savedAt || 0) >= (local.savedAt || 0)) { saved = cloud; source = "cloud"; }
+        else { saved = local; source = "local"; }
+      } else if (cloud) { saved = cloud; source = "cloud"; }
+      else if (local) { saved = local; source = "local"; }
+
+      if (!saved) { setResumed(true); if (canSync) setSyncStatus("synced"); return; }
 
       setAnswers(saved.answers || {});
       if (saved.submitted) {
@@ -145,21 +172,32 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
         const elapsed = total - saved.remaining;
         setStartedAt(Date.now() - elapsed * 1000);
 
-        // Auto-seek to last active question's chapter
         const lastQ = (saved.lastQid && questions.find((q) => q.id === saved.lastQid)) || null;
         if (lastQ) {
           setActiveQid(lastQ.id);
-          onSeek?.(lastQ.chapter_start_seconds);
+          // Use verified seek so the player lands precisely on the segment.
+          verifiedSeek(lastQ.chapter_start_seconds);
           setTimeout(() => qRefs.current[lastQ.id]?.scrollIntoView({ behavior: "smooth", block: "center" }), 200);
         }
 
-        toast.info(`Resumed quiz · ${fmt(saved.remaining)} remaining${fromCloud ? " (synced)" : ""}`);
+        toast.info(`Resumed quiz · ${fmt(saved.remaining)} remaining (${source === "cloud" ? "synced" : "local"})`);
       }
-      if (fromCloud) setSyncStatus("synced");
+      if (canSync) setSyncStatus("synced");
+      // If local was newer than cloud, push local up immediately so other devices catch up.
+      if (canSync && source === "local" && cloud && (local?.savedAt || 0) > (cloud.savedAt || 0)) {
+        try {
+          await supabase.rpc("upsert_video_quiz_progress", {
+            _student_id: studentId, _mobile: studentMobile, _lesson_id: lessonId,
+            _answers: saved.answers || {}, _remaining_seconds: saved.remaining,
+            _submitted: saved.submitted, _score: saved.score, _last_question_id: saved.lastQid ?? null,
+          });
+        } catch {/* ignore */}
+      }
       setResumed(true);
     })();
     return () => { cancelled = true; };
-  }, [lessonId, questions, studentId, resumed, onSeek]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessonId, questions, studentId, studentMobile, canSync, resumed]);
 
   // Notify parent of chapters
   useEffect(() => {
@@ -216,27 +254,28 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
     };
     try { localStorage.setItem(storageKey(lessonId, studentId), JSON.stringify(saved)); } catch {/* ignore */}
 
-    if (!studentId) return;
+    if (!canSync) return;
     setSyncStatus("syncing");
     if (syncTimer.current) window.clearTimeout(syncTimer.current);
     syncTimer.current = window.setTimeout(async () => {
       try {
-        const { error } = await supabase.from("video_quiz_progress").upsert({
-          lesson_id: lessonId,
-          student_id: studentId,
-          answers,
-          remaining_seconds: timeLeft,
-          submitted,
-          score,
-          last_question_id: activeQid,
-        }, { onConflict: "lesson_id,student_id" });
+        const { error } = await supabase.rpc("upsert_video_quiz_progress", {
+          _student_id: studentId,
+          _mobile: studentMobile,
+          _lesson_id: lessonId,
+          _answers: answers,
+          _remaining_seconds: timeLeft,
+          _submitted: submitted,
+          _score: score,
+          _last_question_id: activeQid,
+        });
         setSyncStatus(error ? "offline" : "synced");
       } catch {
         setSyncStatus("offline");
       }
     }, 800);
     return () => { if (syncTimer.current) window.clearTimeout(syncTimer.current); };
-  }, [answers, timeLeft, submitted, score, activeQid, lessonId, studentId, resumed]);
+  }, [answers, timeLeft, submitted, score, activeQid, lessonId, studentId, studentMobile, canSync, resumed]);
 
   const generate = async () => {
     setGenerating(true);
@@ -259,12 +298,10 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
   const retake = () => {
     if (!lessonId) return;
     try { localStorage.removeItem(storageKey(lessonId, studentId)); } catch {/* ignore */}
-    if (studentId) {
-      supabase.from("video_quiz_progress")
-        .delete()
-        .eq("lesson_id", lessonId)
-        .eq("student_id", studentId)
-        .then(() => {/* noop */});
+    if (canSync) {
+      supabase.rpc("delete_video_quiz_progress", {
+        _student_id: studentId, _mobile: studentMobile, _lesson_id: lessonId,
+      }).then(() => {/* noop */});
     }
     setAnswers({});
     setSubmitted(false);
@@ -276,9 +313,14 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
 
   const jumpTo = useCallback((q: Question) => {
     setActiveQid(q.id);
-    onSeek?.(q.chapter_start_seconds);
+    verifiedSeek(q.chapter_start_seconds);
     qRefs.current[q.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [onSeek]);
+  }, [verifiedSeek]);
+
+  const jumpToActive = useCallback(() => {
+    const q = (activeQid && questions.find((x) => x.id === activeQid)) || questions[0];
+    if (q) jumpTo(q);
+  }, [activeQid, questions, jumpTo]);
 
   const chapters = useMemo(() => {
     const seen = new Set<number>();
@@ -453,6 +495,13 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
         <p className="text-sm font-semibold">Video quiz</p>
         <div className="flex items-center gap-2">
           <button
+            onClick={jumpToActive}
+            className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-primary/40 bg-primary/5 text-primary hover:bg-primary/10"
+            title="Seek the video to the currently active MCQ segment"
+          >
+            <Crosshair className="h-3 w-3" /> Jump to active MCQ
+          </button>
+          <button
             onClick={() => setShowShortcuts((s) => !s)}
             className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-border hover:bg-muted"
             title="Keyboard shortcuts (?)"
@@ -488,7 +537,7 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
             <button
               key={c.index}
               onClick={() => {
-                onSeek?.(c.start);
+                verifiedSeek(c.start);
                 qRefs.current[c.qid]?.scrollIntoView({ behavior: "smooth", block: "center" });
                 setActiveQid(c.qid);
               }}

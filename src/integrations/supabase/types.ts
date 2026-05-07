@@ -2174,6 +2174,25 @@ export type Database = {
       }
     }
     Functions: {
+      _verify_student: {
+        Args: { _mobile: string; _student_id: string }
+        Returns: boolean
+      }
+      delete_video_quiz_progress: {
+        Args: { _lesson_id: string; _mobile: string; _student_id: string }
+        Returns: undefined
+      }
+      get_video_quiz_progress: {
+        Args: { _lesson_id: string; _mobile: string; _student_id: string }
+        Returns: {
+          answers: Json
+          last_question_id: string
+          remaining_seconds: number
+          score: number
+          submitted: boolean
+          updated_at: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2190,6 +2209,19 @@ export type Database = {
           page_number: number
           similarity: number
         }[]
+      }
+      upsert_video_quiz_progress: {
+        Args: {
+          _answers: Json
+          _last_question_id: string
+          _lesson_id: string
+          _mobile: string
+          _remaining_seconds: number
+          _score: number
+          _student_id: string
+          _submitted: boolean
+        }
+        Returns: string
       }
     }
     Enums: {

@@ -537,7 +537,7 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
             <button
               key={c.index}
               onClick={() => {
-                onSeek?.(c.start);
+                verifiedSeek(c.start);
                 qRefs.current[c.qid]?.scrollIntoView({ behavior: "smooth", block: "center" });
                 setActiveQid(c.qid);
               }}

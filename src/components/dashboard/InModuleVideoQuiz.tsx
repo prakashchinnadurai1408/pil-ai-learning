@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ListChecks, Clock, CheckCircle2, XCircle, Sparkles, RotateCcw, Trophy, BookOpen, Cloud, CloudOff, Keyboard } from "lucide-react";
+import { Loader2, ListChecks, Clock, CheckCircle2, XCircle, Sparkles, RotateCcw, Trophy, BookOpen, Cloud, CloudOff, Keyboard, Crosshair } from "lucide-react";
 import { toast } from "sonner";
 
 interface Question {

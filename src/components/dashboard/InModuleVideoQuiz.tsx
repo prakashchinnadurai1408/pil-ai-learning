@@ -298,12 +298,10 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
   const retake = () => {
     if (!lessonId) return;
     try { localStorage.removeItem(storageKey(lessonId, studentId)); } catch {/* ignore */}
-    if (studentId) {
-      supabase.from("video_quiz_progress")
-        .delete()
-        .eq("lesson_id", lessonId)
-        .eq("student_id", studentId)
-        .then(() => {/* noop */});
+    if (canSync) {
+      supabase.rpc("delete_video_quiz_progress", {
+        _student_id: studentId, _mobile: studentMobile, _lesson_id: lessonId,
+      }).then(() => {/* noop */});
     }
     setAnswers({});
     setSubmitted(false);
@@ -315,9 +313,14 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
 
   const jumpTo = useCallback((q: Question) => {
     setActiveQid(q.id);
-    onSeek?.(q.chapter_start_seconds);
+    verifiedSeek(q.chapter_start_seconds);
     qRefs.current[q.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [onSeek]);
+  }, [verifiedSeek]);
+
+  const jumpToActive = useCallback(() => {
+    const q = (activeQid && questions.find((x) => x.id === activeQid)) || questions[0];
+    if (q) jumpTo(q);
+  }, [activeQid, questions, jumpTo]);
 
   const chapters = useMemo(() => {
     const seen = new Set<number>();

@@ -98,45 +98,50 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
     return () => { cancelled = true; };
   }, [youtubeId]);
 
-  // Restore saved state — prefer cloud (Supabase) then fall back to localStorage
+  // Restore saved state — merge cloud + local using last-updated timestamp wins.
   useEffect(() => {
     if (!lessonId || questions.length === 0 || resumed) return;
     let cancelled = false;
     (async () => {
-      let saved: SavedState | null = null;
-      let fromCloud = false;
+      let cloud: SavedState | null = null;
+      let local: SavedState | null = null;
 
-      if (studentId) {
+      if (canSync) {
         try {
-          const { data, error } = await supabase
-            .from("video_quiz_progress")
-            .select("answers, remaining_seconds, submitted, score, last_question_id, updated_at")
-            .eq("lesson_id", lessonId)
-            .eq("student_id", studentId)
-            .maybeSingle();
-          if (!error && data) {
-            saved = {
-              answers: (data.answers as Record<string, number>) || {},
-              remaining: data.remaining_seconds,
-              submitted: !!data.submitted,
-              score: data.score || 0,
-              lastQid: data.last_question_id,
-              savedAt: new Date(data.updated_at).getTime(),
+          const { data, error } = await supabase.rpc("get_video_quiz_progress", {
+            _student_id: studentId, _mobile: studentMobile, _lesson_id: lessonId,
+          });
+          const row = Array.isArray(data) ? data[0] : null;
+          if (!error && row) {
+            cloud = {
+              answers: (row.answers as Record<string, number>) || {},
+              remaining: row.remaining_seconds,
+              submitted: !!row.submitted,
+              score: row.score || 0,
+              lastQid: row.last_question_id,
+              savedAt: new Date(row.updated_at).getTime(),
             };
-            fromCloud = true;
           }
-        } catch { /* ignore — fall back to local */ }
+        } catch { /* fall back */ }
       }
 
-      if (!saved) {
-        try {
-          const raw = localStorage.getItem(storageKey(lessonId, studentId));
-          if (raw) saved = JSON.parse(raw) as SavedState;
-        } catch {/* ignore */}
-      }
+      try {
+        const raw = localStorage.getItem(storageKey(lessonId, studentId));
+        if (raw) local = JSON.parse(raw) as SavedState;
+      } catch {/* ignore */}
 
       if (cancelled) return;
-      if (!saved) { setResumed(true); return; }
+
+      // Conflict resolution: pick the most recently updated copy.
+      let saved: SavedState | null = null;
+      let source: "cloud" | "local" | null = null;
+      if (cloud && local) {
+        if ((cloud.savedAt || 0) >= (local.savedAt || 0)) { saved = cloud; source = "cloud"; }
+        else { saved = local; source = "local"; }
+      } else if (cloud) { saved = cloud; source = "cloud"; }
+      else if (local) { saved = local; source = "local"; }
+
+      if (!saved) { setResumed(true); if (canSync) setSyncStatus("synced"); return; }
 
       setAnswers(saved.answers || {});
       if (saved.submitted) {
@@ -147,21 +152,32 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
         const elapsed = total - saved.remaining;
         setStartedAt(Date.now() - elapsed * 1000);
 
-        // Auto-seek to last active question's chapter
         const lastQ = (saved.lastQid && questions.find((q) => q.id === saved.lastQid)) || null;
         if (lastQ) {
           setActiveQid(lastQ.id);
-          onSeek?.(lastQ.chapter_start_seconds);
+          // Use verified seek so the player lands precisely on the segment.
+          verifiedSeek(lastQ.chapter_start_seconds);
           setTimeout(() => qRefs.current[lastQ.id]?.scrollIntoView({ behavior: "smooth", block: "center" }), 200);
         }
 
-        toast.info(`Resumed quiz · ${fmt(saved.remaining)} remaining${fromCloud ? " (synced)" : ""}`);
+        toast.info(`Resumed quiz · ${fmt(saved.remaining)} remaining (${source === "cloud" ? "synced" : "local"})`);
       }
-      if (fromCloud) setSyncStatus("synced");
+      if (canSync) setSyncStatus("synced");
+      // If local was newer than cloud, push local up immediately so other devices catch up.
+      if (canSync && source === "local" && cloud && (local?.savedAt || 0) > (cloud.savedAt || 0)) {
+        try {
+          await supabase.rpc("upsert_video_quiz_progress", {
+            _student_id: studentId, _mobile: studentMobile, _lesson_id: lessonId,
+            _answers: saved.answers || {}, _remaining_seconds: saved.remaining,
+            _submitted: saved.submitted, _score: saved.score, _last_question_id: saved.lastQid ?? null,
+          });
+        } catch {/* ignore */}
+      }
       setResumed(true);
     })();
     return () => { cancelled = true; };
-  }, [lessonId, questions, studentId, resumed, onSeek]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessonId, questions, studentId, studentMobile, canSync, resumed]);
 
   // Notify parent of chapters
   useEffect(() => {

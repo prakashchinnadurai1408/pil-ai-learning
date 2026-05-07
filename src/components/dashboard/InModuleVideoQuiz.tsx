@@ -41,6 +41,8 @@ const storageKey = (lessonId: string, studentId: string) => `videoQuiz:${lessonI
 const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, onSeek, onChapters }: Props) => {
   const studentId = sessionStorage.getItem("studentId") || "";
   const studentName = sessionStorage.getItem("studentName") || "Student";
+  const studentMobile = sessionStorage.getItem("studentMobile") || "";
+  const canSync = !!(studentId && studentMobile);
 
   const [lessonId, setLessonId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);

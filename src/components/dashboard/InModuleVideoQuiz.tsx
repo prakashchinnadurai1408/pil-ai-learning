@@ -254,27 +254,28 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
     };
     try { localStorage.setItem(storageKey(lessonId, studentId), JSON.stringify(saved)); } catch {/* ignore */}
 
-    if (!studentId) return;
+    if (!canSync) return;
     setSyncStatus("syncing");
     if (syncTimer.current) window.clearTimeout(syncTimer.current);
     syncTimer.current = window.setTimeout(async () => {
       try {
-        const { error } = await supabase.from("video_quiz_progress").upsert({
-          lesson_id: lessonId,
-          student_id: studentId,
-          answers,
-          remaining_seconds: timeLeft,
-          submitted,
-          score,
-          last_question_id: activeQid,
-        }, { onConflict: "lesson_id,student_id" });
+        const { error } = await supabase.rpc("upsert_video_quiz_progress", {
+          _student_id: studentId,
+          _mobile: studentMobile,
+          _lesson_id: lessonId,
+          _answers: answers,
+          _remaining_seconds: timeLeft,
+          _submitted: submitted,
+          _score: score,
+          _last_question_id: activeQid,
+        });
         setSyncStatus(error ? "offline" : "synced");
       } catch {
         setSyncStatus("offline");
       }
     }, 800);
     return () => { if (syncTimer.current) window.clearTimeout(syncTimer.current); };
-  }, [answers, timeLeft, submitted, score, activeQid, lessonId, studentId, resumed]);
+  }, [answers, timeLeft, submitted, score, activeQid, lessonId, studentId, studentMobile, canSync, resumed]);
 
   const generate = async () => {
     setGenerating(true);

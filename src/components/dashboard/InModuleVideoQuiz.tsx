@@ -98,6 +98,26 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
     return () => { cancelled = true; };
   }, [youtubeId]);
 
+  // Verified seek — re-issues onSeek if the player drifts beyond tolerance,
+  // keeping the video aligned with the MCQ segment despite player timing jitter.
+  const verifiedSeek = useCallback((seconds: number) => {
+    if (!onSeek) return;
+    const TOLERANCE = 0.75;
+    onSeek(seconds);
+    let attempts = 0;
+    const tick = () => {
+      attempts += 1;
+      const yt = (window as any).__ytPlayer;
+      let cur: number | null = null;
+      try { cur = yt?.getCurrentTime?.() ?? null; } catch {/* ignore */}
+      if (cur != null && Math.abs(cur - seconds) > TOLERANCE && attempts <= 3) {
+        onSeek(seconds);
+        setTimeout(tick, 350);
+      }
+    };
+    setTimeout(tick, 400);
+  }, [onSeek]);
+
   // Restore saved state — merge cloud + local using last-updated timestamp wins.
   useEffect(() => {
     if (!lessonId || questions.length === 0 || resumed) return;

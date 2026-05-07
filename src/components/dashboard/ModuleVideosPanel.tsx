@@ -83,6 +83,7 @@ const ModuleVideosPanel = ({ moduleId, topics = [], activeTopicId, activeTopicTi
         playerVars: { enablejsapi: 1, rel: 0 },
         events: {
           onReady: () => {
+            (window as any).__ytPlayer = playerRef.current;
             pollTimer = setInterval(() => {
               try {
                 const t = playerRef.current?.getCurrentTime?.();

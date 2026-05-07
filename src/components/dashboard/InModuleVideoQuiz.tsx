@@ -495,6 +495,13 @@ const InModuleVideoQuiz = ({ videoTitle, youtubeId, durationSeconds, moduleId, o
         <p className="text-sm font-semibold">Video quiz</p>
         <div className="flex items-center gap-2">
           <button
+            onClick={jumpToActive}
+            className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-primary/40 bg-primary/5 text-primary hover:bg-primary/10"
+            title="Seek the video to the currently active MCQ segment"
+          >
+            <Crosshair className="h-3 w-3" /> Jump to active MCQ
+          </button>
+          <button
             onClick={() => setShowShortcuts((s) => !s)}
             className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-border hover:bg-muted"
             title="Keyboard shortcuts (?)"

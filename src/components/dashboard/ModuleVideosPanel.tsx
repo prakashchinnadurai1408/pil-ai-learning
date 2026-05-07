@@ -98,6 +98,7 @@ const ModuleVideosPanel = ({ moduleId, topics = [], activeTopicId, activeTopicTi
       cancelled = true;
       if (pollTimer) clearInterval(pollTimer);
       try { playerRef.current?.destroy?.(); } catch {/* ignore */}
+      if ((window as any).__ytPlayer === playerRef.current) (window as any).__ytPlayer = null;
       playerRef.current = null;
     };
   }, [selected?.youtubeId]);

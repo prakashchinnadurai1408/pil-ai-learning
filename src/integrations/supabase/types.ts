@@ -609,8 +609,11 @@ export type Database = {
           curriculum_id: string
           degree: string
           department: string
+          due_date: string | null
           id: string
+          notes: string
           scope_type: string
+          status: string
           student_id: string | null
         }
         Insert: {
@@ -619,8 +622,11 @@ export type Database = {
           curriculum_id: string
           degree?: string
           department?: string
+          due_date?: string | null
           id?: string
+          notes?: string
           scope_type?: string
+          status?: string
           student_id?: string | null
         }
         Update: {
@@ -629,8 +635,11 @@ export type Database = {
           curriculum_id?: string
           degree?: string
           department?: string
+          due_date?: string | null
           id?: string
+          notes?: string
           scope_type?: string
+          status?: string
           student_id?: string | null
         }
         Relationships: [
@@ -646,22 +655,31 @@ export type Database = {
       curriculum_quizzes: {
         Row: {
           created_at: string
+          difficulty: string
           id: string
           questions: Json
+          scope: string
+          subtopic_id: string | null
           title: string
           topic_id: string
         }
         Insert: {
           created_at?: string
+          difficulty?: string
           id?: string
           questions?: Json
+          scope?: string
+          subtopic_id?: string | null
           title?: string
           topic_id: string
         }
         Update: {
           created_at?: string
+          difficulty?: string
           id?: string
           questions?: Json
+          scope?: string
+          subtopic_id?: string | null
           title?: string
           topic_id?: string
         }
@@ -779,6 +797,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      curriculum_versions: {
+        Row: {
+          created_at: string
+          created_by: string
+          created_by_name: string
+          curriculum_id: string
+          id: string
+          is_published: boolean
+          label: string
+          snapshot: Json
+          version_number: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          curriculum_id: string
+          id?: string
+          is_published?: boolean
+          label?: string
+          snapshot?: Json
+          version_number: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          curriculum_id?: string
+          id?: string
+          is_published?: boolean
+          label?: string
+          snapshot?: Json
+          version_number?: number
+        }
+        Relationships: []
       }
       curriculum_videos: {
         Row: {

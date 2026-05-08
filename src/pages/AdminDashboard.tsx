@@ -17,7 +17,7 @@ import {
 import {
   Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2,
   LayoutDashboard, ClipboardCheck, BarChart3, Eye, FolderKanban, Route,
-  Brain, Activity, UserCheck, Video,
+  Brain, Activity, UserCheck, Video, Sparkles,
 } from "lucide-react";
 import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 
@@ -40,6 +40,7 @@ const LLMSettings = lazy(() => import("@/components/admin/LLMSettings"));
 const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytics"));
 const TrainerAssignments = lazy(() => import("@/components/admin/TrainerAssignments"));
 const ModuleGroupsManager = lazy(() => import("@/components/admin/ModuleGroupsManager"));
+const TrainerCurriculumBuilder = lazy(() => import("@/components/trainer/TrainerCurriculumBuilder"));
 const AdminManagement = lazy(() => import("@/components/admin/AdminManagement"));
 const VideoMcqManager = lazy(() => import("@/components/admin/VideoMcqManager"));
 const CoordinatorDashboard = lazy(() => import("@/components/admin/CoordinatorDashboard"));
@@ -75,6 +76,9 @@ const SECTIONS: { label: string; items: MenuItem[] }[] = [
       { key: "learning-paths", label: "Learning Paths", icon: Route, component: LearningPathsManager },
       { key: "module-groups", label: "Module Groups", icon: Layers, component: () => (
         <ModuleGroupsManager ownerRole="admin" ownerId="admin" ownerName="Admin" />
+      ) },
+      { key: "curriculum-builder", label: "Curriculum Builder", icon: Sparkles, component: () => (
+        <TrainerCurriculumBuilder ownerRole="admin" ownerId="admin" ownerName="Admin" ownerCollege="" />
       ) },
     ],
   },

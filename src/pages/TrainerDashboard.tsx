@@ -42,6 +42,7 @@ const LearningPathsManager = lazy(() => import("@/components/admin/LearningPaths
 const ProctoringAnalytics = lazy(() => import("@/components/admin/ProctoringAnalytics"));
 const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytics"));
 const ModuleGroupsManager = lazy(() => import("@/components/admin/ModuleGroupsManager"));
+const TrainerCurriculumBuilder = lazy(() => import("@/components/trainer/TrainerCurriculumBuilder"));
 import AssignProjectDialog from "@/components/shared/AssignProjectDialog";
 import TrainerUpgradeDialog from "@/components/trainer/TrainerUpgradeDialog";
 
@@ -49,7 +50,7 @@ type TabKey =
   | "students" | "assessments" | "create-assessment" | "assessment-analytics"
   | "analytics" | "projects" | "assigned-projects" | "coding"
   | "modules" | "content" | "question-bank" | "coding-bank" | "learning-paths"
-  | "module-groups"
+  | "module-groups" | "curriculum"
   | "proctoring" | "llm-usage" | "coordinator-review";
 
 // Map dashboard tabs to access-control menu keys (trainer audience)
@@ -76,6 +77,7 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
     items: [
       { key: "learning-paths", label: "Learning Paths", icon: Route },
       { key: "module-groups", label: "Module Groups", icon: Layers },
+      { key: "curriculum", label: "Curriculum Builder", icon: Sparkles },
     ],
   },
   {
@@ -180,13 +182,19 @@ const TrainerDashboard = () => {
 
   const [menuAccess, setMenuAccess] = useState<MenuAccessConfig>({});
   const [tier, setTier] = useState<Tier>("free");
+  const [trainerCollege, setTrainerCollege] = useState<string>("");
   const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   useEffect(() => {
     getMenuAccess("trainer").then(setMenuAccess);
     if (trainerId) {
-      supabase.from("trainers").select("subscription_tier").eq("id", trainerId).maybeSingle()
-        .then(({ data }) => { if (data) setTier(normalizeTier((data as any).subscription_tier)); });
+      supabase.from("trainers").select("subscription_tier, college").eq("id", trainerId).maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setTier(normalizeTier((data as any).subscription_tier));
+            setTrainerCollege((data as any).college || "");
+          }
+        });
     }
   }, [trainerId]);
 
@@ -532,6 +540,17 @@ const TrainerDashboard = () => {
               ownerRole="trainer"
               ownerId={typeof window !== "undefined" ? (sessionStorage.getItem("trainerId") || "") : ""}
               ownerName={typeof window !== "undefined" ? (sessionStorage.getItem("trainerName") || "Trainer") : "Trainer"}
+            />
+          </Suspense>
+        );
+      case "curriculum":
+        return (
+          <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+            <TrainerCurriculumBuilder
+              ownerRole="trainer"
+              ownerId={trainerId}
+              ownerName={trainerName}
+              ownerCollege={trainerCollege}
             />
           </Suspense>
         );

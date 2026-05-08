@@ -42,6 +42,7 @@ const LearningPathsManager = lazy(() => import("@/components/admin/LearningPaths
 const ProctoringAnalytics = lazy(() => import("@/components/admin/ProctoringAnalytics"));
 const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytics"));
 const ModuleGroupsManager = lazy(() => import("@/components/admin/ModuleGroupsManager"));
+const TrainerCurriculumBuilder = lazy(() => import("@/components/trainer/TrainerCurriculumBuilder"));
 import AssignProjectDialog from "@/components/shared/AssignProjectDialog";
 import TrainerUpgradeDialog from "@/components/trainer/TrainerUpgradeDialog";
 
@@ -49,7 +50,7 @@ type TabKey =
   | "students" | "assessments" | "create-assessment" | "assessment-analytics"
   | "analytics" | "projects" | "assigned-projects" | "coding"
   | "modules" | "content" | "question-bank" | "coding-bank" | "learning-paths"
-  | "module-groups"
+  | "module-groups" | "curriculum"
   | "proctoring" | "llm-usage" | "coordinator-review";
 
 // Map dashboard tabs to access-control menu keys (trainer audience)
@@ -76,6 +77,7 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
     items: [
       { key: "learning-paths", label: "Learning Paths", icon: Route },
       { key: "module-groups", label: "Module Groups", icon: Layers },
+      { key: "curriculum", label: "Curriculum Builder", icon: Sparkles },
     ],
   },
   {

@@ -158,6 +158,51 @@ Constraints: 3-5 subjects, 2-4 topics per subject, 1-2 subtopics per topic, 1-2 
         await sb.from("curriculum_assessments").update({ questions: out.questions || [] }).eq("id", nodeId);
         return new Response(JSON.stringify({ ok: true, questions: out.questions }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+      if (nodeType === "subtopic_quiz") {
+        // Generate quiz tied to a subtopic with difficulty
+        const difficulty = (body.difficulty || "medium").toLowerCase();
+        const count = Math.max(3, Math.min(10, Number(body.count) || 5));
+        const out = await callAI(`Generate ${count} ${difficulty}-difficulty MCQs for the subtopic: "${ctx}". Each MCQ has 4 options, exactly one correct (0-3 index), and a 1-2 sentence explanation acting as the answer key. Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"...","difficulty":"${difficulty}"}]}`);
+
+        // Find topic_id for this subtopic
+        const { data: stRow } = await sb.from("curriculum_subtopics").select("topic_id, title").eq("id", nodeId).maybeSingle();
+        if (!stRow) throw new Error("subtopic not found");
+
+        // Upsert by (subtopic_id, scope='subtopic')
+        const { data: existing } = await sb.from("curriculum_quizzes").select("id").eq("subtopic_id", nodeId).eq("scope", "subtopic").maybeSingle();
+        if (existing) {
+          await sb.from("curriculum_quizzes").update({
+            questions: out.questions || [], difficulty, title: `${(stRow as any).title} Quiz`,
+          }).eq("id", (existing as any).id);
+        } else {
+          await sb.from("curriculum_quizzes").insert({
+            topic_id: (stRow as any).topic_id, subtopic_id: nodeId, scope: "subtopic",
+            difficulty, title: `${(stRow as any).title} Quiz`, questions: out.questions || [],
+          });
+        }
+        return new Response(JSON.stringify({ ok: true, questions: out.questions }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      if (nodeType === "subtopic_assessment") {
+        const difficulty = (body.difficulty || "medium").toLowerCase();
+        const count = Math.max(5, Math.min(15, Number(body.count) || 8));
+        const out = await callAI(`Generate ${count} ${difficulty}-difficulty assessment MCQs for the subtopic: "${ctx}". Mix conceptual + applied. Each has 4 options, exactly one correct, and a clear answer-key explanation. Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"...","difficulty":"${difficulty}"}]}`);
+
+        const { data: stRow } = await sb.from("curriculum_subtopics").select("topic_id, title").eq("id", nodeId).maybeSingle();
+        if (!stRow) throw new Error("subtopic not found");
+
+        const { data: existing } = await sb.from("curriculum_quizzes").select("id").eq("subtopic_id", nodeId).eq("scope", "assessment").maybeSingle();
+        if (existing) {
+          await sb.from("curriculum_quizzes").update({
+            questions: out.questions || [], difficulty, title: `${(stRow as any).title} Assessment`,
+          }).eq("id", (existing as any).id);
+        } else {
+          await sb.from("curriculum_quizzes").insert({
+            topic_id: (stRow as any).topic_id, subtopic_id: nodeId, scope: "assessment",
+            difficulty, title: `${(stRow as any).title} Assessment`, questions: out.questions || [],
+          });
+        }
+        return new Response(JSON.stringify({ ok: true, questions: out.questions }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       if (nodeType === "videos") {
         // Regenerate video suggestions for a topic.
         const out = await callAI(`Suggest 2 YouTube educational videos for "${ctx}". Return JSON: {"videos":[{"title":"...","description":"...","youtubeQuery":"...","duration":"10:00"}]}`);

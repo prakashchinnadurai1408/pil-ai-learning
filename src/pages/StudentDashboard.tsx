@@ -41,6 +41,7 @@ const MyAILearningPath = lazy(() => import("@/components/dashboard/MyAILearningP
 const StudentModulesView = lazy(() => import("@/components/dashboard/StudentModulesView"));
 const MyAssignedProjects = lazy(() => import("@/components/dashboard/MyAssignedProjects"));
 const MyModuleGroups = lazy(() => import("@/components/dashboard/MyModuleGroups"));
+const MyTrainerCurricula = lazy(() => import("@/components/dashboard/MyTrainerCurricula"));
 const QuestionBankViewer = lazy(() => import("@/components/admin/QuestionBankViewer"));
 const StudentAssessmentsAnalytics = lazy(() => import("@/components/dashboard/StudentAssessmentsAnalytics"));
 const StudentProctoringAnalytics = lazy(() => import("@/components/dashboard/StudentProctoringAnalytics"));
@@ -55,7 +56,7 @@ import SectionPerf from "@/components/dashboard/SectionPerf";
 
 type TabKey =
   | "overview" | "subscription"
-  | "ai_path" | "module_groups" | "modules"
+  | "ai_path" | "module_groups" | "trainer_curricula" | "modules"
   | "playground" | "tools" | "question_bank" | "coding" | "prompts" | "rag_sandbox" | "video_quiz"
   | "assessments" | "projects"
   | "analytics_assessments" | "analytics_proctoring" | "analytics_projects";
@@ -68,6 +69,7 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
   { label: "Learn", items: [
     { key: "ai_path", label: "Learning Paths", icon: Route },
     { key: "module_groups", label: "Module Groups", icon: Layers },
+    { key: "trainer_curricula", label: "Trainer Curricula", icon: BookOpen },
     { key: "modules", label: "Modules & Videos", icon: BookOpen },
   ]},
   { label: "Practice", items: [
@@ -268,6 +270,12 @@ const StudentDashboard = () => {
           <Suspense fallback={<ContentSkeleton />}>
             <MyModuleGroups studentId={studentId} college={studentCollege} department={studentDepartment} degree={studentDegree}
               onOpenModule={(id) => { setActiveTab("modules"); setSelectedModuleId(id); }} />
+          </Suspense>
+        ) : null;
+      case "trainer_curricula":
+        return studentId ? (
+          <Suspense fallback={<ContentSkeleton />}>
+            <MyTrainerCurricula studentId={studentId} college={studentCollege} department={studentDepartment} degree={studentDegree} />
           </Suspense>
         ) : null;
       case "modules":

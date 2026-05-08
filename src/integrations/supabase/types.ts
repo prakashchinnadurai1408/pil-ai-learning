@@ -561,6 +561,269 @@ export type Database = {
         }
         Relationships: []
       }
+      curriculum_assessments: {
+        Row: {
+          created_at: string
+          curriculum_id: string
+          description: string
+          id: string
+          passing_score: number
+          questions: Json
+          time_limit_minutes: number | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          curriculum_id: string
+          description?: string
+          id?: string
+          passing_score?: number
+          questions?: Json
+          time_limit_minutes?: number | null
+          title?: string
+        }
+        Update: {
+          created_at?: string
+          curriculum_id?: string
+          description?: string
+          id?: string
+          passing_score?: number
+          questions?: Json
+          time_limit_minutes?: number | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_assessments_curriculum_id_fkey"
+            columns: ["curriculum_id"]
+            isOneToOne: false
+            referencedRelation: "trainer_curricula"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curriculum_assignments: {
+        Row: {
+          college: string
+          created_at: string
+          curriculum_id: string
+          degree: string
+          department: string
+          id: string
+          scope_type: string
+          student_id: string | null
+        }
+        Insert: {
+          college?: string
+          created_at?: string
+          curriculum_id: string
+          degree?: string
+          department?: string
+          id?: string
+          scope_type?: string
+          student_id?: string | null
+        }
+        Update: {
+          college?: string
+          created_at?: string
+          curriculum_id?: string
+          degree?: string
+          department?: string
+          id?: string
+          scope_type?: string
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_assignments_curriculum_id_fkey"
+            columns: ["curriculum_id"]
+            isOneToOne: false
+            referencedRelation: "trainer_curricula"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curriculum_quizzes: {
+        Row: {
+          created_at: string
+          id: string
+          questions: Json
+          title: string
+          topic_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          questions?: Json
+          title?: string
+          topic_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          questions?: Json
+          title?: string
+          topic_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_quizzes_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "curriculum_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curriculum_subjects: {
+        Row: {
+          created_at: string
+          curriculum_id: string
+          description: string
+          id: string
+          sort_order: number
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          curriculum_id: string
+          description?: string
+          id?: string
+          sort_order?: number
+          title: string
+        }
+        Update: {
+          created_at?: string
+          curriculum_id?: string
+          description?: string
+          id?: string
+          sort_order?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_subjects_curriculum_id_fkey"
+            columns: ["curriculum_id"]
+            isOneToOne: false
+            referencedRelation: "trainer_curricula"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curriculum_subtopics: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          sort_order: number
+          title: string
+          topic_id: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          sort_order?: number
+          title: string
+          topic_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          sort_order?: number
+          title?: string
+          topic_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_subtopics_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "curriculum_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curriculum_topics: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          sort_order: number
+          subject_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          sort_order?: number
+          subject_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          sort_order?: number
+          subject_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_topics_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "curriculum_subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curriculum_videos: {
+        Row: {
+          created_at: string
+          description: string
+          duration: string
+          id: string
+          sort_order: number
+          title: string
+          topic_id: string
+          youtube_id: string
+          youtube_query: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          duration?: string
+          id?: string
+          sort_order?: number
+          title: string
+          topic_id: string
+          youtube_id?: string
+          youtube_query?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          duration?: string
+          id?: string
+          sort_order?: number
+          title?: string
+          topic_id?: string
+          youtube_id?: string
+          youtube_query?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_videos_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "curriculum_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       learning_path_assignments: {
         Row: {
           college: string
@@ -1788,6 +2051,48 @@ export type Database = {
           reason?: string
           trainer_id?: string
           trainer_name?: string
+        }
+        Relationships: []
+      }
+      trainer_curricula: {
+        Row: {
+          created_at: string
+          description: string
+          goal: string
+          id: string
+          owner_college: string
+          owner_id: string
+          owner_name: string
+          owner_role: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          goal?: string
+          id?: string
+          owner_college?: string
+          owner_id?: string
+          owner_name?: string
+          owner_role?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          goal?: string
+          id?: string
+          owner_college?: string
+          owner_id?: string
+          owner_name?: string
+          owner_role?: string
+          status?: string
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }

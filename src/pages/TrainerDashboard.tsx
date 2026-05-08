@@ -182,13 +182,19 @@ const TrainerDashboard = () => {
 
   const [menuAccess, setMenuAccess] = useState<MenuAccessConfig>({});
   const [tier, setTier] = useState<Tier>("free");
+  const [trainerCollege, setTrainerCollege] = useState<string>("");
   const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   useEffect(() => {
     getMenuAccess("trainer").then(setMenuAccess);
     if (trainerId) {
-      supabase.from("trainers").select("subscription_tier").eq("id", trainerId).maybeSingle()
-        .then(({ data }) => { if (data) setTier(normalizeTier((data as any).subscription_tier)); });
+      supabase.from("trainers").select("subscription_tier, college").eq("id", trainerId).maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setTier(normalizeTier((data as any).subscription_tier));
+            setTrainerCollege((data as any).college || "");
+          }
+        });
     }
   }, [trainerId]);
 
@@ -534,6 +540,17 @@ const TrainerDashboard = () => {
               ownerRole="trainer"
               ownerId={typeof window !== "undefined" ? (sessionStorage.getItem("trainerId") || "") : ""}
               ownerName={typeof window !== "undefined" ? (sessionStorage.getItem("trainerName") || "Trainer") : "Trainer"}
+            />
+          </Suspense>
+        );
+      case "curriculum":
+        return (
+          <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+            <TrainerCurriculumBuilder
+              ownerRole="trainer"
+              ownerId={trainerId}
+              ownerName={trainerName}
+              ownerCollege={trainerCollege}
             />
           </Suspense>
         );

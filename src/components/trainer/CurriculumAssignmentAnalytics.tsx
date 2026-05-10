@@ -27,6 +27,7 @@ type Submission = {
   attachment_url: string; attachment_name: string; notes: string;
   trainer_feedback: string; score: number | null; max_score: number | null;
   status: string; reviewed_at: string | null; updated_at: string; created_at: string;
+  revision_message?: string; revision_due_date?: string | null;
 };
 type Student = { id: string; name: string; college: string; department: string; degree: string };
 

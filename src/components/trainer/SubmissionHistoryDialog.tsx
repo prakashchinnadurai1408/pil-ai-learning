@@ -135,6 +135,17 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   // Oldest student row = v1
   [...studentRows].reverse().forEach((r, i) => studentOrder.set(r.id, i + 1));
 
+  const labelFor = (r: HistoryRow) => {
+    const v = r.version_number ?? (r.kind === "student_submission" ? studentOrder.get(r.id) ?? null : null);
+    const kind = r.kind === "student_submission" ? "Student" : "Trainer";
+    const stamp = new Date(r.created_at).toLocaleString();
+    return `${v != null ? `v${v} · ` : ""}${kind} · ${stamp}`;
+  };
+  const left = useMemo(() => rows.find((r) => r.id === leftId) || null, [rows, leftId]);
+  const right = useMemo(() => rows.find((r) => r.id === rightId) || null, [rows, rightId]);
+  const notesDiff = useMemo(() => diffLines(left?.notes || "", right?.notes || ""), [left, right]);
+  const fbDiff = useMemo(() => diffLines(left?.trainer_feedback || "", right?.trainer_feedback || ""), [left, right]);
+
   return (
     <Dialog open={!!submission} onOpenChange={(b) => !b && onClose()}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">

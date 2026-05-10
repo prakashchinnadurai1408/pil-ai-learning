@@ -41,6 +41,7 @@ const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytic
 const TrainerAssignments = lazy(() => import("@/components/admin/TrainerAssignments"));
 const ModuleGroupsManager = lazy(() => import("@/components/admin/ModuleGroupsManager"));
 const TrainerCurriculumBuilder = lazy(() => import("@/components/trainer/TrainerCurriculumBuilder"));
+const CurriculumAssignmentAnalytics = lazy(() => import("@/components/trainer/CurriculumAssignmentAnalytics"));
 const AdminManagement = lazy(() => import("@/components/admin/AdminManagement"));
 const VideoMcqManager = lazy(() => import("@/components/admin/VideoMcqManager"));
 const CoordinatorDashboard = lazy(() => import("@/components/admin/CoordinatorDashboard"));

@@ -423,20 +423,6 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
         onShowHistory={(s) => { setReviewing(null); setHistoryFor(s); }}
       />
       <SubmissionHistoryDialog submission={historyFor} onClose={() => setHistoryFor(null)} />
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      <ReviewDialog
-        submission={reviewing}
-        reviewerId={ownerId}
-        reviewerName={ownerName}
-        onClose={() => setReviewing(null)}
-        onSaved={async () => { setReviewing(null); await reload(); }}
-      />
     </div>
   );
 }

@@ -556,6 +556,17 @@ const TrainerDashboard = () => {
             />
           </Suspense>
         );
+      case "curriculum-analytics":
+        return (
+          <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+            <CurriculumAssignmentAnalytics
+              ownerRole="trainer"
+              ownerId={trainerId}
+              ownerName={trainerName}
+              ownerCollege={trainerCollege}
+            />
+          </Suspense>
+        );
     }
   };
 

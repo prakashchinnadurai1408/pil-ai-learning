@@ -142,6 +142,102 @@ function downloadText(name: string, body: string) {
 
 const LS_KEY = (id: string) => `submission-history:${id}`;
 
+function escapeHtml(s: string): string {
+  return (s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+}
+
+function renderDiffTableHtml(rows: DiffRow[]): string {
+  if (rows.length === 0) return '<p class="empty">— no differences —</p>';
+  const rowsHtml = rows.map((r) => {
+    const lc = r.left.type === "del" ? "del" : r.left.type === "empty" ? "empty" : "same";
+    const rc = r.right.type === "add" ? "add" : r.right.type === "empty" ? "empty" : "same";
+    const lm = r.left.type === "del" ? "-" : " ";
+    const rm = r.right.type === "add" ? "+" : " ";
+    return `<tr><td class="${lc}"><span class="m">${lm}</span>${escapeHtml(r.left.text) || "&nbsp;"}</td><td class="${rc}"><span class="m">${rm}</span>${escapeHtml(r.right.text) || "&nbsp;"}</td></tr>`;
+  }).join("");
+  return `<table class="diff"><tbody>${rowsHtml}</tbody></table>`;
+}
+
+function exportComparisonHtml(args: {
+  studentName?: string;
+  left: HistoryRow | null;
+  right: HistoryRow | null;
+  labelFor: (r: HistoryRow) => string;
+  notesRows: DiffRow[];
+  fbRows: DiffRow[];
+  leftAtt: { name: string; url: string } | null;
+  rightAtt: { name: string; url: string } | null;
+  sameAtt: boolean;
+  addedAtt: { name: string; url: string } | null;
+  removedAtt: { name: string; url: string } | null;
+  summary: { totalChanged: number; addedLines: number; removedLines: number; attAdded: number; attRemoved: number };
+}) {
+  const { studentName, left, right, labelFor, notesRows, fbRows, leftAtt, rightAtt, sameAtt, addedAtt, removedAtt, summary } = args;
+  const leftLabel = left ? labelFor(left) : "Left";
+  const rightLabel = right ? labelFor(right) : "Right";
+  const attHtml = !leftAtt && !rightAtt
+    ? '<p class="empty">No attachments on either version.</p>'
+    : sameAtt
+      ? `<p>Attachment unchanged: <strong>${escapeHtml(leftAtt!.name)}</strong> — <a href="${escapeHtml(leftAtt!.url)}">open</a></p>`
+      : `<table class="att"><thead><tr><th>Removed (left)</th><th>Added (right)</th></tr></thead><tbody><tr><td class="del">${
+          removedAtt ? `<span class="m">-</span><strong>${escapeHtml(removedAtt.name)}</strong> — <a href="${escapeHtml(removedAtt.url)}">open</a>` : "<em>— none —</em>"
+        }</td><td class="add">${
+          addedAtt ? `<span class="m">+</span><strong>${escapeHtml(addedAtt.name)}</strong> — <a href="${escapeHtml(addedAtt.url)}">open</a>` : "<em>— none —</em>"
+        }</td></tr></tbody></table>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Resubmission comparison${studentName ? ` — ${escapeHtml(studentName)}` : ""}</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;margin:24px;color:#0f172a;background:#fff;}
+  h1{font-size:18px;margin:0 0 4px;} h2{font-size:14px;margin:24px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:4px;}
+  .meta{font-size:12px;color:#64748b;margin-bottom:12px;}
+  .summary{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 16px;font-size:11px;}
+  .badge{border:1px solid #cbd5e1;border-radius:4px;padding:2px 6px;background:#f8fafc;}
+  .badge.add{background:#dcfce7;border-color:#86efac;color:#166534;}
+  .badge.del{background:#fee2e2;border-color:#fca5a5;color:#991b1b;}
+  table.diff,table.att{width:100%;border-collapse:collapse;table-layout:fixed;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;}
+  table.diff td,table.att td,table.att th{border:1px solid #e2e8f0;padding:2px 6px;vertical-align:top;word-wrap:break-word;white-space:pre-wrap;}
+  table.att th{background:#f1f5f9;font-size:11px;text-align:left;font-family:inherit;}
+  td.add{background:#dcfce7;color:#166534;} td.del{background:#fee2e2;color:#991b1b;} td.empty{background:#f8fafc;}
+  .m{display:inline-block;width:1em;color:#94a3b8;user-select:none;}
+  .header-row{display:grid;grid-template-columns:1fr 1fr;font-size:11px;text-transform:uppercase;color:#64748b;margin-bottom:4px;}
+  .header-row div{padding:2px 6px;background:#f1f5f9;border:1px solid #e2e8f0;}
+  .empty{color:#94a3b8;font-style:italic;}
+  @media print{body{margin:12px;} a{color:inherit;text-decoration:none;}}
+</style></head><body>
+  <h1>Resubmission comparison${studentName ? ` — ${escapeHtml(studentName)}` : ""}</h1>
+  <div class="meta">Generated ${new Date().toLocaleString()}</div>
+  <div class="summary">
+    <span class="badge">${summary.totalChanged} changed line${summary.totalChanged === 1 ? "" : "s"}</span>
+    <span class="badge add">+${summary.addedLines} added</span>
+    <span class="badge del">-${summary.removedLines} removed</span>
+    <span class="badge">+${summary.attAdded} / -${summary.attRemoved} attachment${(summary.attAdded + summary.attRemoved) === 1 ? "" : "s"}</span>
+  </div>
+  <div class="header-row"><div>${escapeHtml(leftLabel)}</div><div>${escapeHtml(rightLabel)}</div></div>
+
+  <h2>Attachments</h2>
+  ${attHtml}
+
+  <h2>Student notes</h2>
+  ${renderDiffTableHtml(notesRows)}
+
+  <h2>Trainer feedback</h2>
+  ${renderDiffTableHtml(fbRows)}
+
+  <script>setTimeout(()=>{try{window.print&&window.print()}catch(e){}}, 300);</script>
+</body></html>`;
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `comparison-${stamp}.html`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Also open in a new tab so the user can print → PDF immediately.
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 export default function SubmissionHistoryDialog({ submission, onClose }: { submission: AnySubmission; onClose: () => void }) {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<HistoryRow[]>([]);

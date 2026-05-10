@@ -88,10 +88,19 @@ function marker(t: DiffSide["type"]) {
   return " ";
 }
 
-function AlignedDiff({ rows, leftLabel, rightLabel }: { rows: DiffRow[]; leftLabel: string; rightLabel: string }) {
+function countChanges(rows: DiffRow[]): { added: number; removed: number } {
+  let added = 0, removed = 0;
+  rows.forEach((r) => {
+    if (r.left.type === "del") removed++;
+    if (r.right.type === "add") added++;
+  });
+  return { added, removed };
+}
+
+function AlignedDiff({ rows, leftLabel, rightLabel, section }: { rows: DiffRow[]; leftLabel: string; rightLabel: string; section: string }) {
   const isEmpty = rows.length === 0 || rows.every((r) => !r.left.text && !r.right.text);
   return (
-    <div className="rounded border bg-background overflow-hidden">
+    <div className="rounded border bg-background overflow-hidden" data-diff-section={section}>
       <div className="grid grid-cols-2 text-[11px] uppercase tracking-wide text-muted-foreground border-b bg-muted/30">
         <div className="px-2 py-1 border-r truncate" title={leftLabel}>{leftLabel}</div>
         <div className="px-2 py-1 truncate" title={rightLabel}>{rightLabel}</div>
@@ -99,18 +108,21 @@ function AlignedDiff({ rows, leftLabel, rightLabel }: { rows: DiffRow[]; leftLab
       <div className="font-mono text-[11px] leading-relaxed max-h-72 overflow-auto">
         {isEmpty ? (
           <div className="px-2 py-3 text-muted-foreground italic">— no differences —</div>
-        ) : rows.map((r, idx) => (
-          <div key={idx} className="grid grid-cols-2">
-            <div className={`px-2 border-r ${cellClass(r.left.type)}`}>
-              <span className="select-none mr-1 text-muted-foreground">{marker(r.left.type)}</span>
-              {r.left.text || "\u00A0"}
+        ) : rows.map((r, idx) => {
+          const isChange = r.left.type !== "same" || r.right.type !== "same";
+          return (
+            <div key={idx} className="grid grid-cols-2" data-diff-change={isChange ? "true" : undefined}>
+              <div className={`px-2 border-r ${cellClass(r.left.type)}`}>
+                <span className="select-none mr-1 text-muted-foreground">{marker(r.left.type)}</span>
+                {r.left.text || "\u00A0"}
+              </div>
+              <div className={`px-2 ${cellClass(r.right.type)}`}>
+                <span className="select-none mr-1 text-muted-foreground">{marker(r.right.type)}</span>
+                {r.right.text || "\u00A0"}
+              </div>
             </div>
-            <div className={`px-2 ${cellClass(r.right.type)}`}>
-              <span className="select-none mr-1 text-muted-foreground">{marker(r.right.type)}</span>
-              {r.right.text || "\u00A0"}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

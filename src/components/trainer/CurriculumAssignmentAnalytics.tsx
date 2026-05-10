@@ -47,6 +47,12 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedCurriculum, setSelectedCurriculum] = useState<string>("all");
   const [reviewing, setReviewing] = useState<Submission | null>(null);
+  const [fDept, setFDept] = useState<string>("all");
+  const [fDegree, setFDegree] = useState<string>("all");
+  const [fStatus, setFStatus] = useState<string>("all");
+  const [fFrom, setFFrom] = useState<string>("");
+  const [fTo, setFTo] = useState<string>("");
+  const [fSearch, setFSearch] = useState<string>("");
 
   const reload = async () => {
     setLoading(true);

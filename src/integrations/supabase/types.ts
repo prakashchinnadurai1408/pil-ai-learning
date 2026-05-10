@@ -728,6 +728,75 @@ export type Database = {
           },
         ]
       }
+      curriculum_submissions: {
+        Row: {
+          assessment_id: string | null
+          attachment_name: string
+          attachment_url: string
+          created_at: string
+          curriculum_id: string
+          id: string
+          max_score: number | null
+          notes: string
+          reviewed_at: string | null
+          reviewed_by: string
+          reviewed_by_name: string
+          score: number | null
+          status: string
+          student_college: string
+          student_degree: string
+          student_department: string
+          student_id: string
+          student_name: string
+          trainer_feedback: string
+          updated_at: string
+        }
+        Insert: {
+          assessment_id?: string | null
+          attachment_name?: string
+          attachment_url?: string
+          created_at?: string
+          curriculum_id: string
+          id?: string
+          max_score?: number | null
+          notes?: string
+          reviewed_at?: string | null
+          reviewed_by?: string
+          reviewed_by_name?: string
+          score?: number | null
+          status?: string
+          student_college?: string
+          student_degree?: string
+          student_department?: string
+          student_id: string
+          student_name?: string
+          trainer_feedback?: string
+          updated_at?: string
+        }
+        Update: {
+          assessment_id?: string | null
+          attachment_name?: string
+          attachment_url?: string
+          created_at?: string
+          curriculum_id?: string
+          id?: string
+          max_score?: number | null
+          notes?: string
+          reviewed_at?: string | null
+          reviewed_by?: string
+          reviewed_by_name?: string
+          score?: number | null
+          status?: string
+          student_college?: string
+          student_degree?: string
+          student_department?: string
+          student_id?: string
+          student_name?: string
+          trainer_feedback?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       curriculum_subtopics: {
         Row: {
           content: string

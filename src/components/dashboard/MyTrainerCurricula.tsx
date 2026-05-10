@@ -433,16 +433,6 @@ function SubmissionDialog({ open, onOpenChange, item, studentId, studentName, co
     </Dialog>
   );
 }
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving} className="gap-1">
-            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />} Save submission
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function QuizRunner({ open, onOpenChange, quiz }: { open: boolean; onOpenChange: (b: boolean) => void; quiz: { title: string; questions: any[] } | null }) {
   const [answers, setAnswers] = useState<Record<number, number>>({});

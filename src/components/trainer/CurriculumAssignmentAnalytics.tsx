@@ -220,7 +220,7 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
     writeBreakdown("By Degree", stats.byDegree);
     lines.push(""); lines.push("Submissions");
     lines.push("Student,Curriculum,Department,Degree,Status,Score,Max,Reviewed At");
-    for (const r of rows) {
+    for (const r of filteredRows) {
       const s = r.submission;
       const status = s ? s.status : (r.isOverdue ? "overdue" : "pending");
       lines.push(`"${r.student.name}","${r.curriculum.title}","${r.student.department || ""}","${r.student.degree || ""}",${status},${s?.score ?? ""},${s?.max_score ?? ""},${s?.reviewed_at ?? ""}`);

@@ -51,7 +51,7 @@ type TabKey =
   | "students" | "assessments" | "create-assessment" | "assessment-analytics"
   | "analytics" | "projects" | "assigned-projects" | "coding"
   | "modules" | "content" | "question-bank" | "coding-bank" | "learning-paths"
-  | "module-groups" | "curriculum"
+  | "module-groups" | "curriculum" | "curriculum-analytics"
   | "proctoring" | "llm-usage" | "coordinator-review";
 
 // Map dashboard tabs to access-control menu keys (trainer audience)

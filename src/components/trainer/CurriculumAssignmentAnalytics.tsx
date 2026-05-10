@@ -136,6 +136,28 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
     return out;
   }, [scoped, students]);
 
+  const departments = useMemo(() => Array.from(new Set(rows.map(r => r.student.department).filter(Boolean))).sort(), [rows]);
+  const degrees = useMemo(() => Array.from(new Set(rows.map(r => r.student.degree).filter(Boolean))).sort(), [rows]);
+
+  const filteredRows = useMemo(() => {
+    const fromTs = fFrom ? new Date(fFrom).getTime() : null;
+    const toTs = fTo ? new Date(fTo).getTime() + 86399999 : null;
+    const q = fSearch.trim().toLowerCase();
+    return rows.filter(r => {
+      if (fDept !== "all" && lc(r.student.department) !== lc(fDept)) return false;
+      if (fDegree !== "all" && lc(r.student.degree) !== lc(fDegree)) return false;
+      if (fStatus !== "all") {
+        const s = r.submission?.status || (r.isOverdue ? "overdue" : "pending");
+        if (s !== fStatus) return false;
+      }
+      const dueTs = r.assignment?.due_date ? new Date(r.assignment.due_date).getTime() : null;
+      if (fromTs !== null && (dueTs === null || dueTs < fromTs)) return false;
+      if (toTs !== null && (dueTs === null || dueTs > toTs)) return false;
+      if (q && !r.student.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [rows, fDept, fDegree, fStatus, fFrom, fTo, fSearch]);
+
   const stats = useMemo(() => {
     const total = rows.length;
     const completed = rows.filter((r) => r.submission).length;

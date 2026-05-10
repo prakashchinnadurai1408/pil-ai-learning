@@ -421,77 +421,137 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <Switch id="only-changes" checked={onlyChanges} onCheckedChange={setOnlyChanges} />
-                  <Label htmlFor="only-changes" className="text-xs cursor-pointer">Show only changes</Label>
+              {(() => {
+                const notesC = countChanges(notesRowsAll);
+                const fbC = countChanges(fbRowsAll);
+                const attAdded = addedAtt ? 1 : 0;
+                const attRemoved = removedAtt ? 1 : 0;
+                const totalChanged = notesC.added + notesC.removed + fbC.added + fbC.removed;
+                const goToChange = (dir: 1 | -1) => {
+                  const root = compareRef.current;
+                  if (!root) return;
+                  const nodes = Array.from(root.querySelectorAll<HTMLElement>('[data-diff-change="true"]'));
+                  if (nodes.length === 0) return;
+                  let next = (changeIdxRef.current + dir);
+                  if (next < 0) next = nodes.length - 1;
+                  if (next >= nodes.length) next = 0;
+                  changeIdxRef.current = next;
+                  nodes[next].scrollIntoView({ block: "center", behavior: "smooth" });
+                  nodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
+                  nodes[next].classList.add("ring-2", "ring-primary");
+                };
+                return (
+                  <div className="rounded border bg-muted/20 p-2 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                        <Badge variant="outline" className="text-[10px]">{totalChanged} changed line{totalChanged === 1 ? "" : "s"}</Badge>
+                        <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/30">+{notesC.added + fbC.added} added</Badge>
+                        <Badge variant="outline" className="text-[10px] bg-destructive/10 text-destructive border-destructive/30">-{notesC.removed + fbC.removed} removed</Badge>
+                        <span className="text-muted-foreground">·</span>
+                        <Badge variant="outline" className="text-[10px]"><Paperclip className="h-2.5 w-2.5 mr-1" />+{attAdded} / -{attRemoved} attachment{(attAdded + attRemoved) === 1 ? "" : "s"}</Badge>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <Switch id="only-changes" checked={onlyChanges} onCheckedChange={setOnlyChanges} />
+                          <Label htmlFor="only-changes" className="text-xs cursor-pointer">Show only changes</Label>
+                        </div>
+                        {onlyChanges && (
+                          <div className="flex items-center gap-1">
+                            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(-1)} title="Previous change" disabled={totalChanged === 0}>
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(1)} title="Next change" disabled={totalChanged === 0}>
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => exportComparisonHtml({
+                            studentName: submission.student_name,
+                            left, right, labelFor,
+                            notesRows: notesRowsAll, fbRows: fbRowsAll,
+                            leftAtt, rightAtt, sameAtt, addedAtt, removedAtt,
+                            summary: { totalChanged, addedLines: notesC.added + fbC.added, removedLines: notesC.removed + fbC.removed, attAdded, attRemoved },
+                          })}
+                          disabled={!left || !right}
+                        >
+                          <FileDown className="h-3.5 w-3.5 mr-1" /> Export comparison
+                        </Button>
+                      </div>
+                    </div>
+                    {leftId && rightId && leftId === rightId && (
+                      <div className="text-xs text-muted-foreground italic">Pick two different versions to see a diff.</div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <div ref={compareRef} className="space-y-4">
+                {/* Attachments diff */}
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold flex items-center gap-1"><Paperclip className="h-3.5 w-3.5" /> Attachments</div>
+                  {!leftAtt && !rightAtt ? (
+                    <div className="text-[11px] text-muted-foreground italic px-1">No attachments on either version.</div>
+                  ) : sameAtt ? (
+                    <div className="rounded border bg-muted/20 p-2 text-xs flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-2 min-w-0"><FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="truncate">{leftAtt!.name}</span></span>
+                      <Badge variant="outline" className="text-[10px]">unchanged</Badge>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="rounded border bg-background overflow-hidden">
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30">Removed (left)</div>
+                        <div className="p-2" data-diff-change={removedAtt ? "true" : undefined}>
+                          {removedAtt ? (
+                            <div className="flex items-center justify-between gap-2 text-xs bg-destructive/10 rounded p-2">
+                              <span className="flex items-center gap-1.5 min-w-0"><Minus className="h-3 w-3 text-destructive shrink-0" /><span className="truncate" title={removedAtt.name}>{removedAtt.name}</span></span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={removedAtt.url} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /></a></Button>
+                                <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={removedAtt.url} download={removedAtt.name}><Download className="h-3 w-3" /></a></Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-[11px] text-muted-foreground italic">— none —</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="rounded border bg-background overflow-hidden">
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30">Added (right)</div>
+                        <div className="p-2" data-diff-change={addedAtt ? "true" : undefined}>
+                          {addedAtt ? (
+                            <div className="flex items-center justify-between gap-2 text-xs bg-success/10 rounded p-2">
+                              <span className="flex items-center gap-1.5 min-w-0"><Plus className="h-3 w-3 text-success shrink-0" /><span className="truncate" title={addedAtt.name}>{addedAtt.name}</span></span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={addedAtt.url} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /></a></Button>
+                                <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={addedAtt.url} download={addedAtt.name}><Download className="h-3 w-3" /></a></Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-[11px] text-muted-foreground italic">— none —</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {leftId && rightId && leftId === rightId && (
-                  <div className="text-xs text-muted-foreground italic">Pick two different versions to see a diff.</div>
-                )}
-              </div>
 
-              {/* Attachments diff */}
-              <div className="space-y-2">
-                <div className="text-xs font-semibold flex items-center gap-1"><Paperclip className="h-3.5 w-3.5" /> Attachments</div>
-                {!leftAtt && !rightAtt ? (
-                  <div className="text-[11px] text-muted-foreground italic px-1">No attachments on either version.</div>
-                ) : sameAtt ? (
-                  <div className="rounded border bg-muted/20 p-2 text-xs flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-2 min-w-0"><FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="truncate">{leftAtt!.name}</span></span>
-                    <Badge variant="outline" className="text-[10px]">unchanged</Badge>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div className="rounded border bg-background overflow-hidden">
-                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30">Removed (left)</div>
-                      <div className="p-2">
-                        {removedAtt ? (
-                          <div className="flex items-center justify-between gap-2 text-xs bg-destructive/10 rounded p-2">
-                            <span className="flex items-center gap-1.5 min-w-0"><Minus className="h-3 w-3 text-destructive shrink-0" /><span className="truncate" title={removedAtt.name}>{removedAtt.name}</span></span>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={removedAtt.url} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /></a></Button>
-                              <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={removedAtt.url} download={removedAtt.name}><Download className="h-3 w-3" /></a></Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-[11px] text-muted-foreground italic">— none —</div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="rounded border bg-background overflow-hidden">
-                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30">Added (right)</div>
-                      <div className="p-2">
-                        {addedAtt ? (
-                          <div className="flex items-center justify-between gap-2 text-xs bg-success/10 rounded p-2">
-                            <span className="flex items-center gap-1.5 min-w-0"><Plus className="h-3 w-3 text-success shrink-0" /><span className="truncate" title={addedAtt.name}>{addedAtt.name}</span></span>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={addedAtt.url} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /></a></Button>
-                              <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={addedAtt.url} download={addedAtt.name}><Download className="h-3 w-3" /></a></Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-[11px] text-muted-foreground italic">— none —</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold flex items-center gap-1"><StickyNote className="h-3.5 w-3.5" /> Student notes</div>
+                  <AlignedDiff section="notes" rows={notesRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} />
+                </div>
 
-              <div className="space-y-2">
-                <div className="text-xs font-semibold flex items-center gap-1"><StickyNote className="h-3.5 w-3.5" /> Student notes</div>
-                <AlignedDiff rows={notesRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} />
-              </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> Trainer feedback</div>
+                  <AlignedDiff section="feedback" rows={fbRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} />
+                </div>
 
-              <div className="space-y-2">
-                <div className="text-xs font-semibold flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> Trainer feedback</div>
-                <AlignedDiff rows={fbRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} />
-              </div>
-
-              <div className="text-[11px] text-muted-foreground flex items-center gap-3">
-                <span><span className="inline-block w-2 h-2 rounded-sm bg-destructive/30 mr-1 align-middle" /> removed (only on left)</span>
-                <span><span className="inline-block w-2 h-2 rounded-sm bg-success/30 mr-1 align-middle" /> added (only on right)</span>
+                <div className="text-[11px] text-muted-foreground flex items-center gap-3">
+                  <span><span className="inline-block w-2 h-2 rounded-sm bg-destructive/30 mr-1 align-middle" /> removed (only on left)</span>
+                  <span><span className="inline-block w-2 h-2 rounded-sm bg-success/30 mr-1 align-middle" /> added (only on right)</span>
+                </div>
               </div>
             </TabsContent>
           </Tabs>

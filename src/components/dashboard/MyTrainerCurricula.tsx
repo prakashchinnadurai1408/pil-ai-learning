@@ -232,8 +232,11 @@ export default function MyTrainerCurricula({ studentId, studentName, college, de
                   </CardTitle>
                   {c.description && <p className="text-sm text-muted-foreground">{c.description}</p>}
                   {submission?.trainer_feedback && (
-                    <div className="mt-2 rounded border-l-4 border-primary bg-primary/5 p-2 text-xs">
-                      <div className="font-medium flex items-center gap-1"><MessageSquare className="h-3 w-3" /> Trainer feedback</div>
+                    <div className={`mt-2 rounded border-l-4 p-2 text-xs ${submission.status === "returned" ? "border-warning bg-warning/10" : "border-primary bg-primary/5"}`}>
+                      <div className="font-medium flex items-center gap-1">
+                        <MessageSquare className="h-3 w-3" />
+                        {submission.status === "returned" ? "Returned for revision — please resubmit" : "Trainer feedback"}
+                      </div>
                       <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{submission.trainer_feedback}</p>
                       {submission.score != null && <div className="mt-1 text-primary font-semibold">Score: {submission.score}</div>}
                     </div>

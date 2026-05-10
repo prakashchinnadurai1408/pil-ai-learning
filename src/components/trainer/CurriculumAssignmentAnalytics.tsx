@@ -188,7 +188,7 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
     };
 
     return { total, completed, overdue, avgScore, completionRate, byDepartment: byKey("student_department"), byDegree: byKey("student_degree") };
-  }, [rows]);
+  }, [filteredRows]);
 
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
 

@@ -159,6 +159,7 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
   }, [rows, fDept, fDegree, fStatus, fFrom, fTo, fSearch]);
 
   const stats = useMemo(() => {
+    const rows = filteredRows;
     const total = rows.length;
     const completed = rows.filter((r) => r.submission).length;
     const overdue = rows.filter((r) => r.isOverdue).length;

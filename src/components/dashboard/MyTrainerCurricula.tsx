@@ -440,10 +440,24 @@ function SubmissionDialog({ open, onOpenChange, item, studentId, studentName, co
           <DialogTitle>{isResubmit ? "Resubmit work" : "Submit work"} — {item.c.title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          {isResubmit && item.submission?.trainer_feedback && (
-            <div className="rounded border-l-4 border-warning bg-warning/10 p-2 text-xs">
-              <div className="font-medium">Trainer asked for revision:</div>
-              <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{item.submission.trainer_feedback}</p>
+          {isResubmit && (
+            <div className="rounded border-l-4 border-warning bg-warning/10 p-3 text-xs space-y-2">
+              <div className="font-semibold flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-warning" /> Trainer asked for revision</div>
+              {item.submission?.revision_message ? (
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-warning">What to change</div>
+                  <p className="mt-1 whitespace-pre-wrap text-foreground">{item.submission.revision_message}</p>
+                </div>
+              ) : null}
+              {item.submission?.trainer_feedback && (
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Trainer notes</div>
+                  <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{item.submission.trainer_feedback}</p>
+                </div>
+              )}
+              {item.submission?.revision_due_date && (
+                <p className="text-warning font-medium">Revision due {new Date(item.submission.revision_due_date).toLocaleDateString()}</p>
+              )}
             </div>
           )}
           <div>

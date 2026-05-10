@@ -232,8 +232,11 @@ export default function MyTrainerCurricula({ studentId, studentName, college, de
                   </CardTitle>
                   {c.description && <p className="text-sm text-muted-foreground">{c.description}</p>}
                   {submission?.trainer_feedback && (
-                    <div className="mt-2 rounded border-l-4 border-primary bg-primary/5 p-2 text-xs">
-                      <div className="font-medium flex items-center gap-1"><MessageSquare className="h-3 w-3" /> Trainer feedback</div>
+                    <div className={`mt-2 rounded border-l-4 p-2 text-xs ${submission.status === "returned" ? "border-warning bg-warning/10" : "border-primary bg-primary/5"}`}>
+                      <div className="font-medium flex items-center gap-1">
+                        <MessageSquare className="h-3 w-3" />
+                        {submission.status === "returned" ? "Returned for revision — please resubmit" : "Trainer feedback"}
+                      </div>
                       <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{submission.trainer_feedback}</p>
                       {submission.score != null && <div className="mt-1 text-primary font-semibold">Score: {submission.score}</div>}
                     </div>
@@ -292,8 +295,8 @@ export default function MyTrainerCurricula({ studentId, studentName, college, de
                         <>No submission yet</>
                       )}
                     </div>
-                    <Button size="sm" variant={submission ? "outline" : "default"} className="gap-1" onClick={() => setSubmissionDialog({ item })}>
-                      <Upload className="h-3 w-3" /> {submission ? "Update submission" : "Submit work"}
+                    <Button size="sm" variant={submission?.status === "returned" ? "default" : (submission ? "outline" : "default")} className="gap-1" onClick={() => setSubmissionDialog({ item })}>
+                      <Upload className="h-3 w-3" /> {submission?.status === "returned" ? "Resubmit work" : (submission ? "Update submission" : "Submit work")}
                     </Button>
                   </div>
                 </CardContent>
@@ -386,24 +389,32 @@ function SubmissionDialog({ open, onOpenChange, item, studentId, studentName, co
 
   const stageLabel = stage === "uploading" ? "Uploading attachment…" : stage === "saving" ? "Saving submission…" : stage === "done" ? "Submitted!" : "";
 
+  const isResubmit = item.submission?.status === "returned";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Submit work — {item.c.title}</DialogTitle>
+          <DialogTitle>{isResubmit ? "Resubmit work" : "Submit work"} — {item.c.title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
+          {isResubmit && item.submission?.trainer_feedback && (
+            <div className="rounded border-l-4 border-warning bg-warning/10 p-2 text-xs">
+              <div className="font-medium">Trainer asked for revision:</div>
+              <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{item.submission.trainer_feedback}</p>
+            </div>
+          )}
           <div>
             <label className="text-xs font-medium text-muted-foreground">Attachment (PDF, doc, image, zip — max 20MB)</label>
             <Input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} disabled={saving} />
             {file && <p className="text-xs text-muted-foreground mt-1">Selected: {file.name} ({(file.size / 1024).toFixed(0)} KB)</p>}
             {item.submission?.attachment_name && !file && (
-              <p className="text-xs text-muted-foreground mt-1">Current: {item.submission.attachment_name}</p>
+              <p className="text-xs text-muted-foreground mt-1">Current: {item.submission.attachment_name}{isResubmit && " — upload a new file to replace"}</p>
             )}
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Notes for trainer</label>
-            <Textarea rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Briefly describe what you submitted, references used, etc." disabled={saving} />
+            <label className="text-xs font-medium text-muted-foreground">{isResubmit ? "Updated notes for trainer" : "Notes for trainer"}</label>
+            <Textarea rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={isResubmit ? "Describe what you changed in this resubmission…" : "Briefly describe what you submitted, references used, etc."} disabled={saving} />
           </div>
           {stage !== "idle" && (
             <div className={`text-xs flex items-center gap-2 rounded border p-2 ${stage === "done" ? "bg-success/10 text-success border-success/30" : "bg-primary/5 text-primary border-primary/30"}`}>
@@ -415,7 +426,7 @@ function SubmissionDialog({ open, onOpenChange, item, studentId, studentName, co
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={saving} className="gap-1">
-            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />} Save submission
+            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />} {isResubmit ? "Resubmit" : "Save submission"}
           </Button>
         </DialogFooter>
       </DialogContent>

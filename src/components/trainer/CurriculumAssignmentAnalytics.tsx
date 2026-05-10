@@ -47,6 +47,12 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedCurriculum, setSelectedCurriculum] = useState<string>("all");
   const [reviewing, setReviewing] = useState<Submission | null>(null);
+  const [fDept, setFDept] = useState<string>("all");
+  const [fDegree, setFDegree] = useState<string>("all");
+  const [fStatus, setFStatus] = useState<string>("all");
+  const [fFrom, setFFrom] = useState<string>("");
+  const [fTo, setFTo] = useState<string>("");
+  const [fSearch, setFSearch] = useState<string>("");
 
   const reload = async () => {
     setLoading(true);
@@ -130,7 +136,30 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
     return out;
   }, [scoped, students]);
 
+  const departments = useMemo(() => Array.from(new Set(rows.map(r => r.student.department).filter(Boolean))).sort(), [rows]);
+  const degrees = useMemo(() => Array.from(new Set(rows.map(r => r.student.degree).filter(Boolean))).sort(), [rows]);
+
+  const filteredRows = useMemo(() => {
+    const fromTs = fFrom ? new Date(fFrom).getTime() : null;
+    const toTs = fTo ? new Date(fTo).getTime() + 86399999 : null;
+    const q = fSearch.trim().toLowerCase();
+    return rows.filter(r => {
+      if (fDept !== "all" && lc(r.student.department) !== lc(fDept)) return false;
+      if (fDegree !== "all" && lc(r.student.degree) !== lc(fDegree)) return false;
+      if (fStatus !== "all") {
+        const s = r.submission?.status || (r.isOverdue ? "overdue" : "pending");
+        if (s !== fStatus) return false;
+      }
+      const dueTs = r.assignment?.due_date ? new Date(r.assignment.due_date).getTime() : null;
+      if (fromTs !== null && (dueTs === null || dueTs < fromTs)) return false;
+      if (toTs !== null && (dueTs === null || dueTs > toTs)) return false;
+      if (q && !r.student.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [rows, fDept, fDegree, fStatus, fFrom, fTo, fSearch]);
+
   const stats = useMemo(() => {
+    const rows = filteredRows;
     const total = rows.length;
     const completed = rows.filter((r) => r.submission).length;
     const overdue = rows.filter((r) => r.isOverdue).length;
@@ -159,7 +188,7 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
     };
 
     return { total, completed, overdue, avgScore, completionRate, byDepartment: byKey("student_department"), byDegree: byKey("student_degree") };
-  }, [rows]);
+  }, [filteredRows]);
 
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
 
@@ -191,7 +220,7 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
     writeBreakdown("By Degree", stats.byDegree);
     lines.push(""); lines.push("Submissions");
     lines.push("Student,Curriculum,Department,Degree,Status,Score,Max,Reviewed At");
-    for (const r of rows) {
+    for (const r of filteredRows) {
       const s = r.submission;
       const status = s ? s.status : (r.isOverdue ? "overdue" : "pending");
       lines.push(`"${r.student.name}","${r.curriculum.title}","${r.student.department || ""}","${r.student.degree || ""}",${status},${s?.score ?? ""},${s?.max_score ?? ""},${s?.reviewed_at ?? ""}`);
@@ -258,6 +287,36 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
         </div>
       </div>
 
+      <Card>
+        <CardContent className="p-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+          <Input placeholder="Search student name…" value={fSearch} onChange={(e) => setFSearch(e.target.value)} className="h-9" />
+          <select className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={fDept} onChange={(e) => setFDept(e.target.value)}>
+            <option value="all">All departments</option>
+            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <select className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={fDegree} onChange={(e) => setFDegree(e.target.value)}>
+            <option value="all">All degrees</option>
+            {degrees.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <select className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
+            <option value="all">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="overdue">Overdue</option>
+            <option value="submitted">Submitted</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="graded">Graded</option>
+            <option value="returned">Returned</option>
+          </select>
+          <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} className="h-9" title="Due from" />
+          <div className="flex gap-2">
+            <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} className="h-9" title="Due to" />
+            {(fSearch || fDept !== "all" || fDegree !== "all" || fStatus !== "all" || fFrom || fTo) && (
+              <Button size="sm" variant="ghost" onClick={() => { setFSearch(""); setFDept("all"); setFDegree("all"); setFStatus("all"); setFFrom(""); setFTo(""); }}>Clear</Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Eligible students" value={stats.total} />
         <StatCard label="Completed" value={stats.completed} sub={`${stats.completionRate}%`} tone="success" />
@@ -294,10 +353,10 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.length === 0 && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">No eligible students yet.</TableCell></TableRow>
+                  {filteredRows.length === 0 && (
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">No eligible students match the current filters.</TableCell></TableRow>
                   )}
-                  {rows.map((r, i) => {
+                  {filteredRows.map((r, i) => {
                     const s = r.submission;
                     return (
                       <TableRow key={i}>

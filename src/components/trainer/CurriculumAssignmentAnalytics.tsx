@@ -327,6 +327,7 @@ function ReviewDialog({ submission, reviewerId, reviewerName, onClose, onSaved }
 }) {
   const [feedback, setFeedback] = useState("");
   const [score, setScore] = useState<string>("");
+  const [maxScore, setMaxScore] = useState<string>("");
   const [status, setStatus] = useState<string>("reviewed");
   const [saving, setSaving] = useState(false);
 
@@ -334,6 +335,7 @@ function ReviewDialog({ submission, reviewerId, reviewerName, onClose, onSaved }
     if (submission) {
       setFeedback(submission.trainer_feedback || "");
       setScore(submission.score != null ? String(submission.score) : "");
+      setMaxScore(submission.max_score != null ? String(submission.max_score) : "100");
       setStatus(submission.status === "submitted" ? "reviewed" : submission.status);
     }
   }, [submission]);
@@ -351,6 +353,7 @@ function ReviewDialog({ submission, reviewerId, reviewerName, onClose, onSaved }
         reviewed_at: new Date().toISOString(),
       };
       if (score.trim() !== "") update.score = Number(score);
+      if (maxScore.trim() !== "") update.max_score = Number(maxScore);
       const { error } = await supabase.from("curriculum_submissions").update(update).eq("id", submission.id);
       if (error) throw error;
       toast.success("Feedback saved");

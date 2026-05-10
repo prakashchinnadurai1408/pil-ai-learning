@@ -323,10 +323,10 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.length === 0 && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">No eligible students yet.</TableCell></TableRow>
+                  {filteredRows.length === 0 && (
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">No eligible students match the current filters.</TableCell></TableRow>
                   )}
-                  {rows.map((r, i) => {
+                  {filteredRows.map((r, i) => {
                     const s = r.submission;
                     return (
                       <TableRow key={i}>

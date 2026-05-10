@@ -67,6 +67,7 @@ export default function MyTrainerCurricula({ studentId, studentName, college, de
   const [groupBy, setGroupBy] = useState<"none" | "department" | "degree" | "due">("none");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [submissionDialog, setSubmissionDialog] = useState<{ item: CurriculumItem } | null>(null);
+  const [historyFor, setHistoryFor] = useState<Submission | null>(null);
 
   const reload = async () => {
     setLoading(true);

@@ -42,19 +42,30 @@ function studentMatchesAssignment(stu: Student, a: Assignment): boolean {
 }
 
 export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, ownerName, ownerCollege }: Props) {
+  const FILTER_KEY = `curr_analytics_filters:${ownerRole}:${ownerId}`;
+  const initialFilters = (() => {
+    try { return JSON.parse(localStorage.getItem(FILTER_KEY) || "{}"); } catch { return {}; }
+  })();
   const [loading, setLoading] = useState(true);
   const [curricula, setCurricula] = useState<Curriculum[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
-  const [selectedCurriculum, setSelectedCurriculum] = useState<string>("all");
+  const [selectedCurriculum, setSelectedCurriculum] = useState<string>(initialFilters.selectedCurriculum || "all");
   const [reviewing, setReviewing] = useState<Submission | null>(null);
-  const [fDept, setFDept] = useState<string>("all");
-  const [fDegree, setFDegree] = useState<string>("all");
-  const [fStatus, setFStatus] = useState<string>("all");
-  const [fFrom, setFFrom] = useState<string>("");
-  const [fTo, setFTo] = useState<string>("");
-  const [fSearch, setFSearch] = useState<string>("");
+  const [historyFor, setHistoryFor] = useState<Submission | null>(null);
+  const [fDept, setFDept] = useState<string>(initialFilters.fDept || "all");
+  const [fDegree, setFDegree] = useState<string>(initialFilters.fDegree || "all");
+  const [fStatus, setFStatus] = useState<string>(initialFilters.fStatus || "all");
+  const [fFrom, setFFrom] = useState<string>(initialFilters.fFrom || "");
+  const [fTo, setFTo] = useState<string>(initialFilters.fTo || "");
+  const [fSearch, setFSearch] = useState<string>(initialFilters.fSearch || "");
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTER_KEY, JSON.stringify({ selectedCurriculum, fDept, fDegree, fStatus, fFrom, fTo, fSearch }));
+    } catch { /* ignore */ }
+  }, [FILTER_KEY, selectedCurriculum, fDept, fDegree, fStatus, fFrom, fTo, fSearch]);
 
   const reload = async () => {
     setLoading(true);

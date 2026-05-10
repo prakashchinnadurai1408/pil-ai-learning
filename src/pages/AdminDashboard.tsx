@@ -101,6 +101,9 @@ const SECTIONS: { label: string; items: MenuItem[] }[] = [
       { key: "proctoring", label: "Proctoring", icon: Eye, component: ProctoringAnalytics },
       { key: "projects", label: "Projects", icon: FolderKanban, component: ProjectsAnalytics },
       { key: "projects-review", label: "Project Reviews", icon: FolderKanban, component: TrainerProjectReview },
+      { key: "curriculum-analytics", label: "Curriculum Submissions", icon: BarChart3, component: () => (
+        <CurriculumAssignmentAnalytics ownerRole="admin" ownerId="admin" ownerName="Admin" ownerCollege="" />
+      ) },
       { key: "llm-usage", label: "LLM Usage", icon: Activity, component: LLMUsageAnalytics },
     ],
   },

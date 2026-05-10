@@ -161,118 +161,192 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
         ) : rows.length === 0 ? (
           <div className="py-10 text-center text-sm text-muted-foreground">No prior versions yet. History is recorded each time a student resubmits or a trainer reviews.</div>
         ) : (
-          <div className="space-y-3">
-            {rows.map((r) => {
-              const isStudent = r.kind === "student_submission";
-              const v = r.version_number ?? (isStudent ? studentOrder.get(r.id) ?? null : null);
-              const stamp = new Date(r.created_at);
-              const baseName = `submission-v${v ?? "x"}-${stamp.toISOString().slice(0, 10)}`;
-              return (
-                <div key={r.id} className="rounded border p-3 bg-muted/20 space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {v != null && (
-                        <Badge className="bg-primary text-primary-foreground">v{v}</Badge>
-                      )}
-                      <Badge variant="outline" className={isStudent ? "bg-primary/10 text-primary border-primary/30" : "bg-warning/10 text-warning border-warning/30"}>
-                        {isStudent ? <User className="h-3 w-3 mr-1" /> : <MessageSquare className="h-3 w-3 mr-1" />}
-                        {isStudent ? "Student version" : "Trainer review"}
-                      </Badge>
-                      {r.status && <Badge variant="outline">{r.status}</Badge>}
-                      {r.actor_name && <span className="text-muted-foreground">by {r.actor_name}</span>}
-                    </div>
-                    <span className="text-muted-foreground">{stamp.toLocaleString()}</span>
-                  </div>
+          <Tabs value={tab} onValueChange={(v) => setTab(v as "timeline" | "compare")}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="timeline"><HistoryIcon className="h-3.5 w-3.5 mr-1" /> Timeline</TabsTrigger>
+              <TabsTrigger value="compare" disabled={rows.length < 2}><GitCompare className="h-3.5 w-3.5 mr-1" /> Compare</TabsTrigger>
+            </TabsList>
 
-                  {/* Attachment snapshot — separate downloadable item */}
-                  {r.attachment_url && (
-                    <div className="rounded border bg-background p-2 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 text-xs min-w-0">
-                        <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
-                        <span className="truncate" title={r.attachment_name || "attachment"}>{r.attachment_name || "attachment"}</span>
+            <TabsContent value="timeline" className="space-y-3 mt-3">
+              {rows.map((r) => {
+                const isStudent = r.kind === "student_submission";
+                const v = r.version_number ?? (isStudent ? studentOrder.get(r.id) ?? null : null);
+                const stamp = new Date(r.created_at);
+                const baseName = `submission-v${v ?? "x"}-${stamp.toISOString().slice(0, 10)}`;
+                return (
+                  <div key={r.id} className="rounded border p-3 bg-muted/20 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {v != null && (
+                          <Badge className="bg-primary text-primary-foreground">v{v}</Badge>
+                        )}
+                        <Badge variant="outline" className={isStudent ? "bg-primary/10 text-primary border-primary/30" : "bg-warning/10 text-warning border-warning/30"}>
+                          {isStudent ? <User className="h-3 w-3 mr-1" /> : <MessageSquare className="h-3 w-3 mr-1" />}
+                          {isStudent ? "Student version" : "Trainer review"}
+                        </Badge>
+                        {r.status && <Badge variant="outline">{r.status}</Badge>}
+                        {r.actor_name && <span className="text-muted-foreground">by {r.actor_name}</span>}
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button asChild size="sm" variant="ghost" className="h-7 px-2">
-                          <a href={r.attachment_url} target="_blank" rel="noreferrer" aria-label="Open attachment in new tab">
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
-                        </Button>
-                        <Button asChild size="sm" variant="outline" className="h-7 px-2 text-xs">
-                          <a href={r.attachment_url} download={r.attachment_name || `${baseName}-attachment`}>
-                            <Download className="h-3.5 w-3.5 mr-1" /> Download
-                          </a>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">{stamp.toLocaleString()}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => {
+                            setLeftId(r.id);
+                            setTab("compare");
+                          }}
+                          disabled={rows.length < 2}
+                          title="Use this version as the left side of compare"
+                        >
+                          <GitCompare className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
-                  )}
 
-                  {/* Notes snapshot — separate downloadable item */}
-                  {r.notes && (
-                    <div className="rounded border bg-background p-2">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <div className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                          <StickyNote className="h-3 w-3" /> Student notes
+                    {/* Attachment snapshot — separate downloadable item */}
+                    {r.attachment_url && (
+                      <div className="rounded border bg-background p-2 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-xs min-w-0">
+                          <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="truncate" title={r.attachment_name || "attachment"}>{r.attachment_name || "attachment"}</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-2 text-xs"
-                            onClick={async () => {
-                              await navigator.clipboard.writeText(r.notes);
-                              setCopiedId(r.id);
-                              toast({ title: "Notes copied" });
-                              setTimeout(() => setCopiedId((c) => (c === r.id ? null : c)), 1500);
-                            }}
-                          >
-                            {copiedId === r.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button asChild size="sm" variant="ghost" className="h-7 px-2">
+                            <a href={r.attachment_url} target="_blank" rel="noreferrer" aria-label="Open attachment in new tab">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
                           </Button>
+                          <Button asChild size="sm" variant="outline" className="h-7 px-2 text-xs">
+                            <a href={r.attachment_url} download={r.attachment_name || `${baseName}-attachment`}>
+                              <Download className="h-3.5 w-3.5 mr-1" /> Download
+                            </a>
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Notes snapshot — separate downloadable item */}
+                    {r.notes && (
+                      <div className="rounded border bg-background p-2">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                            <StickyNote className="h-3 w-3" /> Student notes
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs"
+                              onClick={async () => {
+                                await navigator.clipboard.writeText(r.notes);
+                                setCopiedId(r.id);
+                                toast({ title: "Notes copied" });
+                                setTimeout(() => setCopiedId((c) => (c === r.id ? null : c)), 1500);
+                              }}
+                            >
+                              {copiedId === r.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => downloadText(`${baseName}-notes.txt`, r.notes)}
+                            >
+                              <Download className="h-3.5 w-3.5 mr-1" /> Download
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-xs whitespace-pre-wrap">{r.notes}</p>
+                      </div>
+                    )}
+
+                    {r.trainer_feedback && (
+                      <div className="rounded border-l-2 border-primary bg-primary/5 p-2">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="text-[11px] uppercase tracking-wide text-primary">Trainer feedback</div>
                           <Button
                             size="sm"
                             variant="outline"
                             className="h-7 px-2 text-xs"
-                            onClick={() => downloadText(`${baseName}-notes.txt`, r.notes)}
+                            onClick={() => downloadText(`${baseName}-feedback.txt`, r.trainer_feedback)}
                           >
                             <Download className="h-3.5 w-3.5 mr-1" /> Download
                           </Button>
                         </div>
+                        <p className="text-xs whitespace-pre-wrap">{r.trainer_feedback}</p>
                       </div>
-                      <p className="text-xs whitespace-pre-wrap">{r.notes}</p>
-                    </div>
-                  )}
+                    )}
 
-                  {r.trainer_feedback && (
-                    <div className="rounded border-l-2 border-primary bg-primary/5 p-2">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <div className="text-[11px] uppercase tracking-wide text-primary">Trainer feedback</div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => downloadText(`${baseName}-feedback.txt`, r.trainer_feedback)}
-                        >
-                          <Download className="h-3.5 w-3.5 mr-1" /> Download
-                        </Button>
+                    {r.revision_message && (
+                      <div className="rounded border-l-2 border-warning bg-warning/5 p-2">
+                        <div className="text-[11px] uppercase tracking-wide text-warning flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Revision requested</div>
+                        <p className="text-xs whitespace-pre-wrap">{r.revision_message}</p>
+                        {r.revision_due_date && <p className="text-[11px] text-muted-foreground mt-1">Due {new Date(r.revision_due_date).toLocaleDateString()}</p>}
                       </div>
-                      <p className="text-xs whitespace-pre-wrap">{r.trainer_feedback}</p>
-                    </div>
-                  )}
+                    )}
 
-                  {r.revision_message && (
-                    <div className="rounded border-l-2 border-warning bg-warning/5 p-2">
-                      <div className="text-[11px] uppercase tracking-wide text-warning flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Revision requested</div>
-                      <p className="text-xs whitespace-pre-wrap">{r.revision_message}</p>
-                      {r.revision_due_date && <p className="text-[11px] text-muted-foreground mt-1">Due {new Date(r.revision_due_date).toLocaleDateString()}</p>}
-                    </div>
-                  )}
+                    {r.score != null && (
+                      <div className="text-xs text-primary font-medium">Score: {r.score}{r.max_score != null ? ` / ${r.max_score}` : ""}</div>
+                    )}
+                  </div>
+                );
+              })}
+            </TabsContent>
 
-                  {r.score != null && (
-                    <div className="text-xs text-primary font-medium">Score: {r.score}{r.max_score != null ? ` / ${r.max_score}` : ""}</div>
-                  )}
+            <TabsContent value="compare" className="space-y-4 mt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Left (older)</div>
+                  <Select value={leftId} onValueChange={setLeftId}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Pick a version" /></SelectTrigger>
+                    <SelectContent className="bg-popover z-50">
+                      {rows.map((r) => (
+                        <SelectItem key={r.id} value={r.id} className="text-xs">{labelFor(r)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              );
-            })}
-          </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Right (newer)</div>
+                  <Select value={rightId} onValueChange={setRightId}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Pick a version" /></SelectTrigger>
+                    <SelectContent className="bg-popover z-50">
+                      {rows.map((r) => (
+                        <SelectItem key={r.id} value={r.id} className="text-xs">{labelFor(r)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {leftId && rightId && leftId === rightId && (
+                <div className="text-xs text-muted-foreground italic">Pick two different versions to see a diff.</div>
+              )}
+
+              <div className="space-y-2">
+                <div className="text-xs font-semibold flex items-center gap-1"><StickyNote className="h-3.5 w-3.5" /> Student notes</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <DiffColumn ops={notesDiff.left} label={left ? labelFor(left) : "Left"} />
+                  <DiffColumn ops={notesDiff.right} label={right ? labelFor(right) : "Right"} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-xs font-semibold flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> Trainer feedback</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <DiffColumn ops={fbDiff.left} label={left ? labelFor(left) : "Left"} />
+                  <DiffColumn ops={fbDiff.right} label={right ? labelFor(right) : "Right"} />
+                </div>
+              </div>
+
+              <div className="text-[11px] text-muted-foreground flex items-center gap-3">
+                <span><span className="inline-block w-2 h-2 rounded-sm bg-destructive/30 mr-1 align-middle" /> removed (only on left)</span>
+                <span><span className="inline-block w-2 h-2 rounded-sm bg-success/30 mr-1 align-middle" /> added (only on right)</span>
+              </div>
+            </TabsContent>
+          </Tabs>
         )}
       </DialogContent>
     </Dialog>

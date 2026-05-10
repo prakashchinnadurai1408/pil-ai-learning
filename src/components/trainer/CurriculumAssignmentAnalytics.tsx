@@ -393,14 +393,36 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
                         </TableCell>
                         <TableCell>
                           {s ? (
-                            <Button size="sm" variant="outline" className="gap-1" onClick={() => setReviewing(s)}>
-                              <MessageSquare className="h-3 w-3" /> Review
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="outline" className="gap-1" onClick={() => setReviewing(s)}>
+                                <MessageSquare className="h-3 w-3" /> Review
+                              </Button>
+                              <Button size="sm" variant="ghost" className="gap-1" onClick={() => setHistoryFor(s)}>
+                                <HistoryIcon className="h-3 w-3" /> History
+                              </Button>
+                            </div>
                           ) : null}
                         </TableCell>
                       </TableRow>
                     );
                   })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <ReviewDialog
+        submission={reviewing}
+        reviewerId={ownerId}
+        reviewerName={ownerName}
+        reviewerRole={ownerRole}
+        onClose={() => setReviewing(null)}
+        onSaved={async () => { setReviewing(null); await reload(); }}
+        onShowHistory={(s) => { setReviewing(null); setHistoryFor(s); }}
+      />
+      <SubmissionHistoryDialog submission={historyFor} onClose={() => setHistoryFor(null)} />
                 </TableBody>
               </Table>
             </CardContent>

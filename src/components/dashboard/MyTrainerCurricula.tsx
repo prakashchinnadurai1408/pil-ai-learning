@@ -337,6 +337,7 @@ export default function MyTrainerCurricula({ studentId, studentName, college, de
         degree={degree}
         onSaved={async () => { setSubmissionDialog(null); await reload(); }}
       />
+      <SubmissionHistoryDialog submission={historyFor as any} onClose={() => setHistoryFor(null)} />
     </div>
   );
 }

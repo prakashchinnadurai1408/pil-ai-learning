@@ -41,6 +41,7 @@ const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytic
 const TrainerAssignments = lazy(() => import("@/components/admin/TrainerAssignments"));
 const ModuleGroupsManager = lazy(() => import("@/components/admin/ModuleGroupsManager"));
 const TrainerCurriculumBuilder = lazy(() => import("@/components/trainer/TrainerCurriculumBuilder"));
+const CurriculumAssignmentAnalytics = lazy(() => import("@/components/trainer/CurriculumAssignmentAnalytics"));
 const AdminManagement = lazy(() => import("@/components/admin/AdminManagement"));
 const VideoMcqManager = lazy(() => import("@/components/admin/VideoMcqManager"));
 const CoordinatorDashboard = lazy(() => import("@/components/admin/CoordinatorDashboard"));
@@ -100,6 +101,9 @@ const SECTIONS: { label: string; items: MenuItem[] }[] = [
       { key: "proctoring", label: "Proctoring", icon: Eye, component: ProctoringAnalytics },
       { key: "projects", label: "Projects", icon: FolderKanban, component: ProjectsAnalytics },
       { key: "projects-review", label: "Project Reviews", icon: FolderKanban, component: TrainerProjectReview },
+      { key: "curriculum-analytics", label: "Curriculum Submissions", icon: BarChart3, component: () => (
+        <CurriculumAssignmentAnalytics ownerRole="admin" ownerId="admin" ownerName="Admin" ownerCollege="" />
+      ) },
       { key: "llm-usage", label: "LLM Usage", icon: Activity, component: LLMUsageAnalytics },
     ],
   },

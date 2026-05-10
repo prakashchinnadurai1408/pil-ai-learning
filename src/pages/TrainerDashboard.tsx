@@ -43,6 +43,7 @@ const ProctoringAnalytics = lazy(() => import("@/components/admin/ProctoringAnal
 const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytics"));
 const ModuleGroupsManager = lazy(() => import("@/components/admin/ModuleGroupsManager"));
 const TrainerCurriculumBuilder = lazy(() => import("@/components/trainer/TrainerCurriculumBuilder"));
+const CurriculumAssignmentAnalytics = lazy(() => import("@/components/trainer/CurriculumAssignmentAnalytics"));
 import AssignProjectDialog from "@/components/shared/AssignProjectDialog";
 import TrainerUpgradeDialog from "@/components/trainer/TrainerUpgradeDialog";
 
@@ -50,7 +51,7 @@ type TabKey =
   | "students" | "assessments" | "create-assessment" | "assessment-analytics"
   | "analytics" | "projects" | "assigned-projects" | "coding"
   | "modules" | "content" | "question-bank" | "coding-bank" | "learning-paths"
-  | "module-groups" | "curriculum"
+  | "module-groups" | "curriculum" | "curriculum-analytics"
   | "proctoring" | "llm-usage" | "coordinator-review";
 
 // Map dashboard tabs to access-control menu keys (trainer audience)
@@ -101,6 +102,7 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
     items: [
       { key: "assessment-analytics", label: "Assessments", icon: BarChart3 },
       { key: "analytics", label: "Modules", icon: BarChart3 },
+      { key: "curriculum-analytics", label: "Curriculum Submissions", icon: BarChart3 },
       { key: "coding", label: "Coding", icon: Code2 },
       { key: "proctoring", label: "Proctoring", icon: Eye },
       { key: "llm-usage", label: "LLM Usage", icon: Activity },
@@ -547,6 +549,17 @@ const TrainerDashboard = () => {
         return (
           <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
             <TrainerCurriculumBuilder
+              ownerRole="trainer"
+              ownerId={trainerId}
+              ownerName={trainerName}
+              ownerCollege={trainerCollege}
+            />
+          </Suspense>
+        );
+      case "curriculum-analytics":
+        return (
+          <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+            <CurriculumAssignmentAnalytics
               ownerRole="trainer"
               ownerId={trainerId}
               ownerName={trainerName}

@@ -275,7 +275,7 @@ const StudentDashboard = () => {
       case "trainer_curricula":
         return studentId ? (
           <Suspense fallback={<ContentSkeleton />}>
-            <MyTrainerCurricula studentId={studentId} college={studentCollege} department={studentDepartment} degree={studentDegree} />
+            <MyTrainerCurricula studentId={studentId} studentName={studentName} college={studentCollege} department={studentDepartment} degree={studentDegree} />
           </Suspense>
         ) : null;
       case "modules":

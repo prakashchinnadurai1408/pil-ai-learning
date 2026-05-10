@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, FileText, History as HistoryIcon, User, MessageSquare, AlertTriangle, Download, ExternalLink, StickyNote, Copy, Check, GitCompare } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Loader2, FileText, History as HistoryIcon, User, MessageSquare, AlertTriangle, Download, ExternalLink, StickyNote, Copy, Check, GitCompare, Paperclip, Plus, Minus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type AnySubmission = { id: string; student_name?: string } | null;
@@ -30,9 +32,12 @@ type HistoryRow = {
   created_at: string;
 };
 
-// Line-level LCS diff. Returns ops on each side: same | add | del.
-type DiffOp = { type: "same" | "add" | "del"; text: string };
-function diffLines(a: string, b: string): { left: DiffOp[]; right: DiffOp[] } {
+// Aligned line-level LCS diff. Returns a single list of paired rows so the two
+// columns line up visually (gaps appear as blank rows on the opposite side).
+type DiffSide = { type: "same" | "add" | "del" | "empty"; text: string };
+type DiffRow = { left: DiffSide; right: DiffSide };
+
+function diffAligned(a: string, b: string): DiffRow[] {
   const A = (a || "").split(/\r?\n/);
   const B = (b || "").split(/\r?\n/);
   const m = A.length, n = B.length;
@@ -42,37 +47,68 @@ function diffLines(a: string, b: string): { left: DiffOp[]; right: DiffOp[] } {
       dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
     }
   }
-  const left: DiffOp[] = [];
-  const right: DiffOp[] = [];
+  const rows: DiffRow[] = [];
   let i = 0, j = 0;
   while (i < m && j < n) {
-    if (A[i] === B[j]) { left.push({ type: "same", text: A[i] }); right.push({ type: "same", text: B[j] }); i++; j++; }
-    else if (dp[i + 1][j] >= dp[i][j + 1]) { left.push({ type: "del", text: A[i] }); right.push({ type: "same", text: "" }); i++; }
-    else { left.push({ type: "same", text: "" }); right.push({ type: "add", text: B[j] }); j++; }
+    if (A[i] === B[j]) {
+      rows.push({ left: { type: "same", text: A[i] }, right: { type: "same", text: B[j] } });
+      i++; j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      rows.push({ left: { type: "del", text: A[i] }, right: { type: "empty", text: "" } });
+      i++;
+    } else {
+      rows.push({ left: { type: "empty", text: "" }, right: { type: "add", text: B[j] } });
+      j++;
+    }
   }
-  while (i < m) { left.push({ type: "del", text: A[i++] }); right.push({ type: "same", text: "" }); }
-  while (j < n) { left.push({ type: "same", text: "" }); right.push({ type: "add", text: B[j++] }); }
-  return { left, right };
+  while (i < m) { rows.push({ left: { type: "del", text: A[i++] }, right: { type: "empty", text: "" } }); }
+  while (j < n) { rows.push({ left: { type: "empty", text: "" }, right: { type: "add", text: B[j++] } }); }
+  return rows;
 }
 
-function DiffColumn({ ops, label }: { ops: DiffOp[]; label: string }) {
+function filterChangedRows(rows: DiffRow[], context = 1): DiffRow[] {
+  const keep = new Array(rows.length).fill(false);
+  rows.forEach((r, idx) => {
+    if (r.left.type !== "same" || r.right.type !== "same") {
+      for (let k = Math.max(0, idx - context); k <= Math.min(rows.length - 1, idx + context); k++) keep[k] = true;
+    }
+  });
+  return rows.filter((_, idx) => keep[idx]);
+}
+
+function cellClass(t: DiffSide["type"]) {
+  if (t === "add") return "bg-success/15 text-success-foreground";
+  if (t === "del") return "bg-destructive/15 text-destructive";
+  if (t === "empty") return "bg-muted/30";
+  return "";
+}
+function marker(t: DiffSide["type"]) {
+  if (t === "add") return "+";
+  if (t === "del") return "-";
+  return " ";
+}
+
+function AlignedDiff({ rows, leftLabel, rightLabel }: { rows: DiffRow[]; leftLabel: string; rightLabel: string }) {
+  const isEmpty = rows.length === 0 || rows.every((r) => !r.left.text && !r.right.text);
   return (
     <div className="rounded border bg-background overflow-hidden">
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30">{label}</div>
+      <div className="grid grid-cols-2 text-[11px] uppercase tracking-wide text-muted-foreground border-b bg-muted/30">
+        <div className="px-2 py-1 border-r truncate" title={leftLabel}>{leftLabel}</div>
+        <div className="px-2 py-1 truncate" title={rightLabel}>{rightLabel}</div>
+      </div>
       <div className="font-mono text-[11px] leading-relaxed max-h-72 overflow-auto">
-        {ops.length === 0 || ops.every((o) => !o.text) ? (
-          <div className="px-2 py-3 text-muted-foreground italic">— empty —</div>
-        ) : ops.map((o, idx) => (
-          <div
-            key={idx}
-            className={
-              o.type === "add" ? "bg-success/15 text-success-foreground px-2" :
-              o.type === "del" ? "bg-destructive/15 text-destructive px-2" :
-              "px-2"
-            }
-          >
-            <span className="select-none mr-1 text-muted-foreground">{o.type === "add" ? "+" : o.type === "del" ? "-" : " "}</span>
-            {o.text || "\u00A0"}
+        {isEmpty ? (
+          <div className="px-2 py-3 text-muted-foreground italic">— no differences —</div>
+        ) : rows.map((r, idx) => (
+          <div key={idx} className="grid grid-cols-2">
+            <div className={`px-2 border-r ${cellClass(r.left.type)}`}>
+              <span className="select-none mr-1 text-muted-foreground">{marker(r.left.type)}</span>
+              {r.left.text || "\u00A0"}
+            </div>
+            <div className={`px-2 ${cellClass(r.right.type)}`}>
+              <span className="select-none mr-1 text-muted-foreground">{marker(r.right.type)}</span>
+              {r.right.text || "\u00A0"}
+            </div>
           </div>
         ))}
       </div>
@@ -92,6 +128,8 @@ function downloadText(name: string, body: string) {
   URL.revokeObjectURL(url);
 }
 
+const LS_KEY = (id: string) => `submission-history:${id}`;
+
 export default function SubmissionHistoryDialog({ submission, onClose }: { submission: AnySubmission; onClose: () => void }) {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<HistoryRow[]>([]);
@@ -99,17 +137,63 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const [tab, setTab] = useState<"timeline" | "compare">("timeline");
   const [leftId, setLeftId] = useState<string>("");
   const [rightId, setRightId] = useState<string>("");
+  const [onlyChanges, setOnlyChanges] = useState(false);
 
-  // Default-pick newest two rows for compare once loaded
+  // Restore persisted selections (URL > localStorage) when dialog opens.
+  useEffect(() => {
+    if (!submission) return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlTab = params.get("histTab");
+      const urlLeft = params.get("histLeft");
+      const urlRight = params.get("histRight");
+      const urlOnly = params.get("histOnly");
+      const stored = JSON.parse(localStorage.getItem(LS_KEY(submission.id)) || "null") as
+        | { tab?: string; leftId?: string; rightId?: string; onlyChanges?: boolean }
+        | null;
+      const t = (urlTab || stored?.tab) as "timeline" | "compare" | undefined;
+      if (t === "timeline" || t === "compare") setTab(t);
+      if (urlLeft || stored?.leftId) setLeftId(urlLeft || stored!.leftId!);
+      if (urlRight || stored?.rightId) setRightId(urlRight || stored!.rightId!);
+      const only = urlOnly != null ? urlOnly === "1" : stored?.onlyChanges;
+      if (typeof only === "boolean") setOnlyChanges(only);
+    } catch { /* ignore */ }
+  }, [submission]);
+
+  // Default-pick newest two rows for compare once loaded (only if nothing restored).
   useEffect(() => {
     if (rows.length >= 2) {
-      setLeftId((cur) => cur || rows[1].id);
-      setRightId((cur) => cur || rows[0].id);
+      setLeftId((cur) => cur && rows.some((r) => r.id === cur) ? cur : rows[1].id);
+      setRightId((cur) => cur && rows.some((r) => r.id === cur) ? cur : rows[0].id);
     } else if (rows.length === 1) {
       setLeftId(rows[0].id);
       setRightId(rows[0].id);
     }
   }, [rows]);
+
+  // Persist selections to URL + localStorage whenever they change.
+  useEffect(() => {
+    if (!submission) return;
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("histTab", tab);
+      if (leftId) url.searchParams.set("histLeft", leftId); else url.searchParams.delete("histLeft");
+      if (rightId) url.searchParams.set("histRight", rightId); else url.searchParams.delete("histRight");
+      url.searchParams.set("histOnly", onlyChanges ? "1" : "0");
+      window.history.replaceState({}, "", url.toString());
+      localStorage.setItem(LS_KEY(submission.id), JSON.stringify({ tab, leftId, rightId, onlyChanges }));
+    } catch { /* ignore */ }
+  }, [submission, tab, leftId, rightId, onlyChanges]);
+
+  // Clean URL params when closing.
+  const handleClose = () => {
+    try {
+      const url = new URL(window.location.href);
+      ["histTab", "histLeft", "histRight", "histOnly"].forEach((k) => url.searchParams.delete(k));
+      window.history.replaceState({}, "", url.toString());
+    } catch { /* ignore */ }
+    onClose();
+  };
 
   useEffect(() => {
     if (!submission) return;
@@ -128,11 +212,9 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
 
   if (!submission) return null;
 
-  // Compute display version per row when version_number is missing — fall back to chronological index.
   const total = rows.length;
   const studentRows = rows.filter((r) => r.kind === "student_submission");
   const studentOrder = new Map<string, number>();
-  // Oldest student row = v1
   [...studentRows].reverse().forEach((r, i) => studentOrder.set(r.id, i + 1));
 
   const labelFor = (r: HistoryRow) => {
@@ -143,11 +225,22 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   };
   const left = useMemo(() => rows.find((r) => r.id === leftId) || null, [rows, leftId]);
   const right = useMemo(() => rows.find((r) => r.id === rightId) || null, [rows, rightId]);
-  const notesDiff = useMemo(() => diffLines(left?.notes || "", right?.notes || ""), [left, right]);
-  const fbDiff = useMemo(() => diffLines(left?.trainer_feedback || "", right?.trainer_feedback || ""), [left, right]);
+
+  const notesRowsAll = useMemo(() => diffAligned(left?.notes || "", right?.notes || ""), [left, right]);
+  const fbRowsAll = useMemo(() => diffAligned(left?.trainer_feedback || "", right?.trainer_feedback || ""), [left, right]);
+  const notesRows = useMemo(() => (onlyChanges ? filterChangedRows(notesRowsAll) : notesRowsAll), [notesRowsAll, onlyChanges]);
+  const fbRows = useMemo(() => (onlyChanges ? filterChangedRows(fbRowsAll) : fbRowsAll), [fbRowsAll, onlyChanges]);
+
+  // Attachment diff: compare by name + url across the two versions.
+  type Att = { name: string; url: string };
+  const leftAtt: Att | null = left?.attachment_url ? { name: left.attachment_name || "attachment", url: left.attachment_url } : null;
+  const rightAtt: Att | null = right?.attachment_url ? { name: right.attachment_name || "attachment", url: right.attachment_url } : null;
+  const sameAtt = !!leftAtt && !!rightAtt && leftAtt.url === rightAtt.url && leftAtt.name === rightAtt.name;
+  const removedAtt = leftAtt && (!rightAtt || !sameAtt) ? leftAtt : null;
+  const addedAtt = rightAtt && (!leftAtt || !sameAtt) ? rightAtt : null;
 
   return (
-    <Dialog open={!!submission} onOpenChange={(b) => !b && onClose()}>
+    <Dialog open={!!submission} onOpenChange={(b) => !b && handleClose()}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -193,10 +286,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                           size="sm"
                           variant="ghost"
                           className="h-7 px-2 text-xs"
-                          onClick={() => {
-                            setLeftId(r.id);
-                            setTab("compare");
-                          }}
+                          onClick={() => { setLeftId(r.id); setTab("compare"); }}
                           disabled={rows.length < 2}
                           title="Use this version as the left side of compare"
                         >
@@ -205,7 +295,6 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                       </div>
                     </div>
 
-                    {/* Attachment snapshot — separate downloadable item */}
                     {r.attachment_url && (
                       <div className="rounded border bg-background p-2 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 text-xs min-w-0">
@@ -227,7 +316,6 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                       </div>
                     )}
 
-                    {/* Notes snapshot — separate downloadable item */}
                     {r.notes && (
                       <div className="rounded border bg-background p-2">
                         <div className="flex items-center justify-between gap-2 mb-1">
@@ -321,24 +409,72 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                 </div>
               </div>
 
-              {leftId && rightId && leftId === rightId && (
-                <div className="text-xs text-muted-foreground italic">Pick two different versions to see a diff.</div>
-              )}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Switch id="only-changes" checked={onlyChanges} onCheckedChange={setOnlyChanges} />
+                  <Label htmlFor="only-changes" className="text-xs cursor-pointer">Show only changes</Label>
+                </div>
+                {leftId && rightId && leftId === rightId && (
+                  <div className="text-xs text-muted-foreground italic">Pick two different versions to see a diff.</div>
+                )}
+              </div>
+
+              {/* Attachments diff */}
+              <div className="space-y-2">
+                <div className="text-xs font-semibold flex items-center gap-1"><Paperclip className="h-3.5 w-3.5" /> Attachments</div>
+                {!leftAtt && !rightAtt ? (
+                  <div className="text-[11px] text-muted-foreground italic px-1">No attachments on either version.</div>
+                ) : sameAtt ? (
+                  <div className="rounded border bg-muted/20 p-2 text-xs flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2 min-w-0"><FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="truncate">{leftAtt!.name}</span></span>
+                    <Badge variant="outline" className="text-[10px]">unchanged</Badge>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="rounded border bg-background overflow-hidden">
+                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30">Removed (left)</div>
+                      <div className="p-2">
+                        {removedAtt ? (
+                          <div className="flex items-center justify-between gap-2 text-xs bg-destructive/10 rounded p-2">
+                            <span className="flex items-center gap-1.5 min-w-0"><Minus className="h-3 w-3 text-destructive shrink-0" /><span className="truncate" title={removedAtt.name}>{removedAtt.name}</span></span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={removedAtt.url} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /></a></Button>
+                              <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={removedAtt.url} download={removedAtt.name}><Download className="h-3 w-3" /></a></Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-muted-foreground italic">— none —</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="rounded border bg-background overflow-hidden">
+                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30">Added (right)</div>
+                      <div className="p-2">
+                        {addedAtt ? (
+                          <div className="flex items-center justify-between gap-2 text-xs bg-success/10 rounded p-2">
+                            <span className="flex items-center gap-1.5 min-w-0"><Plus className="h-3 w-3 text-success shrink-0" /><span className="truncate" title={addedAtt.name}>{addedAtt.name}</span></span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={addedAtt.url} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /></a></Button>
+                              <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={addedAtt.url} download={addedAtt.name}><Download className="h-3 w-3" /></a></Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-muted-foreground italic">— none —</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div className="space-y-2">
                 <div className="text-xs font-semibold flex items-center gap-1"><StickyNote className="h-3.5 w-3.5" /> Student notes</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <DiffColumn ops={notesDiff.left} label={left ? labelFor(left) : "Left"} />
-                  <DiffColumn ops={notesDiff.right} label={right ? labelFor(right) : "Right"} />
-                </div>
+                <AlignedDiff rows={notesRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} />
               </div>
 
               <div className="space-y-2">
                 <div className="text-xs font-semibold flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> Trainer feedback</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <DiffColumn ops={fbDiff.left} label={left ? labelFor(left) : "Left"} />
-                  <DiffColumn ops={fbDiff.right} label={right ? labelFor(right) : "Right"} />
-                </div>
+                <AlignedDiff rows={fbRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} />
               </div>
 
               <div className="text-[11px] text-muted-foreground flex items-center gap-3">

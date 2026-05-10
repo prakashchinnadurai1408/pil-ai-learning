@@ -385,15 +385,20 @@ function ReviewDialog({ submission, reviewerId, reviewerName, onClose, onSaved }
             <label className="text-xs font-medium text-muted-foreground">Feedback notes</label>
             <Textarea rows={4} value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="Provide guidance, corrections, or praise…" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground">Score</label>
               <Input type="number" value={score} onChange={(e) => setScore(e.target.value)} placeholder="e.g. 85" />
             </div>
             <div>
+              <label className="text-xs font-medium text-muted-foreground">Max score</label>
+              <Input type="number" value={maxScore} onChange={(e) => setMaxScore(e.target.value)} placeholder="100" />
+            </div>
+            <div>
               <label className="text-xs font-medium text-muted-foreground">Status</label>
               <select className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm" value={status} onChange={(e) => setStatus(e.target.value)}>
                 <option value="reviewed">Reviewed</option>
+                <option value="graded">Graded</option>
                 <option value="returned">Returned for revision</option>
                 <option value="submitted">Submitted</option>
               </select>

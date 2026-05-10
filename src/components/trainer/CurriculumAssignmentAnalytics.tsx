@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, BarChart3, AlertTriangle, CheckCircle2, FileText, Download, MessageSquare } from "lucide-react";
+import { Loader2, BarChart3, AlertTriangle, CheckCircle2, FileText, Download, MessageSquare, FileSpreadsheet, FileDown } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -174,6 +174,73 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
     );
   }
 
+  const exportCSV = () => {
+    const lines: string[] = [];
+    lines.push("Curriculum Assignment Analytics");
+    lines.push(`Generated,${new Date().toLocaleString()}`);
+    lines.push("");
+    lines.push("Summary");
+    lines.push("Eligible,Completed,Completion %,Overdue,Average Score");
+    lines.push(`${stats.total},${stats.completed},${stats.completionRate}%,${stats.overdue},${stats.avgScore ?? "—"}`);
+    const writeBreakdown = (title: string, list: any[]) => {
+      lines.push(""); lines.push(title);
+      lines.push("Group,Eligible,Completed,Completion %,Overdue,Avg Score");
+      for (const r of list) lines.push(`"${r.key}",${r.total},${r.completed},${r.completionRate}%,${r.overdue},${r.avgScore ?? "—"}`);
+    };
+    writeBreakdown("By Department", stats.byDepartment);
+    writeBreakdown("By Degree", stats.byDegree);
+    lines.push(""); lines.push("Submissions");
+    lines.push("Student,Curriculum,Department,Degree,Status,Score,Max,Reviewed At");
+    for (const r of rows) {
+      const s = r.submission;
+      const status = s ? s.status : (r.isOverdue ? "overdue" : "pending");
+      lines.push(`"${r.student.name}","${r.curriculum.title}","${r.student.department || ""}","${r.student.degree || ""}",${status},${s?.score ?? ""},${s?.max_score ?? ""},${s?.reviewed_at ?? ""}`);
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `curriculum-analytics-${Date.now()}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exported");
+  };
+
+  const exportPDF = async () => {
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const autoTable = (await import("jspdf-autotable")).default;
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text("Curriculum Assignment Analytics", 14, 16);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
+      doc.text(`Curriculum filter: ${selectedCurriculum === "all" ? "All curricula" : (curricula.find(c => c.id === selectedCurriculum)?.title || "—")}`, 14, 27);
+
+      autoTable(doc, {
+        startY: 32,
+        head: [["Eligible", "Completed", "Completion %", "Overdue", "Avg Score"]],
+        body: [[String(stats.total), String(stats.completed), `${stats.completionRate}%`, String(stats.overdue), stats.avgScore != null ? String(stats.avgScore) : "—"]],
+        styles: { fontSize: 9 }, headStyles: { fillColor: [59, 130, 246] },
+      });
+
+      autoTable(doc, {
+        head: [["Department", "Eligible", "Completed", "Completion %", "Overdue", "Avg Score"]],
+        body: stats.byDepartment.map((r: any) => [r.key, r.total, r.completed, `${r.completionRate}%`, r.overdue, r.avgScore ?? "—"]),
+        styles: { fontSize: 9 }, headStyles: { fillColor: [99, 102, 241] },
+      });
+      autoTable(doc, {
+        head: [["Degree", "Eligible", "Completed", "Completion %", "Overdue", "Avg Score"]],
+        body: stats.byDegree.map((r: any) => [r.key, r.total, r.completed, `${r.completionRate}%`, r.overdue, r.avgScore ?? "—"]),
+        styles: { fontSize: 9 }, headStyles: { fillColor: [168, 85, 247] },
+      });
+
+      doc.save(`curriculum-analytics-${Date.now()}.pdf`);
+      toast.success("PDF exported");
+    } catch (e: any) {
+      toast.error(e.message || "PDF export failed");
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -181,10 +248,14 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
           <h2 className="text-xl font-semibold flex items-center gap-2"><BarChart3 className="h-5 w-5 text-primary" /> Assignment Analytics</h2>
           <p className="text-sm text-muted-foreground">Completion rate, average scores, and overdue submissions across your curricula.</p>
         </div>
-        <select className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={selectedCurriculum} onChange={(e) => setSelectedCurriculum(e.target.value)}>
-          <option value="all">All curricula ({curricula.length})</option>
-          {curricula.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
-        </select>
+        <div className="flex flex-wrap items-center gap-2">
+          <select className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={selectedCurriculum} onChange={(e) => setSelectedCurriculum(e.target.value)}>
+            <option value="all">All curricula ({curricula.length})</option>
+            {curricula.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+          </select>
+          <Button size="sm" variant="outline" className="gap-1" onClick={exportCSV}><FileSpreadsheet className="h-3 w-3" /> CSV</Button>
+          <Button size="sm" variant="outline" className="gap-1" onClick={exportPDF}><FileDown className="h-3 w-3" /> PDF</Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -327,6 +398,7 @@ function ReviewDialog({ submission, reviewerId, reviewerName, onClose, onSaved }
 }) {
   const [feedback, setFeedback] = useState("");
   const [score, setScore] = useState<string>("");
+  const [maxScore, setMaxScore] = useState<string>("");
   const [status, setStatus] = useState<string>("reviewed");
   const [saving, setSaving] = useState(false);
 
@@ -334,6 +406,7 @@ function ReviewDialog({ submission, reviewerId, reviewerName, onClose, onSaved }
     if (submission) {
       setFeedback(submission.trainer_feedback || "");
       setScore(submission.score != null ? String(submission.score) : "");
+      setMaxScore(submission.max_score != null ? String(submission.max_score) : "100");
       setStatus(submission.status === "submitted" ? "reviewed" : submission.status);
     }
   }, [submission]);
@@ -351,6 +424,7 @@ function ReviewDialog({ submission, reviewerId, reviewerName, onClose, onSaved }
         reviewed_at: new Date().toISOString(),
       };
       if (score.trim() !== "") update.score = Number(score);
+      if (maxScore.trim() !== "") update.max_score = Number(maxScore);
       const { error } = await supabase.from("curriculum_submissions").update(update).eq("id", submission.id);
       if (error) throw error;
       toast.success("Feedback saved");
@@ -382,15 +456,20 @@ function ReviewDialog({ submission, reviewerId, reviewerName, onClose, onSaved }
             <label className="text-xs font-medium text-muted-foreground">Feedback notes</label>
             <Textarea rows={4} value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="Provide guidance, corrections, or praise…" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground">Score</label>
               <Input type="number" value={score} onChange={(e) => setScore(e.target.value)} placeholder="e.g. 85" />
             </div>
             <div>
+              <label className="text-xs font-medium text-muted-foreground">Max score</label>
+              <Input type="number" value={maxScore} onChange={(e) => setMaxScore(e.target.value)} placeholder="100" />
+            </div>
+            <div>
               <label className="text-xs font-medium text-muted-foreground">Status</label>
               <select className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm" value={status} onChange={(e) => setStatus(e.target.value)}>
                 <option value="reviewed">Reviewed</option>
+                <option value="graded">Graded</option>
                 <option value="returned">Returned for revision</option>
                 <option value="submitted">Submitted</option>
               </select>

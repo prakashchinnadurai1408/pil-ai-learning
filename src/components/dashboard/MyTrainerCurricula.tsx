@@ -326,11 +326,13 @@ function SubmissionDialog({ open, onOpenChange, item, studentId, studentName, co
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [stage, setStage] = useState<"idle" | "uploading" | "saving" | "done">("idle");
 
   useEffect(() => {
     if (open && item) {
       setNotes(item.submission?.notes || "");
       setFile(null);
+      setStage("idle");
     }
   }, [open, item]);
 
@@ -342,6 +344,8 @@ function SubmissionDialog({ open, onOpenChange, item, studentId, studentName, co
       let attachment_url = item.submission?.attachment_url || "";
       let attachment_name = item.submission?.attachment_name || "";
       if (file) {
+        if (file.size > 20 * 1024 * 1024) throw new Error("File exceeds 20MB limit");
+        setStage("uploading");
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const path = `curriculum-submissions/${item.c.id}/${studentId}/${Date.now()}_${safeName}`;
         const { error: upErr } = await supabase.storage.from("assessment-uploads").upload(path, file, { upsert: true });
@@ -350,6 +354,7 @@ function SubmissionDialog({ open, onOpenChange, item, studentId, studentName, co
         attachment_url = pub.publicUrl;
         attachment_name = file.name;
       }
+      setStage("saving");
       const payload: any = {
         curriculum_id: item.c.id,
         student_id: studentId,
@@ -368,14 +373,18 @@ function SubmissionDialog({ open, onOpenChange, item, studentId, studentName, co
         const { error } = await supabase.from("curriculum_submissions").insert(payload);
         if (error) throw error;
       }
+      setStage("done");
       toast.success("Submission saved");
       await onSaved();
     } catch (e: any) {
       toast.error(e.message || "Failed to save submission");
+      setStage("idle");
     } finally {
       setSaving(false);
     }
   };
+
+  const stageLabel = stage === "uploading" ? "Uploading attachment…" : stage === "saving" ? "Saving submission…" : stage === "done" ? "Submitted!" : "";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -385,16 +394,23 @@ function SubmissionDialog({ open, onOpenChange, item, studentId, studentName, co
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Attachment (PDF, doc, image, zip)</label>
-            <Input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            <label className="text-xs font-medium text-muted-foreground">Attachment (PDF, doc, image, zip — max 20MB)</label>
+            <Input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} disabled={saving} />
+            {file && <p className="text-xs text-muted-foreground mt-1">Selected: {file.name} ({(file.size / 1024).toFixed(0)} KB)</p>}
             {item.submission?.attachment_name && !file && (
               <p className="text-xs text-muted-foreground mt-1">Current: {item.submission.attachment_name}</p>
             )}
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground">Notes for trainer</label>
-            <Textarea rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Briefly describe what you submitted, references used, etc." />
+            <Textarea rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Briefly describe what you submitted, references used, etc." disabled={saving} />
           </div>
+          {stage !== "idle" && (
+            <div className={`text-xs flex items-center gap-2 rounded border p-2 ${stage === "done" ? "bg-success/10 text-success border-success/30" : "bg-primary/5 text-primary border-primary/30"}`}>
+              {stage === "done" ? <CheckCircle2 className="h-3 w-3" /> : <Loader2 className="h-3 w-3 animate-spin" />}
+              {stageLabel}
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>

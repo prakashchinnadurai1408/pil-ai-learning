@@ -390,6 +390,28 @@ function SubmissionDialog({ open, onOpenChange, item, studentId, studentName, co
         status: "submitted",
       };
       if (item.submission) {
+        // Snapshot prior version into history before overwriting
+        await supabase.from("curriculum_submission_history").insert({
+          submission_id: item.submission.id,
+          curriculum_id: item.c.id,
+          student_id: studentId,
+          kind: "student_submission",
+          attachment_url: item.submission.attachment_url || "",
+          attachment_name: item.submission.attachment_name || "",
+          notes: item.submission.notes || "",
+          trainer_feedback: item.submission.trainer_feedback || "",
+          revision_message: (item.submission as any).revision_message || "",
+          revision_due_date: (item.submission as any).revision_due_date || null,
+          score: item.submission.score,
+          max_score: (item.submission as any).max_score ?? null,
+          status: item.submission.status,
+          actor_id: studentId,
+          actor_name: studentName,
+          actor_role: "student",
+        });
+        // Clear revision request fields when student resubmits
+        payload.revision_message = "";
+        payload.revision_due_date = null;
         const { error } = await supabase.from("curriculum_submissions").update(payload).eq("id", item.submission.id);
         if (error) throw error;
       } else {

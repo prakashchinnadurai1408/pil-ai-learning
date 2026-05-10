@@ -31,6 +31,8 @@ type Submission = {
   score: number | null;
   reviewed_at: string | null;
   updated_at: string;
+  revision_message?: string;
+  revision_due_date?: string | null;
 };
 
 type CurriculumItem = {

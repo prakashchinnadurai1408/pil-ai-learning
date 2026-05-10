@@ -102,6 +102,7 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
     items: [
       { key: "assessment-analytics", label: "Assessments", icon: BarChart3 },
       { key: "analytics", label: "Modules", icon: BarChart3 },
+      { key: "curriculum-analytics", label: "Curriculum Submissions", icon: BarChart3 },
       { key: "coding", label: "Coding", icon: Code2 },
       { key: "proctoring", label: "Proctoring", icon: Eye },
       { key: "llm-usage", label: "LLM Usage", icon: Activity },

@@ -307,9 +307,16 @@ export default function MyTrainerCurricula({ studentId, studentName, college, de
                         <>No submission yet</>
                       )}
                     </div>
-                    <Button size="sm" variant={submission?.status === "returned" ? "default" : (submission ? "outline" : "default")} className="gap-1" onClick={() => setSubmissionDialog({ item })}>
-                      <Upload className="h-3 w-3" /> {submission?.status === "returned" ? "Resubmit work" : (submission ? "Update submission" : "Submit work")}
-                    </Button>
+                    <div className="flex gap-2">
+                      {submission && (
+                        <Button size="sm" variant="ghost" className="gap-1" onClick={() => setHistoryFor(submission)}>
+                          <HistoryIcon className="h-3 w-3" /> History
+                        </Button>
+                      )}
+                      <Button size="sm" variant={submission?.status === "returned" ? "default" : (submission ? "outline" : "default")} className="gap-1" onClick={() => setSubmissionDialog({ item })}>
+                        <Upload className="h-3 w-3" /> {submission?.status === "returned" ? "Resubmit work" : (submission ? "Update submission" : "Submit work")}
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

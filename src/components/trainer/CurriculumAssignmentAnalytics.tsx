@@ -287,6 +287,36 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
         </div>
       </div>
 
+      <Card>
+        <CardContent className="p-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+          <Input placeholder="Search student name…" value={fSearch} onChange={(e) => setFSearch(e.target.value)} className="h-9" />
+          <select className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={fDept} onChange={(e) => setFDept(e.target.value)}>
+            <option value="all">All departments</option>
+            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <select className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={fDegree} onChange={(e) => setFDegree(e.target.value)}>
+            <option value="all">All degrees</option>
+            {degrees.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <select className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
+            <option value="all">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="overdue">Overdue</option>
+            <option value="submitted">Submitted</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="graded">Graded</option>
+            <option value="returned">Returned</option>
+          </select>
+          <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} className="h-9" title="Due from" />
+          <div className="flex gap-2">
+            <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} className="h-9" title="Due to" />
+            {(fSearch || fDept !== "all" || fDegree !== "all" || fStatus !== "all" || fFrom || fTo) && (
+              <Button size="sm" variant="ghost" onClick={() => { setFSearch(""); setFDept("all"); setFDegree("all"); setFStatus("all"); setFFrom(""); setFTo(""); }}>Clear</Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Eligible students" value={stats.total} />
         <StatCard label="Completed" value={stats.completed} sub={`${stats.completionRate}%`} tone="success" />

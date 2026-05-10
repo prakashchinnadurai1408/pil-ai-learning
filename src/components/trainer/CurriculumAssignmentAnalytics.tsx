@@ -8,8 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, BarChart3, AlertTriangle, CheckCircle2, FileText, Download, MessageSquare, FileSpreadsheet, FileDown } from "lucide-react";
+import { Loader2, BarChart3, AlertTriangle, CheckCircle2, FileText, Download, MessageSquare, FileSpreadsheet, FileDown, History as HistoryIcon } from "lucide-react";
 import { toast } from "sonner";
+import SubmissionHistoryDialog from "./SubmissionHistoryDialog";
 
 interface Props {
   ownerRole: "trainer" | "admin";

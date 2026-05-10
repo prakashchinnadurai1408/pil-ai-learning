@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Loader2, FileText, History as HistoryIcon, User, MessageSquare, AlertTriangle, Download, ExternalLink, StickyNote, Copy, Check, GitCompare, Paperclip, Plus, Minus } from "lucide-react";
+import { Loader2, FileText, History as HistoryIcon, User, MessageSquare, AlertTriangle, Download, ExternalLink, StickyNote, Copy, Check, GitCompare, Paperclip, Plus, Minus, ChevronUp, ChevronDown, FileDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type AnySubmission = { id: string; student_name?: string } | null;

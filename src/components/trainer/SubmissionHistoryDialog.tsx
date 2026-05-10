@@ -96,6 +96,20 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<HistoryRow[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [tab, setTab] = useState<"timeline" | "compare">("timeline");
+  const [leftId, setLeftId] = useState<string>("");
+  const [rightId, setRightId] = useState<string>("");
+
+  // Default-pick newest two rows for compare once loaded
+  useEffect(() => {
+    if (rows.length >= 2) {
+      setLeftId((cur) => cur || rows[1].id);
+      setRightId((cur) => cur || rows[0].id);
+    } else if (rows.length === 1) {
+      setLeftId(rows[0].id);
+      setRightId(rows[0].id);
+    }
+  }, [rows]);
 
   useEffect(() => {
     if (!submission) return;

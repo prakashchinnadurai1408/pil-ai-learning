@@ -295,8 +295,8 @@ export default function MyTrainerCurricula({ studentId, studentName, college, de
                         <>No submission yet</>
                       )}
                     </div>
-                    <Button size="sm" variant={submission ? "outline" : "default"} className="gap-1" onClick={() => setSubmissionDialog({ item })}>
-                      <Upload className="h-3 w-3" /> {submission ? "Update submission" : "Submit work"}
+                    <Button size="sm" variant={submission?.status === "returned" ? "default" : (submission ? "outline" : "default")} className="gap-1" onClick={() => setSubmissionDialog({ item })}>
+                      <Upload className="h-3 w-3" /> {submission?.status === "returned" ? "Resubmit work" : (submission ? "Update submission" : "Submit work")}
                     </Button>
                   </div>
                 </CardContent>

@@ -148,7 +148,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
 
   return (
     <Dialog open={!!submission} onOpenChange={(b) => !b && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <HistoryIcon className="h-4 w-4 text-primary" />

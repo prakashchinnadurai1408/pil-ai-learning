@@ -728,6 +728,72 @@ export type Database = {
           },
         ]
       }
+      curriculum_submission_history: {
+        Row: {
+          actor_id: string
+          actor_name: string
+          actor_role: string
+          attachment_name: string
+          attachment_url: string
+          created_at: string
+          curriculum_id: string
+          id: string
+          kind: string
+          max_score: number | null
+          notes: string
+          revision_due_date: string | null
+          revision_message: string
+          score: number | null
+          status: string
+          student_id: string
+          submission_id: string
+          trainer_feedback: string
+          version_number: number
+        }
+        Insert: {
+          actor_id?: string
+          actor_name?: string
+          actor_role?: string
+          attachment_name?: string
+          attachment_url?: string
+          created_at?: string
+          curriculum_id: string
+          id?: string
+          kind?: string
+          max_score?: number | null
+          notes?: string
+          revision_due_date?: string | null
+          revision_message?: string
+          score?: number | null
+          status?: string
+          student_id: string
+          submission_id: string
+          trainer_feedback?: string
+          version_number?: number
+        }
+        Update: {
+          actor_id?: string
+          actor_name?: string
+          actor_role?: string
+          attachment_name?: string
+          attachment_url?: string
+          created_at?: string
+          curriculum_id?: string
+          id?: string
+          kind?: string
+          max_score?: number | null
+          notes?: string
+          revision_due_date?: string | null
+          revision_message?: string
+          score?: number | null
+          status?: string
+          student_id?: string
+          submission_id?: string
+          trainer_feedback?: string
+          version_number?: number
+        }
+        Relationships: []
+      }
       curriculum_submissions: {
         Row: {
           assessment_id: string | null
@@ -741,6 +807,8 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string
           reviewed_by_name: string
+          revision_due_date: string | null
+          revision_message: string
           score: number | null
           status: string
           student_college: string
@@ -763,6 +831,8 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string
           reviewed_by_name?: string
+          revision_due_date?: string | null
+          revision_message?: string
           score?: number | null
           status?: string
           student_college?: string
@@ -785,6 +855,8 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string
           reviewed_by_name?: string
+          revision_due_date?: string | null
+          revision_message?: string
           score?: number | null
           status?: string
           student_college?: string

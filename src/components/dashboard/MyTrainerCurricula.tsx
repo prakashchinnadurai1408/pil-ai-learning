@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, BookOpen, Video, ListChecks, ClipboardCheck, Sparkles, Upload, CheckCircle2, Clock, AlertTriangle, MessageSquare, Filter } from "lucide-react";
+import { Loader2, BookOpen, Video, ListChecks, ClipboardCheck, Sparkles, Upload, CheckCircle2, Clock, AlertTriangle, MessageSquare, Filter, History as HistoryIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import SubmissionHistoryDialog from "@/components/trainer/SubmissionHistoryDialog";
 
 interface Props {
   studentId: string;
@@ -30,6 +31,8 @@ type Submission = {
   score: number | null;
   reviewed_at: string | null;
   updated_at: string;
+  revision_message?: string;
+  revision_due_date?: string | null;
 };
 
 type CurriculumItem = {
@@ -64,6 +67,7 @@ export default function MyTrainerCurricula({ studentId, studentName, college, de
   const [groupBy, setGroupBy] = useState<"none" | "department" | "degree" | "due">("none");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [submissionDialog, setSubmissionDialog] = useState<{ item: CurriculumItem } | null>(null);
+  const [historyFor, setHistoryFor] = useState<Submission | null>(null);
 
   const reload = async () => {
     setLoading(true);
@@ -231,13 +235,21 @@ export default function MyTrainerCurricula({ studentId, studentName, college, de
                     </div>
                   </CardTitle>
                   {c.description && <p className="text-sm text-muted-foreground">{c.description}</p>}
-                  {submission?.trainer_feedback && (
+                  {(submission?.trainer_feedback || submission?.revision_message) && (
                     <div className={`mt-2 rounded border-l-4 p-2 text-xs ${submission.status === "returned" ? "border-warning bg-warning/10" : "border-primary bg-primary/5"}`}>
                       <div className="font-medium flex items-center gap-1">
                         <MessageSquare className="h-3 w-3" />
                         {submission.status === "returned" ? "Returned for revision — please resubmit" : "Trainer feedback"}
                       </div>
-                      <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{submission.trainer_feedback}</p>
+                      {submission.revision_message && (
+                        <p className="mt-1 whitespace-pre-wrap text-foreground"><span className="font-medium">What to change: </span>{submission.revision_message}</p>
+                      )}
+                      {submission.trainer_feedback && (
+                        <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{submission.trainer_feedback}</p>
+                      )}
+                      {submission.revision_due_date && submission.status === "returned" && (
+                        <p className="mt-1 text-warning font-medium">Revision due {new Date(submission.revision_due_date).toLocaleDateString()}</p>
+                      )}
                       {submission.score != null && <div className="mt-1 text-primary font-semibold">Score: {submission.score}</div>}
                     </div>
                   )}
@@ -295,9 +307,16 @@ export default function MyTrainerCurricula({ studentId, studentName, college, de
                         <>No submission yet</>
                       )}
                     </div>
-                    <Button size="sm" variant={submission?.status === "returned" ? "default" : (submission ? "outline" : "default")} className="gap-1" onClick={() => setSubmissionDialog({ item })}>
-                      <Upload className="h-3 w-3" /> {submission?.status === "returned" ? "Resubmit work" : (submission ? "Update submission" : "Submit work")}
-                    </Button>
+                    <div className="flex gap-2">
+                      {submission && (
+                        <Button size="sm" variant="ghost" className="gap-1" onClick={() => setHistoryFor(submission)}>
+                          <HistoryIcon className="h-3 w-3" /> History
+                        </Button>
+                      )}
+                      <Button size="sm" variant={submission?.status === "returned" ? "default" : (submission ? "outline" : "default")} className="gap-1" onClick={() => setSubmissionDialog({ item })}>
+                        <Upload className="h-3 w-3" /> {submission?.status === "returned" ? "Resubmit work" : (submission ? "Update submission" : "Submit work")}
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -318,6 +337,7 @@ export default function MyTrainerCurricula({ studentId, studentName, college, de
         degree={degree}
         onSaved={async () => { setSubmissionDialog(null); await reload(); }}
       />
+      <SubmissionHistoryDialog submission={historyFor as any} onClose={() => setHistoryFor(null)} />
     </div>
   );
 }
@@ -370,6 +390,28 @@ function SubmissionDialog({ open, onOpenChange, item, studentId, studentName, co
         status: "submitted",
       };
       if (item.submission) {
+        // Snapshot prior version into history before overwriting
+        await supabase.from("curriculum_submission_history").insert({
+          submission_id: item.submission.id,
+          curriculum_id: item.c.id,
+          student_id: studentId,
+          kind: "student_submission",
+          attachment_url: item.submission.attachment_url || "",
+          attachment_name: item.submission.attachment_name || "",
+          notes: item.submission.notes || "",
+          trainer_feedback: item.submission.trainer_feedback || "",
+          revision_message: (item.submission as any).revision_message || "",
+          revision_due_date: (item.submission as any).revision_due_date || null,
+          score: item.submission.score,
+          max_score: (item.submission as any).max_score ?? null,
+          status: item.submission.status,
+          actor_id: studentId,
+          actor_name: studentName,
+          actor_role: "student",
+        });
+        // Clear revision request fields when student resubmits
+        payload.revision_message = "";
+        payload.revision_due_date = null;
         const { error } = await supabase.from("curriculum_submissions").update(payload).eq("id", item.submission.id);
         if (error) throw error;
       } else {
@@ -398,10 +440,24 @@ function SubmissionDialog({ open, onOpenChange, item, studentId, studentName, co
           <DialogTitle>{isResubmit ? "Resubmit work" : "Submit work"} — {item.c.title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          {isResubmit && item.submission?.trainer_feedback && (
-            <div className="rounded border-l-4 border-warning bg-warning/10 p-2 text-xs">
-              <div className="font-medium">Trainer asked for revision:</div>
-              <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{item.submission.trainer_feedback}</p>
+          {isResubmit && (
+            <div className="rounded border-l-4 border-warning bg-warning/10 p-3 text-xs space-y-2">
+              <div className="font-semibold flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-warning" /> Trainer asked for revision</div>
+              {item.submission?.revision_message ? (
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-warning">What to change</div>
+                  <p className="mt-1 whitespace-pre-wrap text-foreground">{item.submission.revision_message}</p>
+                </div>
+              ) : null}
+              {item.submission?.trainer_feedback && (
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Trainer notes</div>
+                  <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{item.submission.trainer_feedback}</p>
+                </div>
+              )}
+              {item.submission?.revision_due_date && (
+                <p className="text-warning font-medium">Revision due {new Date(item.submission.revision_due_date).toLocaleDateString()}</p>
+              )}
             </div>
           )}
           <div>

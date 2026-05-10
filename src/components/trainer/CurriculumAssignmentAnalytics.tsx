@@ -8,8 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, BarChart3, AlertTriangle, CheckCircle2, FileText, Download, MessageSquare, FileSpreadsheet, FileDown } from "lucide-react";
+import { Loader2, BarChart3, AlertTriangle, CheckCircle2, FileText, Download, MessageSquare, FileSpreadsheet, FileDown, History as HistoryIcon } from "lucide-react";
 import { toast } from "sonner";
+import SubmissionHistoryDialog from "./SubmissionHistoryDialog";
 
 interface Props {
   ownerRole: "trainer" | "admin";
@@ -26,6 +27,7 @@ type Submission = {
   attachment_url: string; attachment_name: string; notes: string;
   trainer_feedback: string; score: number | null; max_score: number | null;
   status: string; reviewed_at: string | null; updated_at: string; created_at: string;
+  revision_message?: string; revision_due_date?: string | null;
 };
 type Student = { id: string; name: string; college: string; department: string; degree: string };
 
@@ -40,19 +42,30 @@ function studentMatchesAssignment(stu: Student, a: Assignment): boolean {
 }
 
 export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, ownerName, ownerCollege }: Props) {
+  const FILTER_KEY = `curr_analytics_filters:${ownerRole}:${ownerId}`;
+  const initialFilters = (() => {
+    try { return JSON.parse(localStorage.getItem(FILTER_KEY) || "{}"); } catch { return {}; }
+  })();
   const [loading, setLoading] = useState(true);
   const [curricula, setCurricula] = useState<Curriculum[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
-  const [selectedCurriculum, setSelectedCurriculum] = useState<string>("all");
+  const [selectedCurriculum, setSelectedCurriculum] = useState<string>(initialFilters.selectedCurriculum || "all");
   const [reviewing, setReviewing] = useState<Submission | null>(null);
-  const [fDept, setFDept] = useState<string>("all");
-  const [fDegree, setFDegree] = useState<string>("all");
-  const [fStatus, setFStatus] = useState<string>("all");
-  const [fFrom, setFFrom] = useState<string>("");
-  const [fTo, setFTo] = useState<string>("");
-  const [fSearch, setFSearch] = useState<string>("");
+  const [historyFor, setHistoryFor] = useState<Submission | null>(null);
+  const [fDept, setFDept] = useState<string>(initialFilters.fDept || "all");
+  const [fDegree, setFDegree] = useState<string>(initialFilters.fDegree || "all");
+  const [fStatus, setFStatus] = useState<string>(initialFilters.fStatus || "all");
+  const [fFrom, setFFrom] = useState<string>(initialFilters.fFrom || "");
+  const [fTo, setFTo] = useState<string>(initialFilters.fTo || "");
+  const [fSearch, setFSearch] = useState<string>(initialFilters.fSearch || "");
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTER_KEY, JSON.stringify({ selectedCurriculum, fDept, fDegree, fStatus, fFrom, fTo, fSearch }));
+    } catch { /* ignore */ }
+  }, [FILTER_KEY, selectedCurriculum, fDept, fDegree, fStatus, fFrom, fTo, fSearch]);
 
   const reload = async () => {
     setLoading(true);
@@ -380,9 +393,14 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
                         </TableCell>
                         <TableCell>
                           {s ? (
-                            <Button size="sm" variant="outline" className="gap-1" onClick={() => setReviewing(s)}>
-                              <MessageSquare className="h-3 w-3" /> Review
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="outline" className="gap-1" onClick={() => setReviewing(s)}>
+                                <MessageSquare className="h-3 w-3" /> Review
+                              </Button>
+                              <Button size="sm" variant="ghost" className="gap-1" onClick={() => setHistoryFor(s)}>
+                                <HistoryIcon className="h-3 w-3" /> History
+                              </Button>
+                            </div>
                           ) : null}
                         </TableCell>
                       </TableRow>
@@ -399,9 +417,12 @@ export default function CurriculumAssignmentAnalytics({ ownerRole, ownerId, owne
         submission={reviewing}
         reviewerId={ownerId}
         reviewerName={ownerName}
+        reviewerRole={ownerRole}
         onClose={() => setReviewing(null)}
         onSaved={async () => { setReviewing(null); await reload(); }}
+        onShowHistory={(s) => { setReviewing(null); setHistoryFor(s); }}
       />
+      <SubmissionHistoryDialog submission={historyFor} onClose={() => setHistoryFor(null)} />
     </div>
   );
 }
@@ -452,13 +473,16 @@ function BreakdownTable({ rows, keyLabel }: { rows: any[]; keyLabel: string }) {
   );
 }
 
-function ReviewDialog({ submission, reviewerId, reviewerName, onClose, onSaved }: {
-  submission: Submission | null; reviewerId: string; reviewerName: string; onClose: () => void; onSaved: () => void | Promise<void>;
+function ReviewDialog({ submission, reviewerId, reviewerName, reviewerRole, onClose, onSaved, onShowHistory }: {
+  submission: Submission | null; reviewerId: string; reviewerName: string; reviewerRole: "trainer" | "admin";
+  onClose: () => void; onSaved: () => void | Promise<void>; onShowHistory: (s: Submission) => void;
 }) {
   const [feedback, setFeedback] = useState("");
   const [score, setScore] = useState<string>("");
   const [maxScore, setMaxScore] = useState<string>("");
   const [status, setStatus] = useState<string>("reviewed");
+  const [revisionMessage, setRevisionMessage] = useState("");
+  const [revisionDueDate, setRevisionDueDate] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -467,26 +491,56 @@ function ReviewDialog({ submission, reviewerId, reviewerName, onClose, onSaved }
       setScore(submission.score != null ? String(submission.score) : "");
       setMaxScore(submission.max_score != null ? String(submission.max_score) : "100");
       setStatus(submission.status === "submitted" ? "reviewed" : submission.status);
+      setRevisionMessage(submission.revision_message || "");
+      setRevisionDueDate(submission.revision_due_date || "");
     }
   }, [submission]);
 
   if (!submission) return null;
 
+  const isReturning = status === "returned";
+
   const save = async () => {
+    if (isReturning && !revisionMessage.trim()) {
+      toast.error("Revision message is required when returning for revision");
+      return;
+    }
     setSaving(true);
     try {
+      // Snapshot prior state to history before updating
+      await supabase.from("curriculum_submission_history").insert({
+        submission_id: submission.id,
+        curriculum_id: submission.curriculum_id,
+        student_id: submission.student_id,
+        kind: "trainer_review",
+        attachment_url: submission.attachment_url || "",
+        attachment_name: submission.attachment_name || "",
+        notes: submission.notes || "",
+        trainer_feedback: submission.trainer_feedback || "",
+        revision_message: submission.revision_message || "",
+        revision_due_date: submission.revision_due_date || null,
+        score: submission.score,
+        max_score: submission.max_score,
+        status: submission.status,
+        actor_id: reviewerId,
+        actor_name: reviewerName,
+        actor_role: reviewerRole,
+      });
+
       const update: any = {
         trainer_feedback: feedback,
         status,
         reviewed_by: reviewerId,
         reviewed_by_name: reviewerName,
         reviewed_at: new Date().toISOString(),
+        revision_message: isReturning ? revisionMessage : "",
+        revision_due_date: isReturning ? (revisionDueDate || null) : null,
       };
       if (score.trim() !== "") update.score = Number(score);
       if (maxScore.trim() !== "") update.max_score = Number(maxScore);
       const { error } = await supabase.from("curriculum_submissions").update(update).eq("id", submission.id);
       if (error) throw error;
-      toast.success("Feedback saved");
+      toast.success(isReturning ? "Returned for revision" : "Feedback saved");
       await onSaved();
     } catch (e: any) {
       toast.error(e.message || "Failed to save feedback");
@@ -497,9 +551,14 @@ function ReviewDialog({ submission, reviewerId, reviewerName, onClose, onSaved }
 
   return (
     <Dialog open={!!submission} onOpenChange={(b) => !b && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Review — {submission.student_name}</DialogTitle>
+          <DialogTitle className="flex items-center justify-between gap-2">
+            <span>Review — {submission.student_name}</span>
+            <Button size="sm" variant="ghost" className="gap-1" onClick={() => onShowHistory(submission)}>
+              <HistoryIcon className="h-3 w-3" /> History
+            </Button>
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-sm">
           {submission.notes && (
@@ -534,10 +593,24 @@ function ReviewDialog({ submission, reviewerId, reviewerName, onClose, onSaved }
               </select>
             </div>
           </div>
+          {isReturning && (
+            <div className="rounded border-l-4 border-warning bg-warning/10 p-3 space-y-2">
+              <div className="text-xs font-semibold flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-warning" /> Return for revision</div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Revision message <span className="text-destructive">*</span></label>
+                <Textarea rows={3} value={revisionMessage} onChange={(e) => setRevisionMessage(e.target.value)} placeholder="Explain what the student must change before resubmitting…" />
+                <p className="text-[10px] text-muted-foreground mt-1">This message will be shown to the student in the resubmit dialog.</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Revision due date (optional)</label>
+                <Input type="date" value={revisionDueDate} onChange={(e) => setRevisionDueDate(e.target.value)} />
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={save} disabled={saving}>{saving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}</Button>
+          <Button onClick={save} disabled={saving}>{saving ? <Loader2 className="h-3 w-3 animate-spin" /> : (isReturning ? "Return for revision" : "Save")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Loader2, FileText, History as HistoryIcon, User, MessageSquare, AlertTriangle, Download, ExternalLink, StickyNote, Copy, Check, GitCompare, Paperclip, Plus, Minus } from "lucide-react";
+import { Loader2, FileText, History as HistoryIcon, User, MessageSquare, AlertTriangle, Download, ExternalLink, StickyNote, Copy, Check, GitCompare, Paperclip, Plus, Minus, ChevronUp, ChevronDown, FileDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type AnySubmission = { id: string; student_name?: string } | null;
@@ -88,10 +88,19 @@ function marker(t: DiffSide["type"]) {
   return " ";
 }
 
-function AlignedDiff({ rows, leftLabel, rightLabel }: { rows: DiffRow[]; leftLabel: string; rightLabel: string }) {
+function countChanges(rows: DiffRow[]): { added: number; removed: number } {
+  let added = 0, removed = 0;
+  rows.forEach((r) => {
+    if (r.left.type === "del") removed++;
+    if (r.right.type === "add") added++;
+  });
+  return { added, removed };
+}
+
+function AlignedDiff({ rows, leftLabel, rightLabel, section }: { rows: DiffRow[]; leftLabel: string; rightLabel: string; section: string }) {
   const isEmpty = rows.length === 0 || rows.every((r) => !r.left.text && !r.right.text);
   return (
-    <div className="rounded border bg-background overflow-hidden">
+    <div className="rounded border bg-background overflow-hidden" data-diff-section={section}>
       <div className="grid grid-cols-2 text-[11px] uppercase tracking-wide text-muted-foreground border-b bg-muted/30">
         <div className="px-2 py-1 border-r truncate" title={leftLabel}>{leftLabel}</div>
         <div className="px-2 py-1 truncate" title={rightLabel}>{rightLabel}</div>
@@ -99,18 +108,21 @@ function AlignedDiff({ rows, leftLabel, rightLabel }: { rows: DiffRow[]; leftLab
       <div className="font-mono text-[11px] leading-relaxed max-h-72 overflow-auto">
         {isEmpty ? (
           <div className="px-2 py-3 text-muted-foreground italic">— no differences —</div>
-        ) : rows.map((r, idx) => (
-          <div key={idx} className="grid grid-cols-2">
-            <div className={`px-2 border-r ${cellClass(r.left.type)}`}>
-              <span className="select-none mr-1 text-muted-foreground">{marker(r.left.type)}</span>
-              {r.left.text || "\u00A0"}
+        ) : rows.map((r, idx) => {
+          const isChange = r.left.type !== "same" || r.right.type !== "same";
+          return (
+            <div key={idx} className="grid grid-cols-2" data-diff-change={isChange ? "true" : undefined}>
+              <div className={`px-2 border-r ${cellClass(r.left.type)}`}>
+                <span className="select-none mr-1 text-muted-foreground">{marker(r.left.type)}</span>
+                {r.left.text || "\u00A0"}
+              </div>
+              <div className={`px-2 ${cellClass(r.right.type)}`}>
+                <span className="select-none mr-1 text-muted-foreground">{marker(r.right.type)}</span>
+                {r.right.text || "\u00A0"}
+              </div>
             </div>
-            <div className={`px-2 ${cellClass(r.right.type)}`}>
-              <span className="select-none mr-1 text-muted-foreground">{marker(r.right.type)}</span>
-              {r.right.text || "\u00A0"}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -130,6 +142,102 @@ function downloadText(name: string, body: string) {
 
 const LS_KEY = (id: string) => `submission-history:${id}`;
 
+function escapeHtml(s: string): string {
+  return (s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+}
+
+function renderDiffTableHtml(rows: DiffRow[]): string {
+  if (rows.length === 0) return '<p class="empty">— no differences —</p>';
+  const rowsHtml = rows.map((r) => {
+    const lc = r.left.type === "del" ? "del" : r.left.type === "empty" ? "empty" : "same";
+    const rc = r.right.type === "add" ? "add" : r.right.type === "empty" ? "empty" : "same";
+    const lm = r.left.type === "del" ? "-" : " ";
+    const rm = r.right.type === "add" ? "+" : " ";
+    return `<tr><td class="${lc}"><span class="m">${lm}</span>${escapeHtml(r.left.text) || "&nbsp;"}</td><td class="${rc}"><span class="m">${rm}</span>${escapeHtml(r.right.text) || "&nbsp;"}</td></tr>`;
+  }).join("");
+  return `<table class="diff"><tbody>${rowsHtml}</tbody></table>`;
+}
+
+function exportComparisonHtml(args: {
+  studentName?: string;
+  left: HistoryRow | null;
+  right: HistoryRow | null;
+  labelFor: (r: HistoryRow) => string;
+  notesRows: DiffRow[];
+  fbRows: DiffRow[];
+  leftAtt: { name: string; url: string } | null;
+  rightAtt: { name: string; url: string } | null;
+  sameAtt: boolean;
+  addedAtt: { name: string; url: string } | null;
+  removedAtt: { name: string; url: string } | null;
+  summary: { totalChanged: number; addedLines: number; removedLines: number; attAdded: number; attRemoved: number };
+}) {
+  const { studentName, left, right, labelFor, notesRows, fbRows, leftAtt, rightAtt, sameAtt, addedAtt, removedAtt, summary } = args;
+  const leftLabel = left ? labelFor(left) : "Left";
+  const rightLabel = right ? labelFor(right) : "Right";
+  const attHtml = !leftAtt && !rightAtt
+    ? '<p class="empty">No attachments on either version.</p>'
+    : sameAtt
+      ? `<p>Attachment unchanged: <strong>${escapeHtml(leftAtt!.name)}</strong> — <a href="${escapeHtml(leftAtt!.url)}">open</a></p>`
+      : `<table class="att"><thead><tr><th>Removed (left)</th><th>Added (right)</th></tr></thead><tbody><tr><td class="del">${
+          removedAtt ? `<span class="m">-</span><strong>${escapeHtml(removedAtt.name)}</strong> — <a href="${escapeHtml(removedAtt.url)}">open</a>` : "<em>— none —</em>"
+        }</td><td class="add">${
+          addedAtt ? `<span class="m">+</span><strong>${escapeHtml(addedAtt.name)}</strong> — <a href="${escapeHtml(addedAtt.url)}">open</a>` : "<em>— none —</em>"
+        }</td></tr></tbody></table>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Resubmission comparison${studentName ? ` — ${escapeHtml(studentName)}` : ""}</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;margin:24px;color:#0f172a;background:#fff;}
+  h1{font-size:18px;margin:0 0 4px;} h2{font-size:14px;margin:24px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:4px;}
+  .meta{font-size:12px;color:#64748b;margin-bottom:12px;}
+  .summary{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 16px;font-size:11px;}
+  .badge{border:1px solid #cbd5e1;border-radius:4px;padding:2px 6px;background:#f8fafc;}
+  .badge.add{background:#dcfce7;border-color:#86efac;color:#166534;}
+  .badge.del{background:#fee2e2;border-color:#fca5a5;color:#991b1b;}
+  table.diff,table.att{width:100%;border-collapse:collapse;table-layout:fixed;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;}
+  table.diff td,table.att td,table.att th{border:1px solid #e2e8f0;padding:2px 6px;vertical-align:top;word-wrap:break-word;white-space:pre-wrap;}
+  table.att th{background:#f1f5f9;font-size:11px;text-align:left;font-family:inherit;}
+  td.add{background:#dcfce7;color:#166534;} td.del{background:#fee2e2;color:#991b1b;} td.empty{background:#f8fafc;}
+  .m{display:inline-block;width:1em;color:#94a3b8;user-select:none;}
+  .header-row{display:grid;grid-template-columns:1fr 1fr;font-size:11px;text-transform:uppercase;color:#64748b;margin-bottom:4px;}
+  .header-row div{padding:2px 6px;background:#f1f5f9;border:1px solid #e2e8f0;}
+  .empty{color:#94a3b8;font-style:italic;}
+  @media print{body{margin:12px;} a{color:inherit;text-decoration:none;}}
+</style></head><body>
+  <h1>Resubmission comparison${studentName ? ` — ${escapeHtml(studentName)}` : ""}</h1>
+  <div class="meta">Generated ${new Date().toLocaleString()}</div>
+  <div class="summary">
+    <span class="badge">${summary.totalChanged} changed line${summary.totalChanged === 1 ? "" : "s"}</span>
+    <span class="badge add">+${summary.addedLines} added</span>
+    <span class="badge del">-${summary.removedLines} removed</span>
+    <span class="badge">+${summary.attAdded} / -${summary.attRemoved} attachment${(summary.attAdded + summary.attRemoved) === 1 ? "" : "s"}</span>
+  </div>
+  <div class="header-row"><div>${escapeHtml(leftLabel)}</div><div>${escapeHtml(rightLabel)}</div></div>
+
+  <h2>Attachments</h2>
+  ${attHtml}
+
+  <h2>Student notes</h2>
+  ${renderDiffTableHtml(notesRows)}
+
+  <h2>Trainer feedback</h2>
+  ${renderDiffTableHtml(fbRows)}
+
+  <script>setTimeout(()=>{try{window.print&&window.print()}catch(e){}}, 300);</script>
+</body></html>`;
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `comparison-${stamp}.html`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Also open in a new tab so the user can print → PDF immediately.
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 export default function SubmissionHistoryDialog({ submission, onClose }: { submission: AnySubmission; onClose: () => void }) {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<HistoryRow[]>([]);
@@ -138,6 +246,8 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const [leftId, setLeftId] = useState<string>("");
   const [rightId, setRightId] = useState<string>("");
   const [onlyChanges, setOnlyChanges] = useState(false);
+  const compareRef = useRef<HTMLDivElement | null>(null);
+  const changeIdxRef = useRef<number>(-1);
 
   // Restore persisted selections (URL > localStorage) when dialog opens.
   useEffect(() => {
@@ -409,77 +519,137 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <Switch id="only-changes" checked={onlyChanges} onCheckedChange={setOnlyChanges} />
-                  <Label htmlFor="only-changes" className="text-xs cursor-pointer">Show only changes</Label>
+              {(() => {
+                const notesC = countChanges(notesRowsAll);
+                const fbC = countChanges(fbRowsAll);
+                const attAdded = addedAtt ? 1 : 0;
+                const attRemoved = removedAtt ? 1 : 0;
+                const totalChanged = notesC.added + notesC.removed + fbC.added + fbC.removed;
+                const goToChange = (dir: 1 | -1) => {
+                  const root = compareRef.current;
+                  if (!root) return;
+                  const nodes = Array.from(root.querySelectorAll<HTMLElement>('[data-diff-change="true"]'));
+                  if (nodes.length === 0) return;
+                  let next = (changeIdxRef.current + dir);
+                  if (next < 0) next = nodes.length - 1;
+                  if (next >= nodes.length) next = 0;
+                  changeIdxRef.current = next;
+                  nodes[next].scrollIntoView({ block: "center", behavior: "smooth" });
+                  nodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
+                  nodes[next].classList.add("ring-2", "ring-primary");
+                };
+                return (
+                  <div className="rounded border bg-muted/20 p-2 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                        <Badge variant="outline" className="text-[10px]">{totalChanged} changed line{totalChanged === 1 ? "" : "s"}</Badge>
+                        <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/30">+{notesC.added + fbC.added} added</Badge>
+                        <Badge variant="outline" className="text-[10px] bg-destructive/10 text-destructive border-destructive/30">-{notesC.removed + fbC.removed} removed</Badge>
+                        <span className="text-muted-foreground">·</span>
+                        <Badge variant="outline" className="text-[10px]"><Paperclip className="h-2.5 w-2.5 mr-1" />+{attAdded} / -{attRemoved} attachment{(attAdded + attRemoved) === 1 ? "" : "s"}</Badge>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <Switch id="only-changes" checked={onlyChanges} onCheckedChange={setOnlyChanges} />
+                          <Label htmlFor="only-changes" className="text-xs cursor-pointer">Show only changes</Label>
+                        </div>
+                        {onlyChanges && (
+                          <div className="flex items-center gap-1">
+                            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(-1)} title="Previous change" disabled={totalChanged === 0}>
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(1)} title="Next change" disabled={totalChanged === 0}>
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => exportComparisonHtml({
+                            studentName: submission.student_name,
+                            left, right, labelFor,
+                            notesRows: notesRowsAll, fbRows: fbRowsAll,
+                            leftAtt, rightAtt, sameAtt, addedAtt, removedAtt,
+                            summary: { totalChanged, addedLines: notesC.added + fbC.added, removedLines: notesC.removed + fbC.removed, attAdded, attRemoved },
+                          })}
+                          disabled={!left || !right}
+                        >
+                          <FileDown className="h-3.5 w-3.5 mr-1" /> Export comparison
+                        </Button>
+                      </div>
+                    </div>
+                    {leftId && rightId && leftId === rightId && (
+                      <div className="text-xs text-muted-foreground italic">Pick two different versions to see a diff.</div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <div ref={compareRef} className="space-y-4">
+                {/* Attachments diff */}
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold flex items-center gap-1"><Paperclip className="h-3.5 w-3.5" /> Attachments</div>
+                  {!leftAtt && !rightAtt ? (
+                    <div className="text-[11px] text-muted-foreground italic px-1">No attachments on either version.</div>
+                  ) : sameAtt ? (
+                    <div className="rounded border bg-muted/20 p-2 text-xs flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-2 min-w-0"><FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="truncate">{leftAtt!.name}</span></span>
+                      <Badge variant="outline" className="text-[10px]">unchanged</Badge>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="rounded border bg-background overflow-hidden">
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30">Removed (left)</div>
+                        <div className="p-2" data-diff-change={removedAtt ? "true" : undefined}>
+                          {removedAtt ? (
+                            <div className="flex items-center justify-between gap-2 text-xs bg-destructive/10 rounded p-2">
+                              <span className="flex items-center gap-1.5 min-w-0"><Minus className="h-3 w-3 text-destructive shrink-0" /><span className="truncate" title={removedAtt.name}>{removedAtt.name}</span></span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={removedAtt.url} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /></a></Button>
+                                <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={removedAtt.url} download={removedAtt.name}><Download className="h-3 w-3" /></a></Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-[11px] text-muted-foreground italic">— none —</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="rounded border bg-background overflow-hidden">
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30">Added (right)</div>
+                        <div className="p-2" data-diff-change={addedAtt ? "true" : undefined}>
+                          {addedAtt ? (
+                            <div className="flex items-center justify-between gap-2 text-xs bg-success/10 rounded p-2">
+                              <span className="flex items-center gap-1.5 min-w-0"><Plus className="h-3 w-3 text-success shrink-0" /><span className="truncate" title={addedAtt.name}>{addedAtt.name}</span></span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={addedAtt.url} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /></a></Button>
+                                <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={addedAtt.url} download={addedAtt.name}><Download className="h-3 w-3" /></a></Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-[11px] text-muted-foreground italic">— none —</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {leftId && rightId && leftId === rightId && (
-                  <div className="text-xs text-muted-foreground italic">Pick two different versions to see a diff.</div>
-                )}
-              </div>
 
-              {/* Attachments diff */}
-              <div className="space-y-2">
-                <div className="text-xs font-semibold flex items-center gap-1"><Paperclip className="h-3.5 w-3.5" /> Attachments</div>
-                {!leftAtt && !rightAtt ? (
-                  <div className="text-[11px] text-muted-foreground italic px-1">No attachments on either version.</div>
-                ) : sameAtt ? (
-                  <div className="rounded border bg-muted/20 p-2 text-xs flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-2 min-w-0"><FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="truncate">{leftAtt!.name}</span></span>
-                    <Badge variant="outline" className="text-[10px]">unchanged</Badge>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div className="rounded border bg-background overflow-hidden">
-                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30">Removed (left)</div>
-                      <div className="p-2">
-                        {removedAtt ? (
-                          <div className="flex items-center justify-between gap-2 text-xs bg-destructive/10 rounded p-2">
-                            <span className="flex items-center gap-1.5 min-w-0"><Minus className="h-3 w-3 text-destructive shrink-0" /><span className="truncate" title={removedAtt.name}>{removedAtt.name}</span></span>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={removedAtt.url} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /></a></Button>
-                              <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={removedAtt.url} download={removedAtt.name}><Download className="h-3 w-3" /></a></Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-[11px] text-muted-foreground italic">— none —</div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="rounded border bg-background overflow-hidden">
-                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30">Added (right)</div>
-                      <div className="p-2">
-                        {addedAtt ? (
-                          <div className="flex items-center justify-between gap-2 text-xs bg-success/10 rounded p-2">
-                            <span className="flex items-center gap-1.5 min-w-0"><Plus className="h-3 w-3 text-success shrink-0" /><span className="truncate" title={addedAtt.name}>{addedAtt.name}</span></span>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={addedAtt.url} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /></a></Button>
-                              <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={addedAtt.url} download={addedAtt.name}><Download className="h-3 w-3" /></a></Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-[11px] text-muted-foreground italic">— none —</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold flex items-center gap-1"><StickyNote className="h-3.5 w-3.5" /> Student notes</div>
+                  <AlignedDiff section="notes" rows={notesRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} />
+                </div>
 
-              <div className="space-y-2">
-                <div className="text-xs font-semibold flex items-center gap-1"><StickyNote className="h-3.5 w-3.5" /> Student notes</div>
-                <AlignedDiff rows={notesRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} />
-              </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> Trainer feedback</div>
+                  <AlignedDiff section="feedback" rows={fbRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} />
+                </div>
 
-              <div className="space-y-2">
-                <div className="text-xs font-semibold flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> Trainer feedback</div>
-                <AlignedDiff rows={fbRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} />
-              </div>
-
-              <div className="text-[11px] text-muted-foreground flex items-center gap-3">
-                <span><span className="inline-block w-2 h-2 rounded-sm bg-destructive/30 mr-1 align-middle" /> removed (only on left)</span>
-                <span><span className="inline-block w-2 h-2 rounded-sm bg-success/30 mr-1 align-middle" /> added (only on right)</span>
+                <div className="text-[11px] text-muted-foreground flex items-center gap-3">
+                  <span><span className="inline-block w-2 h-2 rounded-sm bg-destructive/30 mr-1 align-middle" /> removed (only on left)</span>
+                  <span><span className="inline-block w-2 h-2 rounded-sm bg-success/30 mr-1 align-middle" /> added (only on right)</span>
+                </div>
               </div>
             </TabsContent>
           </Tabs>

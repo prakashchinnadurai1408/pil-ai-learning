@@ -30,6 +30,56 @@ type HistoryRow = {
   created_at: string;
 };
 
+// Line-level LCS diff. Returns ops on each side: same | add | del.
+type DiffOp = { type: "same" | "add" | "del"; text: string };
+function diffLines(a: string, b: string): { left: DiffOp[]; right: DiffOp[] } {
+  const A = (a || "").split(/\r?\n/);
+  const B = (b || "").split(/\r?\n/);
+  const m = A.length, n = B.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = m - 1; i >= 0; i--) {
+    for (let j = n - 1; j >= 0; j--) {
+      dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  const left: DiffOp[] = [];
+  const right: DiffOp[] = [];
+  let i = 0, j = 0;
+  while (i < m && j < n) {
+    if (A[i] === B[j]) { left.push({ type: "same", text: A[i] }); right.push({ type: "same", text: B[j] }); i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) { left.push({ type: "del", text: A[i] }); right.push({ type: "same", text: "" }); i++; }
+    else { left.push({ type: "same", text: "" }); right.push({ type: "add", text: B[j] }); j++; }
+  }
+  while (i < m) { left.push({ type: "del", text: A[i++] }); right.push({ type: "same", text: "" }); }
+  while (j < n) { left.push({ type: "same", text: "" }); right.push({ type: "add", text: B[j++] }); }
+  return { left, right };
+}
+
+function DiffColumn({ ops, label }: { ops: DiffOp[]; label: string }) {
+  return (
+    <div className="rounded border bg-background overflow-hidden">
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30">{label}</div>
+      <div className="font-mono text-[11px] leading-relaxed max-h-72 overflow-auto">
+        {ops.length === 0 || ops.every((o) => !o.text) ? (
+          <div className="px-2 py-3 text-muted-foreground italic">— empty —</div>
+        ) : ops.map((o, idx) => (
+          <div
+            key={idx}
+            className={
+              o.type === "add" ? "bg-success/15 text-success-foreground px-2" :
+              o.type === "del" ? "bg-destructive/15 text-destructive px-2" :
+              "px-2"
+            }
+          >
+            <span className="select-none mr-1 text-muted-foreground">{o.type === "add" ? "+" : o.type === "del" ? "-" : " "}</span>
+            {o.text || "\u00A0"}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function downloadText(name: string, body: string) {
   const blob = new Blob([body], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);

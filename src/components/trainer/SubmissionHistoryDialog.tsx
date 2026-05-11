@@ -731,8 +731,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                   {!attsOpen ? null : leftAtts.length === 0 && rightAtts.length === 0 ? (
                     <div id="attachments-diff-panel" className="text-[11px] text-muted-foreground italic px-1">No attachments on either version.</div>
                   ) : (
-                    <div id="attachments-diff-panel">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div id="attachments-diff-panel" className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div className="rounded border bg-background overflow-hidden">
                         <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30 flex items-center justify-between">
                           <span>Removed (left)</span>

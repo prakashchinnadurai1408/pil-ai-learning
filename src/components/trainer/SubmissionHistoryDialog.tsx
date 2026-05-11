@@ -77,6 +77,34 @@ function filterChangedRows(rows: DiffRow[], context = 1): DiffRow[] {
   return rows.filter((_, idx) => keep[idx]);
 }
 
+function escapeRegex(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function Highlight({ text, query }: { text: string; query: string }) {
+  const t = text || "";
+  const q = (query || "").trim();
+  if (!q) return <>{t || "\u00A0"}</>;
+  try {
+    const re = new RegExp(`(${escapeRegex(q)})`, "ig");
+    const parts = t.split(re);
+    return (
+      <>
+        {parts.map((p, i) =>
+          i % 2 === 1 ? (
+            <mark key={i} className="bg-warning/40 text-foreground rounded-sm px-0.5">{p}</mark>
+          ) : (
+            <span key={i}>{p}</span>
+          )
+        )}
+        {t === "" && "\u00A0"}
+      </>
+    );
+  } catch {
+    return <>{t || "\u00A0"}</>;
+  }
+}
+
 function cellClass(t: DiffSide["type"]) {
   if (t === "add") return "bg-success/15 text-success-foreground";
   if (t === "del") return "bg-destructive/15 text-destructive";
@@ -98,7 +126,7 @@ function countChanges(rows: DiffRow[]): { added: number; removed: number } {
   return { added, removed };
 }
 
-function AlignedDiff({ rows, leftLabel, rightLabel, section }: { rows: DiffRow[]; leftLabel: string; rightLabel: string; section: string }) {
+function AlignedDiff({ rows, leftLabel, rightLabel, section, query }: { rows: DiffRow[]; leftLabel: string; rightLabel: string; section: string; query?: string }) {
   const isEmpty = rows.length === 0 || rows.every((r) => !r.left.text && !r.right.text);
   return (
     <div className="rounded border bg-background overflow-hidden" data-diff-section={section}>
@@ -115,11 +143,11 @@ function AlignedDiff({ rows, leftLabel, rightLabel, section }: { rows: DiffRow[]
             <div key={idx} className="grid grid-cols-2" data-diff-change={isChange ? "true" : undefined}>
               <div className={`px-2 border-r ${cellClass(r.left.type)}`}>
                 <span className="select-none mr-1 text-muted-foreground">{marker(r.left.type)}</span>
-                {r.left.text || "\u00A0"}
+                <Highlight text={r.left.text} query={query || ""} />
               </div>
               <div className={`px-2 ${cellClass(r.right.type)}`}>
                 <span className="select-none mr-1 text-muted-foreground">{marker(r.right.type)}</span>
-                {r.right.text || "\u00A0"}
+                <Highlight text={r.right.text} query={query || ""} />
               </div>
             </div>
           );
@@ -263,8 +291,10 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       const urlLeft = params.get("histLeft");
       const urlRight = params.get("histRight");
       const urlOnly = params.get("histOnly");
+      const urlQ = params.get("histQ");
+      const urlAtts = params.get("histAtts");
       const stored = JSON.parse(localStorage.getItem(LS_KEY(submission.id)) || "null") as
-        | { tab?: string; leftId?: string; rightId?: string; onlyChanges?: boolean }
+        | { tab?: string; leftId?: string; rightId?: string; onlyChanges?: boolean; query?: string; attsOpen?: boolean }
         | null;
       const t = (urlTab || stored?.tab) as "timeline" | "compare" | undefined;
       if (t === "timeline" || t === "compare") setTab(t);
@@ -272,6 +302,10 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       if (urlRight || stored?.rightId) setRightId(urlRight || stored!.rightId!);
       const only = urlOnly != null ? urlOnly === "1" : stored?.onlyChanges;
       if (typeof only === "boolean") setOnlyChanges(only);
+      const qv = urlQ != null ? urlQ : stored?.query;
+      if (typeof qv === "string") setQuery(qv);
+      const ao = urlAtts != null ? urlAtts === "1" : stored?.attsOpen;
+      if (typeof ao === "boolean") setAttsOpen(ao);
     } catch { /* ignore */ }
   }, [submission]);
 
@@ -295,28 +329,31 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       if (leftId) url.searchParams.set("histLeft", leftId); else url.searchParams.delete("histLeft");
       if (rightId) url.searchParams.set("histRight", rightId); else url.searchParams.delete("histRight");
       url.searchParams.set("histOnly", onlyChanges ? "1" : "0");
+      if (query) url.searchParams.set("histQ", query); else url.searchParams.delete("histQ");
+      url.searchParams.set("histAtts", attsOpen ? "1" : "0");
       window.history.replaceState({}, "", url.toString());
-      localStorage.setItem(LS_KEY(submission.id), JSON.stringify({ tab, leftId, rightId, onlyChanges }));
+      localStorage.setItem(LS_KEY(submission.id), JSON.stringify({ tab, leftId, rightId, onlyChanges, query, attsOpen }));
     } catch { /* ignore */ }
-  }, [submission, tab, leftId, rightId, onlyChanges]);
+  }, [submission, tab, leftId, rightId, onlyChanges, query, attsOpen]);
 
-  // When "Show only changes" is enabled, auto-scroll the compare panel to the
-  // first changed block so the user immediately sees the most important edits.
+  // Auto-scroll to the first visible changed block whenever the user toggles
+  // "Show only changes" OR updates the search query, so relevant edits are
+  // immediately in view.
   useEffect(() => {
-    if (!onlyChanges || tab !== "compare") return;
+    if (tab !== "compare") return;
     const root = compareRef.current;
     if (!root) return;
-    // Wait a tick for the filtered rows to render.
     const t = setTimeout(() => {
       const first = root.querySelector<HTMLElement>('[data-diff-change="true"]');
       if (!first) return;
       first.scrollIntoView({ block: "start", behavior: "smooth" });
       first.classList.add("ring-2", "ring-primary");
       changeIdxRef.current = 0;
+      setChangeIdx(0);
       setTimeout(() => first.classList.remove("ring-2", "ring-primary"), 1500);
-    }, 60);
+    }, 80);
     return () => clearTimeout(t);
-  }, [onlyChanges, tab, leftId, rightId, rows]);
+  }, [onlyChanges, query, tab, leftId, rightId, rows]);
 
   // Recount visible change blocks whenever the filtered diff changes so the
   // prev/next counter stays accurate as the user types or toggles filters.
@@ -335,11 +372,52 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     return () => clearTimeout(t);
   }, [tab, query, onlyChanges, leftId, rightId, rows, attsOpen]);
 
+  // Keyboard shortcuts inside the dialog: N = next change, P = previous change,
+  // Esc = clear search (only when search has a value; otherwise let the dialog close).
+  useEffect(() => {
+    if (!submission || tab !== "compare") return;
+    const isTypingTarget = (el: EventTarget | null) => {
+      const node = el as HTMLElement | null;
+      if (!node) return false;
+      const tag = node.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || node.isContentEditable;
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && query) {
+        // Only intercept Esc when there's a query to clear; allow dialog close otherwise.
+        e.stopPropagation();
+        e.preventDefault();
+        setQuery("");
+        return;
+      }
+      if (isTypingTarget(e.target)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const root = compareRef.current;
+      if (!root) return;
+      const nodes = Array.from(root.querySelectorAll<HTMLElement>('[data-diff-change="true"]'));
+      if (nodes.length === 0) return;
+      const move = (dir: 1 | -1) => {
+        let next = changeIdxRef.current + dir;
+        if (next < 0) next = nodes.length - 1;
+        if (next >= nodes.length) next = 0;
+        changeIdxRef.current = next;
+        setChangeIdx(next);
+        nodes[next].scrollIntoView({ block: "center", behavior: "smooth" });
+        nodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
+        nodes[next].classList.add("ring-2", "ring-primary");
+      };
+      if (e.key === "n" || e.key === "N") { e.preventDefault(); move(1); }
+      else if (e.key === "p" || e.key === "P") { e.preventDefault(); move(-1); }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [submission, tab, query]);
+
   // Clean URL params when closing.
   const handleClose = () => {
     try {
       const url = new URL(window.location.href);
-      ["histTab", "histLeft", "histRight", "histOnly"].forEach((k) => url.searchParams.delete(k));
+      ["histTab", "histLeft", "histRight", "histOnly", "histQ", "histAtts"].forEach((k) => url.searchParams.delete(k));
       window.history.replaceState({}, "", url.toString());
     } catch { /* ignore */ }
     onClose();
@@ -691,6 +769,9 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                         <span className="ml-1 text-destructive">-{fbC.removed}</span>
                       </Badge>
                       {q && <span className="text-muted-foreground italic">· filtered by "{query}"</span>}
+                      <span className="ml-auto text-[10px] text-muted-foreground hidden sm:inline" title="Keyboard shortcuts">
+                        <kbd className="px-1 py-0.5 rounded border bg-background">N</kbd>/<kbd className="px-1 py-0.5 rounded border bg-background">P</kbd> next/prev · <kbd className="px-1 py-0.5 rounded border bg-background">Esc</kbd> clear
+                      </span>
                     </div>
                     {leftId && rightId && leftId === rightId && (
                       <div className="text-xs text-muted-foreground italic">Pick two different versions to see a diff.</div>
@@ -742,7 +823,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                             <div className="text-[11px] text-muted-foreground italic">— none —</div>
                           ) : removedAtts.map((a) => (
                             <div key={`r-${a.url}`} className="flex items-center justify-between gap-2 text-xs bg-destructive/10 rounded p-2" data-diff-change="true">
-                              <span className="flex items-center gap-1.5 min-w-0"><Minus className="h-3 w-3 text-destructive shrink-0" /><span className="truncate" title={a.name}>{a.name}</span></span>
+                              <span className="flex items-center gap-1.5 min-w-0"><Minus className="h-3 w-3 text-destructive shrink-0" /><span className="truncate" title={a.name}><Highlight text={a.name} query={query} /></span></span>
                               <div className="flex items-center gap-1 shrink-0">
                                 <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={a.url} target="_blank" rel="noreferrer" aria-label={`Open ${a.name}`}><ExternalLink className="h-3 w-3" /></a></Button>
                                 <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={a.url} download={a.name} aria-label={`Download ${a.name}`}><Download className="h-3 w-3" /></a></Button>
@@ -761,7 +842,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                             <div className="text-[11px] text-muted-foreground italic">— none —</div>
                           ) : addedAtts.map((a) => (
                             <div key={`a-${a.url}`} className="flex items-center justify-between gap-2 text-xs bg-success/10 rounded p-2" data-diff-change="true">
-                              <span className="flex items-center gap-1.5 min-w-0"><Plus className="h-3 w-3 text-success shrink-0" /><span className="truncate" title={a.name}>{a.name}</span></span>
+                              <span className="flex items-center gap-1.5 min-w-0"><Plus className="h-3 w-3 text-success shrink-0" /><span className="truncate" title={a.name}><Highlight text={a.name} query={query} /></span></span>
                               <div className="flex items-center gap-1 shrink-0">
                                 <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={a.url} target="_blank" rel="noreferrer" aria-label={`Open ${a.name}`}><ExternalLink className="h-3 w-3" /></a></Button>
                                 <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={a.url} download={a.name} aria-label={`Download ${a.name}`}><Download className="h-3 w-3" /></a></Button>
@@ -779,7 +860,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                           <div className="p-2 space-y-1.5">
                             {unchangedAtts.map((a) => (
                               <div key={`u-${a.url}`} className="flex items-center justify-between gap-2 text-xs">
-                                <span className="flex items-center gap-1.5 min-w-0"><FileText className="h-3 w-3 text-muted-foreground shrink-0" /><span className="truncate" title={a.name}>{a.name}</span></span>
+                                <span className="flex items-center gap-1.5 min-w-0"><FileText className="h-3 w-3 text-muted-foreground shrink-0" /><span className="truncate" title={a.name}><Highlight text={a.name} query={query} /></span></span>
                                 <div className="flex items-center gap-1 shrink-0">
                                   <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={a.url} target="_blank" rel="noreferrer" aria-label={`Open ${a.name}`}><ExternalLink className="h-3 w-3" /></a></Button>
                                   <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={a.url} download={a.name} aria-label={`Download ${a.name}`}><Download className="h-3 w-3" /></a></Button>
@@ -795,12 +876,12 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
 
                 <div className="space-y-2">
                   <div className="text-xs font-semibold flex items-center gap-1"><StickyNote className="h-3.5 w-3.5" /> Student notes</div>
-                  <AlignedDiff section="notes" rows={notesRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} />
+                  <AlignedDiff section="notes" rows={notesRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} query={query} />
                 </div>
 
                 <div className="space-y-2">
                   <div className="text-xs font-semibold flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> Trainer feedback</div>
-                  <AlignedDiff section="feedback" rows={fbRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} />
+                  <AlignedDiff section="feedback" rows={fbRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} query={query} />
                 </div>
 
                 <div className="text-[11px] text-muted-foreground flex items-center gap-3">

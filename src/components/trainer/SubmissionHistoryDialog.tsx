@@ -538,9 +538,11 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
               {(() => {
                 const notesC = countChanges(notesRowsAll);
                 const fbC = countChanges(fbRowsAll);
-                const attAdded = addedAtt ? 1 : 0;
-                const attRemoved = removedAtt ? 1 : 0;
-                const totalChanged = notesC.added + notesC.removed + fbC.added + fbC.removed;
+                const attAdded = addedAtts.length;
+                const attRemoved = removedAtts.length;
+                const notesChanged = notesC.added + notesC.removed;
+                const fbChanged = fbC.added + fbC.removed;
+                const totalChanged = notesChanged + fbChanged;
                 const goToChange = (dir: 1 | -1) => {
                   const root = compareRef.current;
                   if (!root) return;
@@ -595,6 +597,19 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                           <FileDown className="h-3.5 w-3.5 mr-1" /> Export comparison
                         </Button>
                       </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] pt-1 border-t border-border/50">
+                      <span className="text-muted-foreground">Breakdown:</span>
+                      <Badge variant="outline" className="text-[10px]">
+                        <StickyNote className="h-2.5 w-2.5 mr-1" /> Notes: {notesChanged}
+                        <span className="ml-1 text-success">+{notesC.added}</span>
+                        <span className="ml-1 text-destructive ml-1">-{notesC.removed}</span>
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        <MessageSquare className="h-2.5 w-2.5 mr-1" /> Feedback: {fbChanged}
+                        <span className="ml-1 text-success">+{fbC.added}</span>
+                        <span className="ml-1 text-destructive">-{fbC.removed}</span>
+                      </Badge>
                     </div>
                     {leftId && rightId && leftId === rightId && (
                       <div className="text-xs text-muted-foreground italic">Pick two different versions to see a diff.</div>

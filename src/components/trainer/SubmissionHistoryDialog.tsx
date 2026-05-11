@@ -469,7 +469,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   // Search filter — case-insensitive match on either side of any diff row.
   const q = query.trim().toLowerCase();
   const matches = (s: string) => !q || (s || "").toLowerCase().includes(q);
-  const filterByQuery = (rs: DiffRow[]) => !q ? rs : rs.filter((r) => matches(r.left.text) || matches(r.right.text));
+  const filterByQuery = (rs: DiffRow[]) => !q || !onlyMatches ? rs : rs.filter((r) => matches(r.left.text) || matches(r.right.text));
 
   const notesRows = useMemo(() => {
     const filtered = filterByQuery(notesRowsAll);

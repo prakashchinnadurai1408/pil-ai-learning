@@ -77,6 +77,34 @@ function filterChangedRows(rows: DiffRow[], context = 1): DiffRow[] {
   return rows.filter((_, idx) => keep[idx]);
 }
 
+function escapeRegex(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function Highlight({ text, query }: { text: string; query: string }) {
+  const t = text || "";
+  const q = (query || "").trim();
+  if (!q) return <>{t || "\u00A0"}</>;
+  try {
+    const re = new RegExp(`(${escapeRegex(q)})`, "ig");
+    const parts = t.split(re);
+    return (
+      <>
+        {parts.map((p, i) =>
+          i % 2 === 1 ? (
+            <mark key={i} className="bg-warning/40 text-foreground rounded-sm px-0.5">{p}</mark>
+          ) : (
+            <span key={i}>{p}</span>
+          )
+        )}
+        {t === "" && "\u00A0"}
+      </>
+    );
+  } catch {
+    return <>{t || "\u00A0"}</>;
+  }
+}
+
 function cellClass(t: DiffSide["type"]) {
   if (t === "add") return "bg-success/15 text-success-foreground";
   if (t === "del") return "bg-destructive/15 text-destructive";

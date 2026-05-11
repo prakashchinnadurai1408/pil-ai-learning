@@ -7,7 +7,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Loader2, FileText, History as HistoryIcon, User, MessageSquare, AlertTriangle, Download, ExternalLink, StickyNote, Copy, Check, GitCompare, Paperclip, Plus, Minus, ChevronUp, ChevronDown, FileDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, FileText, History as HistoryIcon, User, MessageSquare, AlertTriangle, Download, ExternalLink, StickyNote, Copy, Check, GitCompare, Paperclip, Plus, Minus, ChevronUp, ChevronDown, FileDown, Search, X as XIcon, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type AnySubmission = { id: string; student_name?: string } | null;
@@ -246,6 +247,10 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const [leftId, setLeftId] = useState<string>("");
   const [rightId, setRightId] = useState<string>("");
   const [onlyChanges, setOnlyChanges] = useState(false);
+  const [query, setQuery] = useState("");
+  const [attsOpen, setAttsOpen] = useState(true);
+  const [changeIdx, setChangeIdx] = useState(0);
+  const [changeTotal, setChangeTotal] = useState(0);
   const compareRef = useRef<HTMLDivElement | null>(null);
   const changeIdxRef = useRef<number>(-1);
 
@@ -313,6 +318,23 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     return () => clearTimeout(t);
   }, [onlyChanges, tab, leftId, rightId, rows]);
 
+  // Recount visible change blocks whenever the filtered diff changes so the
+  // prev/next counter stays accurate as the user types or toggles filters.
+  useEffect(() => {
+    if (tab !== "compare") return;
+    const root = compareRef.current;
+    if (!root) { setChangeTotal(0); setChangeIdx(0); return; }
+    const t = setTimeout(() => {
+      const nodes = root.querySelectorAll<HTMLElement>('[data-diff-change="true"]');
+      setChangeTotal(nodes.length);
+      if (changeIdxRef.current >= nodes.length) {
+        changeIdxRef.current = nodes.length > 0 ? 0 : -1;
+        setChangeIdx(0);
+      }
+    }, 70);
+    return () => clearTimeout(t);
+  }, [tab, query, onlyChanges, leftId, rightId, rows, attsOpen]);
+
   // Clean URL params when closing.
   const handleClose = () => {
     try {
@@ -356,8 +378,20 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
 
   const notesRowsAll = useMemo(() => diffAligned(left?.notes || "", right?.notes || ""), [left, right]);
   const fbRowsAll = useMemo(() => diffAligned(left?.trainer_feedback || "", right?.trainer_feedback || ""), [left, right]);
-  const notesRows = useMemo(() => (onlyChanges ? filterChangedRows(notesRowsAll) : notesRowsAll), [notesRowsAll, onlyChanges]);
-  const fbRows = useMemo(() => (onlyChanges ? filterChangedRows(fbRowsAll) : fbRowsAll), [fbRowsAll, onlyChanges]);
+
+  // Search filter — case-insensitive match on either side of any diff row.
+  const q = query.trim().toLowerCase();
+  const matches = (s: string) => !q || (s || "").toLowerCase().includes(q);
+  const filterByQuery = (rs: DiffRow[]) => !q ? rs : rs.filter((r) => matches(r.left.text) || matches(r.right.text));
+
+  const notesRows = useMemo(() => {
+    const filtered = filterByQuery(notesRowsAll);
+    return onlyChanges ? filterChangedRows(filtered) : filtered;
+  }, [notesRowsAll, onlyChanges, q]);
+  const fbRows = useMemo(() => {
+    const filtered = filterByQuery(fbRowsAll);
+    return onlyChanges ? filterChangedRows(filtered) : filtered;
+  }, [fbRowsAll, onlyChanges, q]);
 
   // Attachment diff: support multiple attachments per snapshot. The persisted
   // fields can hold a single URL or a delimited list (newline / comma / pipe);
@@ -373,13 +407,17 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const rightAtts = useMemo(() => parseAtts(right), [right]);
   const leftUrlSet = useMemo(() => new Set(leftAtts.map((a) => a.url)), [leftAtts]);
   const rightUrlSet = useMemo(() => new Set(rightAtts.map((a) => a.url)), [rightAtts]);
-  const removedAtts = useMemo(() => leftAtts.filter((a) => !rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
-  const addedAtts = useMemo(() => rightAtts.filter((a) => !leftUrlSet.has(a.url)), [rightAtts, leftUrlSet]);
-  const unchangedAtts = useMemo(() => leftAtts.filter((a) => rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
-  const sameAtt = removedAtts.length === 0 && addedAtts.length === 0 && unchangedAtts.length > 0;
+  const removedAttsAll = useMemo(() => leftAtts.filter((a) => !rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
+  const addedAttsAll = useMemo(() => rightAtts.filter((a) => !leftUrlSet.has(a.url)), [rightAtts, leftUrlSet]);
+  const unchangedAttsAll = useMemo(() => leftAtts.filter((a) => rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
+  const filterAtts = (atts: Att[]) => !q ? atts : atts.filter((a) => a.name.toLowerCase().includes(q));
+  const removedAtts = filterAtts(removedAttsAll);
+  const addedAtts = filterAtts(addedAttsAll);
+  const unchangedAtts = filterAtts(unchangedAttsAll);
+  const sameAtt = removedAttsAll.length === 0 && addedAttsAll.length === 0 && unchangedAttsAll.length > 0;
   // Single-item shortcuts retained for the export helper signature.
-  const removedAtt = removedAtts[0] || null;
-  const addedAtt = addedAtts[0] || null;
+  const removedAtt = removedAttsAll[0] || null;
+  const addedAtt = addedAttsAll[0] || null;
   const leftAtt = leftAtts[0] || null;
   const rightAtt = rightAtts[0] || null;
 
@@ -570,10 +608,13 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                   if (next < 0) next = nodes.length - 1;
                   if (next >= nodes.length) next = 0;
                   changeIdxRef.current = next;
+                  setChangeIdx(next);
+                  setChangeTotal(nodes.length);
                   nodes[next].scrollIntoView({ block: "center", behavior: "smooth" });
                   nodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
                   nodes[next].classList.add("ring-2", "ring-primary");
                 };
+                const visibleChanges = changeTotal;
                 return (
                   <div className="rounded border bg-muted/20 p-2 space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -589,16 +630,17 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                           <Switch id="only-changes" checked={onlyChanges} onCheckedChange={setOnlyChanges} />
                           <Label htmlFor="only-changes" className="text-xs cursor-pointer">Show only changes</Label>
                         </div>
-                        {onlyChanges && (
-                          <div className="flex items-center gap-1">
-                            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(-1)} title="Previous change" disabled={totalChanged === 0}>
-                              <ChevronUp className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(1)} title="Next change" disabled={totalChanged === 0}>
-                              <ChevronDown className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1" role="group" aria-label="Navigate between changes">
+                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(-1)} title="Previous change" aria-label="Previous change" disabled={visibleChanges === 0}>
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <span className="text-[10px] text-muted-foreground tabular-nums min-w-[44px] text-center" aria-live="polite">
+                            {visibleChanges === 0 ? "0 / 0" : `${Math.min(changeIdx + 1, visibleChanges)} / ${visibleChanges}`}
+                          </span>
+                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(1)} title="Next change" aria-label="Next change" disabled={visibleChanges === 0}>
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                         <Button
                           size="sm"
                           variant="outline"
@@ -616,6 +658,26 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                         </Button>
                       </div>
                     </div>
+                    <div className="relative">
+                      <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <Input
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Filter notes, feedback, and attachment names…"
+                        className="h-8 pl-7 pr-7 text-xs"
+                        aria-label="Filter diff by keyword"
+                      />
+                      {query && (
+                        <button
+                          type="button"
+                          onClick={() => setQuery("")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          aria-label="Clear search"
+                        >
+                          <XIcon className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                     <div className="flex flex-wrap items-center gap-2 text-[11px] pt-1 border-t border-border/50">
                       <span className="text-muted-foreground">Breakdown:</span>
                       <Badge variant="outline" className="text-[10px]">
@@ -628,6 +690,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                         <span className="ml-1 text-success">+{fbC.added}</span>
                         <span className="ml-1 text-destructive">-{fbC.removed}</span>
                       </Badge>
+                      {q && <span className="text-muted-foreground italic">· filtered by "{query}"</span>}
                     </div>
                     {leftId && rightId && leftId === rightId && (
                       <div className="text-xs text-muted-foreground italic">Pick two different versions to see a diff.</div>
@@ -640,17 +703,35 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                 {/* Attachments diff (multi-file aware) */}
                 <div className="space-y-2">
                   <div className="text-xs font-semibold flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1"><Paperclip className="h-3.5 w-3.5" /> Attachments</span>
+                    <button
+                      type="button"
+                      onClick={() => setAttsOpen((o) => !o)}
+                      className="flex items-center gap-1 hover:text-primary transition-colors"
+                      aria-expanded={attsOpen}
+                      aria-controls="attachments-diff-panel"
+                    >
+                      <ChevronRight className={`h-3.5 w-3.5 transition-transform ${attsOpen ? "rotate-90" : ""}`} />
+                      <Paperclip className="h-3.5 w-3.5" /> Attachments
+                    </button>
                     <span className="flex items-center gap-1 text-[10px] font-normal text-muted-foreground">
                       <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/30">+{addedAtts.length}</Badge>
                       <Badge variant="outline" className="text-[10px] bg-destructive/10 text-destructive border-destructive/30">-{removedAtts.length}</Badge>
                       {unchangedAtts.length > 0 && <Badge variant="outline" className="text-[10px]">{unchangedAtts.length} unchanged</Badge>}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-[10px] ml-1"
+                        onClick={() => setAttsOpen((o) => !o)}
+                        aria-label={attsOpen ? "Collapse attachments" : "Expand attachments"}
+                      >
+                        {attsOpen ? "Collapse" : "Expand"}
+                      </Button>
                     </span>
                   </div>
-                  {leftAtts.length === 0 && rightAtts.length === 0 ? (
-                    <div className="text-[11px] text-muted-foreground italic px-1">No attachments on either version.</div>
+                  {!attsOpen ? null : leftAtts.length === 0 && rightAtts.length === 0 ? (
+                    <div id="attachments-diff-panel" className="text-[11px] text-muted-foreground italic px-1">No attachments on either version.</div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div id="attachments-diff-panel" className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div className="rounded border bg-background overflow-hidden">
                         <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30 flex items-center justify-between">
                           <span>Removed (left)</span>

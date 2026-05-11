@@ -878,7 +878,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
 
                 <div className="space-y-2">
                   <div className="text-xs font-semibold flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> Trainer feedback</div>
-                  <AlignedDiff section="feedback" rows={fbRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} />
+                  <AlignedDiff section="feedback" rows={fbRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} query={query} />
                 </div>
 
                 <div className="text-[11px] text-muted-foreground flex items-center gap-3">

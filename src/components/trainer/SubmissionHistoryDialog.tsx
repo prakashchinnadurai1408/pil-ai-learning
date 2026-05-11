@@ -736,6 +736,21 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                   nodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
                   nodes[next].classList.add("ring-2", "ring-primary");
                 };
+                const goToMatch = (dir: 1 | -1) => {
+                  const root = compareRef.current;
+                  if (!root) return;
+                  const nodes = Array.from(root.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
+                  if (nodes.length === 0) return;
+                  let next = matchIdxRef.current + dir;
+                  if (next < 0) next = nodes.length - 1;
+                  if (next >= nodes.length) next = 0;
+                  matchIdxRef.current = next;
+                  setMatchIdx(next);
+                  setMatchTotal(nodes.length);
+                  nodes[next].scrollIntoView({ block: "center", behavior: "smooth" });
+                  nodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
+                  nodes[next].classList.add("ring-2", "ring-primary");
+                };
                 const visibleChanges = changeTotal;
                 return (
                   <div className="rounded border bg-muted/20 p-2 space-y-2">

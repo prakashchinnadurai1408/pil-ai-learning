@@ -426,7 +426,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const handleClose = () => {
     try {
       const url = new URL(window.location.href);
-      ["histTab", "histLeft", "histRight", "histOnly", "histQ", "histAtts"].forEach((k) => url.searchParams.delete(k));
+      ["histTab", "histLeft", "histRight", "histOnly", "histQ", "histAtts", "histOnlyM"].forEach((k) => url.searchParams.delete(k));
       window.history.replaceState({}, "", url.toString());
     } catch { /* ignore */ }
     onClose();

@@ -92,7 +92,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
       <>
         {parts.map((p, i) =>
           i % 2 === 1 ? (
-            <mark key={i} className="bg-warning/40 text-foreground rounded-sm px-0.5">{p}</mark>
+            <mark key={i} data-hl="true" className="bg-warning/40 text-foreground rounded-sm px-0.5">{p}</mark>
           ) : (
             <span key={i}>{p}</span>
           )

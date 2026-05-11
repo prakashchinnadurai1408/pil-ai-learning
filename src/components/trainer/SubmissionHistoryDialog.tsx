@@ -474,11 +474,11 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const notesRows = useMemo(() => {
     const filtered = filterByQuery(notesRowsAll);
     return onlyChanges ? filterChangedRows(filtered) : filtered;
-  }, [notesRowsAll, onlyChanges, q]);
+  }, [notesRowsAll, onlyChanges, q, onlyMatches]);
   const fbRows = useMemo(() => {
     const filtered = filterByQuery(fbRowsAll);
     return onlyChanges ? filterChangedRows(filtered) : filtered;
-  }, [fbRowsAll, onlyChanges, q]);
+  }, [fbRowsAll, onlyChanges, q, onlyMatches]);
 
   // Attachment diff: support multiple attachments per snapshot. The persisted
   // fields can hold a single URL or a delimited list (newline / comma / pipe);

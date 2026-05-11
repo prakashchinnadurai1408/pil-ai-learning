@@ -420,6 +420,24 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const root = compareRef.current;
       if (!root) return;
+
+      // Shift+N / Shift+P navigate keyword matches; plain N/P navigate change blocks.
+      if (e.shiftKey && (e.key === "N" || e.key === "P" || e.key === "n" || e.key === "p")) {
+        const matchNodes = Array.from(root.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
+        if (matchNodes.length === 0) return;
+        const dir: 1 | -1 = (e.key === "P" || e.key === "p") ? -1 : 1;
+        let next = matchIdxRef.current + dir;
+        if (next < 0) next = matchNodes.length - 1;
+        if (next >= matchNodes.length) next = 0;
+        matchIdxRef.current = next;
+        setMatchIdx(next);
+        matchNodes[next].scrollIntoView({ block: "center", behavior: "smooth" });
+        matchNodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
+        matchNodes[next].classList.add("ring-2", "ring-primary");
+        e.preventDefault();
+        return;
+      }
+
       const nodes = Array.from(root.querySelectorAll<HTMLElement>('[data-diff-change="true"]'));
       if (nodes.length === 0) return;
       const move = (dir: 1 | -1) => {

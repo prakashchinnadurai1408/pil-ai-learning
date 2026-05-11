@@ -862,7 +862,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                       </Badge>
                       {q && <span className="text-muted-foreground italic">· filtered by "{query}"</span>}
                       <span className="ml-auto text-[10px] text-muted-foreground hidden sm:inline" title="Keyboard shortcuts">
-                        <kbd className="px-1 py-0.5 rounded border bg-background">N</kbd>/<kbd className="px-1 py-0.5 rounded border bg-background">P</kbd> next/prev · <kbd className="px-1 py-0.5 rounded border bg-background">Esc</kbd> clear
+                        <kbd className="px-1 py-0.5 rounded border bg-background">N</kbd>/<kbd className="px-1 py-0.5 rounded border bg-background">P</kbd> change · <kbd className="px-1 py-0.5 rounded border bg-background">⇧N</kbd>/<kbd className="px-1 py-0.5 rounded border bg-background">⇧P</kbd> match · <kbd className="px-1 py-0.5 rounded border bg-background">Esc</kbd> clear
                       </span>
                     </div>
                     {leftId && rightId && leftId === rightId && (

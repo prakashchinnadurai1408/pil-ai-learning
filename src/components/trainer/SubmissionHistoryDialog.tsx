@@ -401,11 +401,33 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       setMatchTotal(nodes.length);
       if (matchIdxRef.current >= nodes.length) {
         matchIdxRef.current = nodes.length > 0 ? 0 : -1;
-        setMatchIdx(0);
+        setMatchIdx(matchIdxRef.current < 0 ? 0 : matchIdxRef.current);
       }
     }, 80);
     return () => clearTimeout(t);
   }, [tab, query, onlyChanges, onlyMatches, leftId, rightId, rows, attsOpen]);
+
+  // Auto-scroll to the first highlighted match whenever the user enables
+  // "Show only matches" or changes the search query, so the relevant area is
+  // immediately in view. Reset the match cursor to 0 so the navigator agrees.
+  useEffect(() => {
+    if (tab !== "compare") return;
+    if (!query) return;
+    const root = compareRef.current;
+    if (!root) return;
+    const t = setTimeout(() => {
+      const nodes = root.querySelectorAll<HTMLElement>('mark[data-hl="true"]');
+      if (nodes.length === 0) return;
+      matchIdxRef.current = 0;
+      setMatchIdx(0);
+      setMatchTotal(nodes.length);
+      const first = nodes[0];
+      first.scrollIntoView({ block: "center", behavior: "smooth" });
+      first.classList.add("ring-2", "ring-primary");
+      setTimeout(() => first.classList.remove("ring-2", "ring-primary"), 1500);
+    }, 110);
+    return () => clearTimeout(t);
+  }, [query, onlyMatches, tab, leftId, rightId]);
 
   // Keyboard shortcuts inside the dialog: N = next change, P = previous change,
   // Esc = clear search (only when search has a value; otherwise let the dialog close).

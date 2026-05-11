@@ -497,7 +497,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const removedAttsAll = useMemo(() => leftAtts.filter((a) => !rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
   const addedAttsAll = useMemo(() => rightAtts.filter((a) => !leftUrlSet.has(a.url)), [rightAtts, leftUrlSet]);
   const unchangedAttsAll = useMemo(() => leftAtts.filter((a) => rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
-  const filterAtts = (atts: Att[]) => !q ? atts : atts.filter((a) => a.name.toLowerCase().includes(q));
+  const filterAtts = (atts: Att[]) => !q || !onlyMatches ? atts : atts.filter((a) => a.name.toLowerCase().includes(q));
   const removedAtts = filterAtts(removedAttsAll);
   const addedAtts = filterAtts(addedAttsAll);
   const unchangedAtts = filterAtts(unchangedAttsAll);

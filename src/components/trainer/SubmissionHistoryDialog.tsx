@@ -602,6 +602,19 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const leftAtt = leftAtts[0] || null;
   const rightAtt = rightAtts[0] || null;
 
+  // If the search query matches any attachment name, auto-expand the
+  // attachments panel so the highlighted matches inside actually render and
+  // are reachable via Shift+N/Shift+P navigation.
+  const hasAttMatch =
+    !!q && (
+      removedAttsAll.some((a) => a.name.toLowerCase().includes(q)) ||
+      addedAttsAll.some((a) => a.name.toLowerCase().includes(q)) ||
+      unchangedAttsAll.some((a) => a.name.toLowerCase().includes(q))
+    );
+  useEffect(() => {
+    if (hasAttMatch && !attsOpen) setAttsOpen(true);
+  }, [hasAttMatch, attsOpen]);
+
   return (
     <Dialog open={!!submission} onOpenChange={(b) => !b && handleClose()}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">

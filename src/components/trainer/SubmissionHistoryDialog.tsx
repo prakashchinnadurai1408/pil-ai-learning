@@ -295,6 +295,24 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     } catch { /* ignore */ }
   }, [submission, tab, leftId, rightId, onlyChanges]);
 
+  // When "Show only changes" is enabled, auto-scroll the compare panel to the
+  // first changed block so the user immediately sees the most important edits.
+  useEffect(() => {
+    if (!onlyChanges || tab !== "compare") return;
+    const root = compareRef.current;
+    if (!root) return;
+    // Wait a tick for the filtered rows to render.
+    const t = setTimeout(() => {
+      const first = root.querySelector<HTMLElement>('[data-diff-change="true"]');
+      if (!first) return;
+      first.scrollIntoView({ block: "start", behavior: "smooth" });
+      first.classList.add("ring-2", "ring-primary");
+      changeIdxRef.current = 0;
+      setTimeout(() => first.classList.remove("ring-2", "ring-primary"), 1500);
+    }, 60);
+    return () => clearTimeout(t);
+  }, [onlyChanges, tab, leftId, rightId, rows]);
+
   // Clean URL params when closing.
   const handleClose = () => {
     try {

@@ -329,28 +329,31 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       if (leftId) url.searchParams.set("histLeft", leftId); else url.searchParams.delete("histLeft");
       if (rightId) url.searchParams.set("histRight", rightId); else url.searchParams.delete("histRight");
       url.searchParams.set("histOnly", onlyChanges ? "1" : "0");
+      if (query) url.searchParams.set("histQ", query); else url.searchParams.delete("histQ");
+      url.searchParams.set("histAtts", attsOpen ? "1" : "0");
       window.history.replaceState({}, "", url.toString());
-      localStorage.setItem(LS_KEY(submission.id), JSON.stringify({ tab, leftId, rightId, onlyChanges }));
+      localStorage.setItem(LS_KEY(submission.id), JSON.stringify({ tab, leftId, rightId, onlyChanges, query, attsOpen }));
     } catch { /* ignore */ }
-  }, [submission, tab, leftId, rightId, onlyChanges]);
+  }, [submission, tab, leftId, rightId, onlyChanges, query, attsOpen]);
 
-  // When "Show only changes" is enabled, auto-scroll the compare panel to the
-  // first changed block so the user immediately sees the most important edits.
+  // Auto-scroll to the first visible changed block whenever the user toggles
+  // "Show only changes" OR updates the search query, so relevant edits are
+  // immediately in view.
   useEffect(() => {
-    if (!onlyChanges || tab !== "compare") return;
+    if (tab !== "compare") return;
     const root = compareRef.current;
     if (!root) return;
-    // Wait a tick for the filtered rows to render.
     const t = setTimeout(() => {
       const first = root.querySelector<HTMLElement>('[data-diff-change="true"]');
       if (!first) return;
       first.scrollIntoView({ block: "start", behavior: "smooth" });
       first.classList.add("ring-2", "ring-primary");
       changeIdxRef.current = 0;
+      setChangeIdx(0);
       setTimeout(() => first.classList.remove("ring-2", "ring-primary"), 1500);
-    }, 60);
+    }, 80);
     return () => clearTimeout(t);
-  }, [onlyChanges, tab, leftId, rightId, rows]);
+  }, [onlyChanges, query, tab, leftId, rightId, rows]);
 
   // Recount visible change blocks whenever the filtered diff changes so the
   // prev/next counter stays accurate as the user types or toggles filters.
@@ -369,11 +372,52 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     return () => clearTimeout(t);
   }, [tab, query, onlyChanges, leftId, rightId, rows, attsOpen]);
 
+  // Keyboard shortcuts inside the dialog: N = next change, P = previous change,
+  // Esc = clear search (only when search has a value; otherwise let the dialog close).
+  useEffect(() => {
+    if (!submission || tab !== "compare") return;
+    const isTypingTarget = (el: EventTarget | null) => {
+      const node = el as HTMLElement | null;
+      if (!node) return false;
+      const tag = node.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || node.isContentEditable;
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && query) {
+        // Only intercept Esc when there's a query to clear; allow dialog close otherwise.
+        e.stopPropagation();
+        e.preventDefault();
+        setQuery("");
+        return;
+      }
+      if (isTypingTarget(e.target)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const root = compareRef.current;
+      if (!root) return;
+      const nodes = Array.from(root.querySelectorAll<HTMLElement>('[data-diff-change="true"]'));
+      if (nodes.length === 0) return;
+      const move = (dir: 1 | -1) => {
+        let next = changeIdxRef.current + dir;
+        if (next < 0) next = nodes.length - 1;
+        if (next >= nodes.length) next = 0;
+        changeIdxRef.current = next;
+        setChangeIdx(next);
+        nodes[next].scrollIntoView({ block: "center", behavior: "smooth" });
+        nodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
+        nodes[next].classList.add("ring-2", "ring-primary");
+      };
+      if (e.key === "n" || e.key === "N") { e.preventDefault(); move(1); }
+      else if (e.key === "p" || e.key === "P") { e.preventDefault(); move(-1); }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [submission, tab, query]);
+
   // Clean URL params when closing.
   const handleClose = () => {
     try {
       const url = new URL(window.location.href);
-      ["histTab", "histLeft", "histRight", "histOnly"].forEach((k) => url.searchParams.delete(k));
+      ["histTab", "histLeft", "histRight", "histOnly", "histQ", "histAtts"].forEach((k) => url.searchParams.delete(k));
       window.history.replaceState({}, "", url.toString());
     } catch { /* ignore */ }
     onClose();

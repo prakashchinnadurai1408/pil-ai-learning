@@ -286,6 +286,9 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const compareRef = useRef<HTMLDivElement | null>(null);
   const changeIdxRef = useRef<number>(-1);
   const matchIdxRef = useRef<number>(-1);
+  // When set, the next match-render pass will scroll to (and clamp to) this
+  // index. Used for restoring `histM` from a shared compare link.
+  const pendingMatchRef = useRef<number | null>(null);
 
   // Restore persisted selections (URL > localStorage) when dialog opens.
   useEffect(() => {

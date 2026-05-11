@@ -958,6 +958,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                         </Button>
                       </div>
                     )}
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] pt-1 border-t border-border/50">
                       <span className="text-muted-foreground">Breakdown:</span>
                       <Badge variant="outline" className="text-[10px]">
                         <StickyNote className="h-2.5 w-2.5 mr-1" /> Notes: {notesChanged}

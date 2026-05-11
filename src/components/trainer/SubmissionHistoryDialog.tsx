@@ -405,17 +405,28 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     const t = setTimeout(() => {
       const nodes = root.querySelectorAll<HTMLElement>('mark[data-hl="true"]');
       setMatchTotal(nodes.length);
-      if (matchIdxRef.current >= nodes.length) {
-        matchIdxRef.current = nodes.length > 0 ? 0 : -1;
-        setMatchIdx(matchIdxRef.current < 0 ? 0 : matchIdxRef.current);
+      // Clamp the active match index to the nearest valid match. A shared link
+      // may carry a histM that exceeds the current total (e.g. after the
+      // diff/filters changed) — clamp to the last available rather than 0 so
+      // the user lands on a real, in-range highlight.
+      if (nodes.length === 0) {
+        matchIdxRef.current = -1;
+        setMatchIdx(0);
+      } else if (matchIdxRef.current < 0) {
+        matchIdxRef.current = 0;
+        setMatchIdx(0);
+      } else if (matchIdxRef.current >= nodes.length) {
+        matchIdxRef.current = nodes.length - 1;
+        setMatchIdx(nodes.length - 1);
       }
     }, 80);
     return () => clearTimeout(t);
   }, [tab, query, onlyChanges, onlyMatches, leftId, rightId, rows, attsOpen]);
 
-  // Auto-scroll to the first highlighted match whenever the user enables
-  // "Show only matches" or changes the search query, so the relevant area is
-  // immediately in view. Reset the match cursor to 0 so the navigator agrees.
+  // Auto-scroll to a highlighted match. Honors a pending histM index from a
+  // shared link (clamped to the last valid match); otherwise jumps to the
+  // first match. Debounced so typing in the search box doesn't fight the
+  // cursor — the jump only fires after a brief pause.
   useEffect(() => {
     if (tab !== "compare") return;
     if (!query) return;
@@ -424,14 +435,25 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     const t = setTimeout(() => {
       const nodes = root.querySelectorAll<HTMLElement>('mark[data-hl="true"]');
       if (nodes.length === 0) return;
-      matchIdxRef.current = 0;
-      setMatchIdx(0);
+      let idx: number;
+      if (pendingMatchRef.current != null) {
+        idx = Math.min(Math.max(0, pendingMatchRef.current), nodes.length - 1);
+        pendingMatchRef.current = null;
+      } else {
+        idx = 0;
+      }
+      matchIdxRef.current = idx;
+      setMatchIdx(idx);
       setMatchTotal(nodes.length);
-      const first = nodes[0];
-      first.scrollIntoView({ block: "center", behavior: "smooth" });
-      first.classList.add("ring-2", "ring-primary");
-      setTimeout(() => first.classList.remove("ring-2", "ring-primary"), 1500);
-    }, 110);
+      const target = nodes[idx];
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+      // Move keyboard focus close to the match so screen readers and
+      // subsequent Shift+N/P feel anchored to the right spot.
+      const focusable = target.closest<HTMLElement>('[tabindex], button, a, [role="button"]') || target;
+      try { (focusable as HTMLElement).focus({ preventScroll: true }); } catch { /* ignore */ }
+      target.classList.add("ring-2", "ring-primary");
+      setTimeout(() => target.classList.remove("ring-2", "ring-primary"), 1500);
+    }, 350);
     return () => clearTimeout(t);
   }, [query, onlyMatches, tab, leftId, rightId]);
 

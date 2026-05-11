@@ -318,6 +318,23 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     return () => clearTimeout(t);
   }, [onlyChanges, tab, leftId, rightId, rows]);
 
+  // Recount visible change blocks whenever the filtered diff changes so the
+  // prev/next counter stays accurate as the user types or toggles filters.
+  useEffect(() => {
+    if (tab !== "compare") return;
+    const root = compareRef.current;
+    if (!root) { setChangeTotal(0); setChangeIdx(0); return; }
+    const t = setTimeout(() => {
+      const nodes = root.querySelectorAll<HTMLElement>('[data-diff-change="true"]');
+      setChangeTotal(nodes.length);
+      if (changeIdxRef.current >= nodes.length) {
+        changeIdxRef.current = nodes.length > 0 ? 0 : -1;
+        setChangeIdx(0);
+      }
+    }, 70);
+    return () => clearTimeout(t);
+  });
+
   // Clean URL params when closing.
   const handleClose = () => {
     try {

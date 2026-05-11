@@ -361,8 +361,20 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
 
   const notesRowsAll = useMemo(() => diffAligned(left?.notes || "", right?.notes || ""), [left, right]);
   const fbRowsAll = useMemo(() => diffAligned(left?.trainer_feedback || "", right?.trainer_feedback || ""), [left, right]);
-  const notesRows = useMemo(() => (onlyChanges ? filterChangedRows(notesRowsAll) : notesRowsAll), [notesRowsAll, onlyChanges]);
-  const fbRows = useMemo(() => (onlyChanges ? filterChangedRows(fbRowsAll) : fbRowsAll), [fbRowsAll, onlyChanges]);
+
+  // Search filter — case-insensitive match on either side of any diff row.
+  const q = query.trim().toLowerCase();
+  const matches = (s: string) => !q || (s || "").toLowerCase().includes(q);
+  const filterByQuery = (rs: DiffRow[]) => !q ? rs : rs.filter((r) => matches(r.left.text) || matches(r.right.text));
+
+  const notesRows = useMemo(() => {
+    const filtered = filterByQuery(notesRowsAll);
+    return onlyChanges ? filterChangedRows(filtered) : filtered;
+  }, [notesRowsAll, onlyChanges, q]);
+  const fbRows = useMemo(() => {
+    const filtered = filterByQuery(fbRowsAll);
+    return onlyChanges ? filterChangedRows(filtered) : filtered;
+  }, [fbRowsAll, onlyChanges, q]);
 
   // Attachment diff: support multiple attachments per snapshot. The persisted
   // fields can hold a single URL or a delimited list (newline / comma / pipe);
@@ -378,13 +390,17 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const rightAtts = useMemo(() => parseAtts(right), [right]);
   const leftUrlSet = useMemo(() => new Set(leftAtts.map((a) => a.url)), [leftAtts]);
   const rightUrlSet = useMemo(() => new Set(rightAtts.map((a) => a.url)), [rightAtts]);
-  const removedAtts = useMemo(() => leftAtts.filter((a) => !rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
-  const addedAtts = useMemo(() => rightAtts.filter((a) => !leftUrlSet.has(a.url)), [rightAtts, leftUrlSet]);
-  const unchangedAtts = useMemo(() => leftAtts.filter((a) => rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
-  const sameAtt = removedAtts.length === 0 && addedAtts.length === 0 && unchangedAtts.length > 0;
+  const removedAttsAll = useMemo(() => leftAtts.filter((a) => !rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
+  const addedAttsAll = useMemo(() => rightAtts.filter((a) => !leftUrlSet.has(a.url)), [rightAtts, leftUrlSet]);
+  const unchangedAttsAll = useMemo(() => leftAtts.filter((a) => rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
+  const filterAtts = (atts: Att[]) => !q ? atts : atts.filter((a) => a.name.toLowerCase().includes(q));
+  const removedAtts = filterAtts(removedAttsAll);
+  const addedAtts = filterAtts(addedAttsAll);
+  const unchangedAtts = filterAtts(unchangedAttsAll);
+  const sameAtt = removedAttsAll.length === 0 && addedAttsAll.length === 0 && unchangedAttsAll.length > 0;
   // Single-item shortcuts retained for the export helper signature.
-  const removedAtt = removedAtts[0] || null;
-  const addedAtt = addedAtts[0] || null;
+  const removedAtt = removedAttsAll[0] || null;
+  const addedAtt = addedAttsAll[0] || null;
   const leftAtt = leftAtts[0] || null;
   const rightAtt = rightAtts[0] || null;
 

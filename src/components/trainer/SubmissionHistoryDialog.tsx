@@ -286,6 +286,9 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const compareRef = useRef<HTMLDivElement | null>(null);
   const changeIdxRef = useRef<number>(-1);
   const matchIdxRef = useRef<number>(-1);
+  // When set, the next match-render pass will scroll to (and clamp to) this
+  // index. Used for restoring `histM` from a shared compare link.
+  const pendingMatchRef = useRef<number | null>(null);
 
   // Restore persisted selections (URL > localStorage) when dialog opens.
   useEffect(() => {
@@ -318,6 +321,9 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       if (mi != null) {
         const n = parseInt(mi, 10);
         if (Number.isFinite(n) && n >= 0) {
+          // Defer the actual scroll/clamp until matches have rendered so the
+          // index can be clamped against the real number of matches.
+          pendingMatchRef.current = n;
           matchIdxRef.current = n;
           setMatchIdx(n);
         }
@@ -399,17 +405,28 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     const t = setTimeout(() => {
       const nodes = root.querySelectorAll<HTMLElement>('mark[data-hl="true"]');
       setMatchTotal(nodes.length);
-      if (matchIdxRef.current >= nodes.length) {
-        matchIdxRef.current = nodes.length > 0 ? 0 : -1;
-        setMatchIdx(matchIdxRef.current < 0 ? 0 : matchIdxRef.current);
+      // Clamp the active match index to the nearest valid match. A shared link
+      // may carry a histM that exceeds the current total (e.g. after the
+      // diff/filters changed) — clamp to the last available rather than 0 so
+      // the user lands on a real, in-range highlight.
+      if (nodes.length === 0) {
+        matchIdxRef.current = -1;
+        setMatchIdx(0);
+      } else if (matchIdxRef.current < 0) {
+        matchIdxRef.current = 0;
+        setMatchIdx(0);
+      } else if (matchIdxRef.current >= nodes.length) {
+        matchIdxRef.current = nodes.length - 1;
+        setMatchIdx(nodes.length - 1);
       }
     }, 80);
     return () => clearTimeout(t);
   }, [tab, query, onlyChanges, onlyMatches, leftId, rightId, rows, attsOpen]);
 
-  // Auto-scroll to the first highlighted match whenever the user enables
-  // "Show only matches" or changes the search query, so the relevant area is
-  // immediately in view. Reset the match cursor to 0 so the navigator agrees.
+  // Auto-scroll to a highlighted match. Honors a pending histM index from a
+  // shared link (clamped to the last valid match); otherwise jumps to the
+  // first match. Debounced so typing in the search box doesn't fight the
+  // cursor — the jump only fires after a brief pause.
   useEffect(() => {
     if (tab !== "compare") return;
     if (!query) return;
@@ -418,14 +435,25 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     const t = setTimeout(() => {
       const nodes = root.querySelectorAll<HTMLElement>('mark[data-hl="true"]');
       if (nodes.length === 0) return;
-      matchIdxRef.current = 0;
-      setMatchIdx(0);
+      let idx: number;
+      if (pendingMatchRef.current != null) {
+        idx = Math.min(Math.max(0, pendingMatchRef.current), nodes.length - 1);
+        pendingMatchRef.current = null;
+      } else {
+        idx = 0;
+      }
+      matchIdxRef.current = idx;
+      setMatchIdx(idx);
       setMatchTotal(nodes.length);
-      const first = nodes[0];
-      first.scrollIntoView({ block: "center", behavior: "smooth" });
-      first.classList.add("ring-2", "ring-primary");
-      setTimeout(() => first.classList.remove("ring-2", "ring-primary"), 1500);
-    }, 110);
+      const target = nodes[idx];
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+      // Move keyboard focus close to the match so screen readers and
+      // subsequent Shift+N/P feel anchored to the right spot.
+      const focusable = target.closest<HTMLElement>('[tabindex], button, a, [role="button"]') || target;
+      try { (focusable as HTMLElement).focus({ preventScroll: true }); } catch { /* ignore */ }
+      target.classList.add("ring-2", "ring-primary");
+      setTimeout(() => target.classList.remove("ring-2", "ring-primary"), 1500);
+    }, 350);
     return () => clearTimeout(t);
   }, [query, onlyMatches, tab, leftId, rightId]);
 
@@ -859,24 +887,36 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                         </Button>
                       </div>
                     </div>
-                    <div className="relative">
-                      <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      <Input
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Filter notes, feedback, and attachment names…"
-                        className="h-8 pl-7 pr-7 text-xs"
-                        aria-label="Filter diff by keyword"
-                      />
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <Input
+                          value={query}
+                          onChange={(e) => setQuery(e.target.value)}
+                          placeholder="Filter notes, feedback, and attachment names…"
+                          className="h-8 pl-7 pr-7 text-xs"
+                          aria-label="Filter diff by keyword"
+                        />
+                        {query && (
+                          <button
+                            type="button"
+                            onClick={() => setQuery("")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            aria-label="Clear search"
+                          >
+                            <XIcon className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                       {query && (
-                        <button
-                          type="button"
-                          onClick={() => setQuery("")}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          aria-label="Clear search"
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] tabular-nums shrink-0"
+                          aria-live="polite"
+                          aria-label={`Match ${matchTotal === 0 ? 0 : Math.min(matchIdx + 1, matchTotal)} of ${matchTotal}`}
                         >
-                          <XIcon className="h-3.5 w-3.5" />
-                        </button>
+                          Match {matchTotal === 0 ? 0 : Math.min(matchIdx + 1, matchTotal)} of {matchTotal}
+                        </Badge>
                       )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-[11px] pt-1 border-t border-border/50">

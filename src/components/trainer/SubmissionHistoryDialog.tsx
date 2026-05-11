@@ -333,7 +333,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       }
     }, 70);
     return () => clearTimeout(t);
-  });
+  }, [tab, query, onlyChanges, leftId, rightId, rows, attsOpen]);
 
   // Clean URL params when closing.
   const handleClose = () => {

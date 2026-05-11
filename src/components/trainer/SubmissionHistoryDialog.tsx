@@ -341,13 +341,29 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const notesRows = useMemo(() => (onlyChanges ? filterChangedRows(notesRowsAll) : notesRowsAll), [notesRowsAll, onlyChanges]);
   const fbRows = useMemo(() => (onlyChanges ? filterChangedRows(fbRowsAll) : fbRowsAll), [fbRowsAll, onlyChanges]);
 
-  // Attachment diff: compare by name + url across the two versions.
+  // Attachment diff: support multiple attachments per snapshot. The persisted
+  // fields can hold a single URL or a delimited list (newline / comma / pipe);
+  // names are paired positionally and fall back to "attachment".
   type Att = { name: string; url: string };
-  const leftAtt: Att | null = left?.attachment_url ? { name: left.attachment_name || "attachment", url: left.attachment_url } : null;
-  const rightAtt: Att | null = right?.attachment_url ? { name: right.attachment_name || "attachment", url: right.attachment_url } : null;
-  const sameAtt = !!leftAtt && !!rightAtt && leftAtt.url === rightAtt.url && leftAtt.name === rightAtt.name;
-  const removedAtt = leftAtt && (!rightAtt || !sameAtt) ? leftAtt : null;
-  const addedAtt = rightAtt && (!leftAtt || !sameAtt) ? rightAtt : null;
+  const parseAtts = (row: HistoryRow | null): Att[] => {
+    if (!row || !row.attachment_url) return [];
+    const urls = row.attachment_url.split(/[\n,|]+/).map((s) => s.trim()).filter(Boolean);
+    const names = (row.attachment_name || "").split(/[\n,|]+/).map((s) => s.trim());
+    return urls.map((url, i) => ({ url, name: names[i] || names[0] || "attachment" }));
+  };
+  const leftAtts = useMemo(() => parseAtts(left), [left]);
+  const rightAtts = useMemo(() => parseAtts(right), [right]);
+  const leftUrlSet = useMemo(() => new Set(leftAtts.map((a) => a.url)), [leftAtts]);
+  const rightUrlSet = useMemo(() => new Set(rightAtts.map((a) => a.url)), [rightAtts]);
+  const removedAtts = useMemo(() => leftAtts.filter((a) => !rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
+  const addedAtts = useMemo(() => rightAtts.filter((a) => !leftUrlSet.has(a.url)), [rightAtts, leftUrlSet]);
+  const unchangedAtts = useMemo(() => leftAtts.filter((a) => rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
+  const sameAtt = removedAtts.length === 0 && addedAtts.length === 0 && unchangedAtts.length > 0;
+  // Single-item shortcuts retained for the export helper signature.
+  const removedAtt = removedAtts[0] || null;
+  const addedAtt = addedAtts[0] || null;
+  const leftAtt = leftAtts[0] || null;
+  const rightAtt = rightAtts[0] || null;
 
   return (
     <Dialog open={!!submission} onOpenChange={(b) => !b && handleClose()}>

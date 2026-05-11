@@ -752,17 +752,50 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                           <Switch id="only-changes" checked={onlyChanges} onCheckedChange={setOnlyChanges} />
                           <Label htmlFor="only-changes" className="text-xs cursor-pointer">Show only changes</Label>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <Switch id="only-matches" checked={onlyMatches} onCheckedChange={setOnlyMatches} disabled={!q} />
+                          <Label htmlFor="only-matches" className={`text-xs cursor-pointer ${!q ? "opacity-50" : ""}`}>Show only matches</Label>
+                        </div>
                         <div className="flex items-center gap-1" role="group" aria-label="Navigate between changes">
-                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(-1)} title="Previous change" aria-label="Previous change" disabled={visibleChanges === 0}>
+                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(-1)} title="Previous change (P)" aria-label="Previous change" disabled={visibleChanges === 0}>
                             <ChevronUp className="h-3.5 w-3.5" />
                           </Button>
-                          <span className="text-[10px] text-muted-foreground tabular-nums min-w-[44px] text-center" aria-live="polite">
-                            {visibleChanges === 0 ? "0 / 0" : `${Math.min(changeIdx + 1, visibleChanges)} / ${visibleChanges}`}
+                          <span className="text-[10px] text-muted-foreground tabular-nums min-w-[60px] text-center" aria-live="polite">
+                            {visibleChanges === 0 ? "0 / 0 changes" : `${Math.min(changeIdx + 1, visibleChanges)} / ${visibleChanges} changes`}
                           </span>
-                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(1)} title="Next change" aria-label="Next change" disabled={visibleChanges === 0}>
+                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(1)} title="Next change (N)" aria-label="Next change" disabled={visibleChanges === 0}>
                             <ChevronDown className="h-3.5 w-3.5" />
                           </Button>
                         </div>
+                        <div className="flex items-center gap-1" role="group" aria-label="Navigate between keyword matches">
+                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToMatch(-1)} title="Previous match (Shift+P)" aria-label="Previous match" disabled={matchTotal === 0}>
+                            <Search className="h-3 w-3 mr-0.5" /><ChevronUp className="h-3 w-3" />
+                          </Button>
+                          <span className="text-[10px] text-muted-foreground tabular-nums min-w-[60px] text-center" aria-live="polite">
+                            {matchTotal === 0 ? "0 / 0 matches" : `${Math.min(matchIdx + 1, matchTotal)} / ${matchTotal} matches`}
+                          </span>
+                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToMatch(1)} title="Next match (Shift+N)" aria-label="Next match" disabled={matchTotal === 0}>
+                            <Search className="h-3 w-3 mr-0.5" /><ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(window.location.href);
+                              setLinkCopied(true);
+                              toast({ title: "Compare link copied", description: "Share to open this exact view." });
+                              setTimeout(() => setLinkCopied(false), 1500);
+                            } catch {
+                              toast({ title: "Could not copy link", variant: "destructive" });
+                            }
+                          }}
+                          title="Copy a shareable link to this exact compare state"
+                        >
+                          {linkCopied ? <Check className="h-3.5 w-3.5 mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />} Copy compare link
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"

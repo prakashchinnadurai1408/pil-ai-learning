@@ -348,10 +348,11 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       if (query) url.searchParams.set("histQ", query); else url.searchParams.delete("histQ");
       url.searchParams.set("histAtts", attsOpen ? "1" : "0");
       url.searchParams.set("histOnlyM", onlyMatches ? "1" : "0");
+      if (matchIdx > 0) url.searchParams.set("histM", String(matchIdx)); else url.searchParams.delete("histM");
       window.history.replaceState({}, "", url.toString());
       localStorage.setItem(LS_KEY(submission.id), JSON.stringify({ tab, leftId, rightId, onlyChanges, query, attsOpen, onlyMatches }));
     } catch { /* ignore */ }
-  }, [submission, tab, leftId, rightId, onlyChanges, query, attsOpen, onlyMatches]);
+  }, [submission, tab, leftId, rightId, onlyChanges, query, attsOpen, onlyMatches, matchIdx]);
 
   // Auto-scroll to the first visible changed block whenever the user toggles
   // "Show only changes" OR updates the search query, so relevant edits are

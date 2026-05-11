@@ -314,6 +314,14 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       if (typeof ao === "boolean") setAttsOpen(ao);
       const om = urlOnlyM != null ? urlOnlyM === "1" : stored?.onlyMatches;
       if (typeof om === "boolean") setOnlyMatches(om);
+      const mi = params.get("histM");
+      if (mi != null) {
+        const n = parseInt(mi, 10);
+        if (Number.isFinite(n) && n >= 0) {
+          matchIdxRef.current = n;
+          setMatchIdx(n);
+        }
+      }
     } catch { /* ignore */ }
   }, [submission]);
 

@@ -873,7 +873,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
 
                 <div className="space-y-2">
                   <div className="text-xs font-semibold flex items-center gap-1"><StickyNote className="h-3.5 w-3.5" /> Student notes</div>
-                  <AlignedDiff section="notes" rows={notesRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} />
+                  <AlignedDiff section="notes" rows={notesRows} leftLabel={left ? labelFor(left) : "Left"} rightLabel={right ? labelFor(right) : "Right"} query={query} />
                 </div>
 
                 <div className="space-y-2">

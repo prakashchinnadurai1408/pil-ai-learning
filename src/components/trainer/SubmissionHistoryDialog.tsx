@@ -887,24 +887,36 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                         </Button>
                       </div>
                     </div>
-                    <div className="relative">
-                      <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      <Input
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Filter notes, feedback, and attachment names…"
-                        className="h-8 pl-7 pr-7 text-xs"
-                        aria-label="Filter diff by keyword"
-                      />
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <Input
+                          value={query}
+                          onChange={(e) => setQuery(e.target.value)}
+                          placeholder="Filter notes, feedback, and attachment names…"
+                          className="h-8 pl-7 pr-7 text-xs"
+                          aria-label="Filter diff by keyword"
+                        />
+                        {query && (
+                          <button
+                            type="button"
+                            onClick={() => setQuery("")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            aria-label="Clear search"
+                          >
+                            <XIcon className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                       {query && (
-                        <button
-                          type="button"
-                          onClick={() => setQuery("")}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          aria-label="Clear search"
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] tabular-nums shrink-0"
+                          aria-live="polite"
+                          aria-label={`Match ${matchTotal === 0 ? 0 : Math.min(matchIdx + 1, matchTotal)} of ${matchTotal}`}
                         >
-                          <XIcon className="h-3.5 w-3.5" />
-                        </button>
+                          Match {matchTotal === 0 ? 0 : Math.min(matchIdx + 1, matchTotal)} of {matchTotal}
+                        </Badge>
                       )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-[11px] pt-1 border-t border-border/50">

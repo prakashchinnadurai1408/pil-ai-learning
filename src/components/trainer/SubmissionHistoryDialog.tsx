@@ -820,7 +820,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                             <div className="text-[11px] text-muted-foreground italic">— none —</div>
                           ) : removedAtts.map((a) => (
                             <div key={`r-${a.url}`} className="flex items-center justify-between gap-2 text-xs bg-destructive/10 rounded p-2" data-diff-change="true">
-                              <span className="flex items-center gap-1.5 min-w-0"><Minus className="h-3 w-3 text-destructive shrink-0" /><span className="truncate" title={a.name}>{a.name}</span></span>
+                              <span className="flex items-center gap-1.5 min-w-0"><Minus className="h-3 w-3 text-destructive shrink-0" /><span className="truncate" title={a.name}><Highlight text={a.name} query={query} /></span></span>
                               <div className="flex items-center gap-1 shrink-0">
                                 <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={a.url} target="_blank" rel="noreferrer" aria-label={`Open ${a.name}`}><ExternalLink className="h-3 w-3" /></a></Button>
                                 <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={a.url} download={a.name} aria-label={`Download ${a.name}`}><Download className="h-3 w-3" /></a></Button>
@@ -839,7 +839,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                             <div className="text-[11px] text-muted-foreground italic">— none —</div>
                           ) : addedAtts.map((a) => (
                             <div key={`a-${a.url}`} className="flex items-center justify-between gap-2 text-xs bg-success/10 rounded p-2" data-diff-change="true">
-                              <span className="flex items-center gap-1.5 min-w-0"><Plus className="h-3 w-3 text-success shrink-0" /><span className="truncate" title={a.name}>{a.name}</span></span>
+                              <span className="flex items-center gap-1.5 min-w-0"><Plus className="h-3 w-3 text-success shrink-0" /><span className="truncate" title={a.name}><Highlight text={a.name} query={query} /></span></span>
                               <div className="flex items-center gap-1 shrink-0">
                                 <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={a.url} target="_blank" rel="noreferrer" aria-label={`Open ${a.name}`}><ExternalLink className="h-3 w-3" /></a></Button>
                                 <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={a.url} download={a.name} aria-label={`Download ${a.name}`}><Download className="h-3 w-3" /></a></Button>
@@ -857,7 +857,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                           <div className="p-2 space-y-1.5">
                             {unchangedAtts.map((a) => (
                               <div key={`u-${a.url}`} className="flex items-center justify-between gap-2 text-xs">
-                                <span className="flex items-center gap-1.5 min-w-0"><FileText className="h-3 w-3 text-muted-foreground shrink-0" /><span className="truncate" title={a.name}>{a.name}</span></span>
+                                <span className="flex items-center gap-1.5 min-w-0"><FileText className="h-3 w-3 text-muted-foreground shrink-0" /><span className="truncate" title={a.name}><Highlight text={a.name} query={query} /></span></span>
                                 <div className="flex items-center gap-1 shrink-0">
                                   <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={a.url} target="_blank" rel="noreferrer" aria-label={`Open ${a.name}`}><ExternalLink className="h-3 w-3" /></a></Button>
                                   <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={a.url} download={a.name} aria-label={`Download ${a.name}`}><Download className="h-3 w-3" /></a></Button>

@@ -126,7 +126,7 @@ function countChanges(rows: DiffRow[]): { added: number; removed: number } {
   return { added, removed };
 }
 
-function AlignedDiff({ rows, leftLabel, rightLabel, section }: { rows: DiffRow[]; leftLabel: string; rightLabel: string; section: string }) {
+function AlignedDiff({ rows, leftLabel, rightLabel, section, query }: { rows: DiffRow[]; leftLabel: string; rightLabel: string; section: string; query?: string }) {
   const isEmpty = rows.length === 0 || rows.every((r) => !r.left.text && !r.right.text);
   return (
     <div className="rounded border bg-background overflow-hidden" data-diff-section={section}>
@@ -143,11 +143,11 @@ function AlignedDiff({ rows, leftLabel, rightLabel, section }: { rows: DiffRow[]
             <div key={idx} className="grid grid-cols-2" data-diff-change={isChange ? "true" : undefined}>
               <div className={`px-2 border-r ${cellClass(r.left.type)}`}>
                 <span className="select-none mr-1 text-muted-foreground">{marker(r.left.type)}</span>
-                {r.left.text || "\u00A0"}
+                <Highlight text={r.left.text} query={query || ""} />
               </div>
               <div className={`px-2 ${cellClass(r.right.type)}`}>
                 <span className="select-none mr-1 text-muted-foreground">{marker(r.right.type)}</span>
-                {r.right.text || "\u00A0"}
+                <Highlight text={r.right.text} query={query || ""} />
               </div>
             </div>
           );

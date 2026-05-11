@@ -602,6 +602,19 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const leftAtt = leftAtts[0] || null;
   const rightAtt = rightAtts[0] || null;
 
+  // If the search query matches any attachment name, auto-expand the
+  // attachments panel so the highlighted matches inside actually render and
+  // are reachable via Shift+N/Shift+P navigation.
+  const hasAttMatch =
+    !!q && (
+      removedAttsAll.some((a) => a.name.toLowerCase().includes(q)) ||
+      addedAttsAll.some((a) => a.name.toLowerCase().includes(q)) ||
+      unchangedAttsAll.some((a) => a.name.toLowerCase().includes(q))
+    );
+  useEffect(() => {
+    if (hasAttMatch && !attsOpen) setAttsOpen(true);
+  }, [hasAttMatch, attsOpen]);
+
   return (
     <Dialog open={!!submission} onOpenChange={(b) => !b && handleClose()}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
@@ -919,6 +932,32 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                         </Badge>
                       )}
                     </div>
+                    {query && matchTotal === 0 && (
+                      <div
+                        role="status"
+                        aria-live="polite"
+                        className="rounded border border-dashed bg-background/60 px-3 py-2 flex items-center justify-between gap-2 text-xs"
+                      >
+                        <span className="flex items-center gap-2 text-muted-foreground">
+                          <Search className="h-3.5 w-3.5" />
+                          No matches for <span className="font-medium text-foreground">"{query}"</span> in notes, feedback or attachments.
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs shrink-0"
+                          onClick={() => {
+                            setQuery("");
+                            matchIdxRef.current = -1;
+                            setMatchIdx(0);
+                            setMatchTotal(0);
+                            pendingMatchRef.current = null;
+                          }}
+                        >
+                          <XIcon className="h-3.5 w-3.5 mr-1" /> Clear search
+                        </Button>
+                      </div>
+                    )}
                     <div className="flex flex-wrap items-center gap-2 text-[11px] pt-1 border-t border-border/50">
                       <span className="text-muted-foreground">Breakdown:</span>
                       <Badge variant="outline" className="text-[10px]">

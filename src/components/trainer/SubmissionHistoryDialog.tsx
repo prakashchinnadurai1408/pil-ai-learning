@@ -92,7 +92,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
       <>
         {parts.map((p, i) =>
           i % 2 === 1 ? (
-            <mark key={i} className="bg-warning/40 text-foreground rounded-sm px-0.5">{p}</mark>
+            <mark key={i} data-hl="true" className="bg-warning/40 text-foreground rounded-sm px-0.5">{p}</mark>
           ) : (
             <span key={i}>{p}</span>
           )
@@ -275,12 +275,17 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const [leftId, setLeftId] = useState<string>("");
   const [rightId, setRightId] = useState<string>("");
   const [onlyChanges, setOnlyChanges] = useState(false);
+  const [onlyMatches, setOnlyMatches] = useState(false);
   const [query, setQuery] = useState("");
   const [attsOpen, setAttsOpen] = useState(true);
   const [changeIdx, setChangeIdx] = useState(0);
   const [changeTotal, setChangeTotal] = useState(0);
+  const [matchIdx, setMatchIdx] = useState(0);
+  const [matchTotal, setMatchTotal] = useState(0);
+  const [linkCopied, setLinkCopied] = useState(false);
   const compareRef = useRef<HTMLDivElement | null>(null);
   const changeIdxRef = useRef<number>(-1);
+  const matchIdxRef = useRef<number>(-1);
 
   // Restore persisted selections (URL > localStorage) when dialog opens.
   useEffect(() => {
@@ -293,8 +298,9 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       const urlOnly = params.get("histOnly");
       const urlQ = params.get("histQ");
       const urlAtts = params.get("histAtts");
+      const urlOnlyM = params.get("histOnlyM");
       const stored = JSON.parse(localStorage.getItem(LS_KEY(submission.id)) || "null") as
-        | { tab?: string; leftId?: string; rightId?: string; onlyChanges?: boolean; query?: string; attsOpen?: boolean }
+        | { tab?: string; leftId?: string; rightId?: string; onlyChanges?: boolean; query?: string; attsOpen?: boolean; onlyMatches?: boolean }
         | null;
       const t = (urlTab || stored?.tab) as "timeline" | "compare" | undefined;
       if (t === "timeline" || t === "compare") setTab(t);
@@ -306,6 +312,8 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       if (typeof qv === "string") setQuery(qv);
       const ao = urlAtts != null ? urlAtts === "1" : stored?.attsOpen;
       if (typeof ao === "boolean") setAttsOpen(ao);
+      const om = urlOnlyM != null ? urlOnlyM === "1" : stored?.onlyMatches;
+      if (typeof om === "boolean") setOnlyMatches(om);
     } catch { /* ignore */ }
   }, [submission]);
 
@@ -331,10 +339,11 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       url.searchParams.set("histOnly", onlyChanges ? "1" : "0");
       if (query) url.searchParams.set("histQ", query); else url.searchParams.delete("histQ");
       url.searchParams.set("histAtts", attsOpen ? "1" : "0");
+      url.searchParams.set("histOnlyM", onlyMatches ? "1" : "0");
       window.history.replaceState({}, "", url.toString());
-      localStorage.setItem(LS_KEY(submission.id), JSON.stringify({ tab, leftId, rightId, onlyChanges, query, attsOpen }));
+      localStorage.setItem(LS_KEY(submission.id), JSON.stringify({ tab, leftId, rightId, onlyChanges, query, attsOpen, onlyMatches }));
     } catch { /* ignore */ }
-  }, [submission, tab, leftId, rightId, onlyChanges, query, attsOpen]);
+  }, [submission, tab, leftId, rightId, onlyChanges, query, attsOpen, onlyMatches]);
 
   // Auto-scroll to the first visible changed block whenever the user toggles
   // "Show only changes" OR updates the search query, so relevant edits are
@@ -370,7 +379,24 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       }
     }, 70);
     return () => clearTimeout(t);
-  }, [tab, query, onlyChanges, leftId, rightId, rows, attsOpen]);
+  }, [tab, query, onlyChanges, onlyMatches, leftId, rightId, rows, attsOpen]);
+
+  // Recount keyword matches (rendered <mark> elements) so the match navigator
+  // pager stays accurate as the user types or toggles "Only matches".
+  useEffect(() => {
+    if (tab !== "compare") { setMatchTotal(0); setMatchIdx(0); matchIdxRef.current = -1; return; }
+    const root = compareRef.current;
+    if (!root) { setMatchTotal(0); setMatchIdx(0); matchIdxRef.current = -1; return; }
+    const t = setTimeout(() => {
+      const nodes = root.querySelectorAll<HTMLElement>('mark[data-hl="true"]');
+      setMatchTotal(nodes.length);
+      if (matchIdxRef.current >= nodes.length) {
+        matchIdxRef.current = nodes.length > 0 ? 0 : -1;
+        setMatchIdx(0);
+      }
+    }, 80);
+    return () => clearTimeout(t);
+  }, [tab, query, onlyChanges, onlyMatches, leftId, rightId, rows, attsOpen]);
 
   // Keyboard shortcuts inside the dialog: N = next change, P = previous change,
   // Esc = clear search (only when search has a value; otherwise let the dialog close).
@@ -394,6 +420,24 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const root = compareRef.current;
       if (!root) return;
+
+      // Shift+N / Shift+P navigate keyword matches; plain N/P navigate change blocks.
+      if (e.shiftKey && (e.key === "N" || e.key === "P" || e.key === "n" || e.key === "p")) {
+        const matchNodes = Array.from(root.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
+        if (matchNodes.length === 0) return;
+        const dir: 1 | -1 = (e.key === "P" || e.key === "p") ? -1 : 1;
+        let next = matchIdxRef.current + dir;
+        if (next < 0) next = matchNodes.length - 1;
+        if (next >= matchNodes.length) next = 0;
+        matchIdxRef.current = next;
+        setMatchIdx(next);
+        matchNodes[next].scrollIntoView({ block: "center", behavior: "smooth" });
+        matchNodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
+        matchNodes[next].classList.add("ring-2", "ring-primary");
+        e.preventDefault();
+        return;
+      }
+
       const nodes = Array.from(root.querySelectorAll<HTMLElement>('[data-diff-change="true"]'));
       if (nodes.length === 0) return;
       const move = (dir: 1 | -1) => {
@@ -417,7 +461,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const handleClose = () => {
     try {
       const url = new URL(window.location.href);
-      ["histTab", "histLeft", "histRight", "histOnly", "histQ", "histAtts"].forEach((k) => url.searchParams.delete(k));
+      ["histTab", "histLeft", "histRight", "histOnly", "histQ", "histAtts", "histOnlyM"].forEach((k) => url.searchParams.delete(k));
       window.history.replaceState({}, "", url.toString());
     } catch { /* ignore */ }
     onClose();
@@ -460,16 +504,16 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   // Search filter — case-insensitive match on either side of any diff row.
   const q = query.trim().toLowerCase();
   const matches = (s: string) => !q || (s || "").toLowerCase().includes(q);
-  const filterByQuery = (rs: DiffRow[]) => !q ? rs : rs.filter((r) => matches(r.left.text) || matches(r.right.text));
+  const filterByQuery = (rs: DiffRow[]) => !q || !onlyMatches ? rs : rs.filter((r) => matches(r.left.text) || matches(r.right.text));
 
   const notesRows = useMemo(() => {
     const filtered = filterByQuery(notesRowsAll);
     return onlyChanges ? filterChangedRows(filtered) : filtered;
-  }, [notesRowsAll, onlyChanges, q]);
+  }, [notesRowsAll, onlyChanges, q, onlyMatches]);
   const fbRows = useMemo(() => {
     const filtered = filterByQuery(fbRowsAll);
     return onlyChanges ? filterChangedRows(filtered) : filtered;
-  }, [fbRowsAll, onlyChanges, q]);
+  }, [fbRowsAll, onlyChanges, q, onlyMatches]);
 
   // Attachment diff: support multiple attachments per snapshot. The persisted
   // fields can hold a single URL or a delimited list (newline / comma / pipe);
@@ -488,7 +532,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const removedAttsAll = useMemo(() => leftAtts.filter((a) => !rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
   const addedAttsAll = useMemo(() => rightAtts.filter((a) => !leftUrlSet.has(a.url)), [rightAtts, leftUrlSet]);
   const unchangedAttsAll = useMemo(() => leftAtts.filter((a) => rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
-  const filterAtts = (atts: Att[]) => !q ? atts : atts.filter((a) => a.name.toLowerCase().includes(q));
+  const filterAtts = (atts: Att[]) => !q || !onlyMatches ? atts : atts.filter((a) => a.name.toLowerCase().includes(q));
   const removedAtts = filterAtts(removedAttsAll);
   const addedAtts = filterAtts(addedAttsAll);
   const unchangedAtts = filterAtts(unchangedAttsAll);
@@ -692,6 +736,21 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                   nodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
                   nodes[next].classList.add("ring-2", "ring-primary");
                 };
+                const goToMatch = (dir: 1 | -1) => {
+                  const root = compareRef.current;
+                  if (!root) return;
+                  const nodes = Array.from(root.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
+                  if (nodes.length === 0) return;
+                  let next = matchIdxRef.current + dir;
+                  if (next < 0) next = nodes.length - 1;
+                  if (next >= nodes.length) next = 0;
+                  matchIdxRef.current = next;
+                  setMatchIdx(next);
+                  setMatchTotal(nodes.length);
+                  nodes[next].scrollIntoView({ block: "center", behavior: "smooth" });
+                  nodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
+                  nodes[next].classList.add("ring-2", "ring-primary");
+                };
                 const visibleChanges = changeTotal;
                 return (
                   <div className="rounded border bg-muted/20 p-2 space-y-2">
@@ -708,17 +767,50 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                           <Switch id="only-changes" checked={onlyChanges} onCheckedChange={setOnlyChanges} />
                           <Label htmlFor="only-changes" className="text-xs cursor-pointer">Show only changes</Label>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <Switch id="only-matches" checked={onlyMatches} onCheckedChange={setOnlyMatches} disabled={!q} />
+                          <Label htmlFor="only-matches" className={`text-xs cursor-pointer ${!q ? "opacity-50" : ""}`}>Show only matches</Label>
+                        </div>
                         <div className="flex items-center gap-1" role="group" aria-label="Navigate between changes">
-                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(-1)} title="Previous change" aria-label="Previous change" disabled={visibleChanges === 0}>
+                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(-1)} title="Previous change (P)" aria-label="Previous change" disabled={visibleChanges === 0}>
                             <ChevronUp className="h-3.5 w-3.5" />
                           </Button>
-                          <span className="text-[10px] text-muted-foreground tabular-nums min-w-[44px] text-center" aria-live="polite">
-                            {visibleChanges === 0 ? "0 / 0" : `${Math.min(changeIdx + 1, visibleChanges)} / ${visibleChanges}`}
+                          <span className="text-[10px] text-muted-foreground tabular-nums min-w-[60px] text-center" aria-live="polite">
+                            {visibleChanges === 0 ? "0 / 0 changes" : `${Math.min(changeIdx + 1, visibleChanges)} / ${visibleChanges} changes`}
                           </span>
-                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(1)} title="Next change" aria-label="Next change" disabled={visibleChanges === 0}>
+                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(1)} title="Next change (N)" aria-label="Next change" disabled={visibleChanges === 0}>
                             <ChevronDown className="h-3.5 w-3.5" />
                           </Button>
                         </div>
+                        <div className="flex items-center gap-1" role="group" aria-label="Navigate between keyword matches">
+                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToMatch(-1)} title="Previous match (Shift+P)" aria-label="Previous match" disabled={matchTotal === 0}>
+                            <Search className="h-3 w-3 mr-0.5" /><ChevronUp className="h-3 w-3" />
+                          </Button>
+                          <span className="text-[10px] text-muted-foreground tabular-nums min-w-[60px] text-center" aria-live="polite">
+                            {matchTotal === 0 ? "0 / 0 matches" : `${Math.min(matchIdx + 1, matchTotal)} / ${matchTotal} matches`}
+                          </span>
+                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToMatch(1)} title="Next match (Shift+N)" aria-label="Next match" disabled={matchTotal === 0}>
+                            <Search className="h-3 w-3 mr-0.5" /><ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(window.location.href);
+                              setLinkCopied(true);
+                              toast({ title: "Compare link copied", description: "Share to open this exact view." });
+                              setTimeout(() => setLinkCopied(false), 1500);
+                            } catch {
+                              toast({ title: "Could not copy link", variant: "destructive" });
+                            }
+                          }}
+                          title="Copy a shareable link to this exact compare state"
+                        >
+                          {linkCopied ? <Check className="h-3.5 w-3.5 mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />} Copy compare link
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
@@ -770,7 +862,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                       </Badge>
                       {q && <span className="text-muted-foreground italic">· filtered by "{query}"</span>}
                       <span className="ml-auto text-[10px] text-muted-foreground hidden sm:inline" title="Keyboard shortcuts">
-                        <kbd className="px-1 py-0.5 rounded border bg-background">N</kbd>/<kbd className="px-1 py-0.5 rounded border bg-background">P</kbd> next/prev · <kbd className="px-1 py-0.5 rounded border bg-background">Esc</kbd> clear
+                        <kbd className="px-1 py-0.5 rounded border bg-background">N</kbd>/<kbd className="px-1 py-0.5 rounded border bg-background">P</kbd> change · <kbd className="px-1 py-0.5 rounded border bg-background">⇧N</kbd>/<kbd className="px-1 py-0.5 rounded border bg-background">⇧P</kbd> match · <kbd className="px-1 py-0.5 rounded border bg-background">Esc</kbd> clear
                       </span>
                     </div>
                     {leftId && rightId && leftId === rightId && (

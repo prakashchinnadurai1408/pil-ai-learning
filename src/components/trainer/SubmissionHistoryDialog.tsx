@@ -321,6 +321,9 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       if (mi != null) {
         const n = parseInt(mi, 10);
         if (Number.isFinite(n) && n >= 0) {
+          // Defer the actual scroll/clamp until matches have rendered so the
+          // index can be clamped against the real number of matches.
+          pendingMatchRef.current = n;
           matchIdxRef.current = n;
           setMatchIdx(n);
         }

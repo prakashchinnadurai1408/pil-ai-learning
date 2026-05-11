@@ -703,16 +703,35 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                 {/* Attachments diff (multi-file aware) */}
                 <div className="space-y-2">
                   <div className="text-xs font-semibold flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1"><Paperclip className="h-3.5 w-3.5" /> Attachments</span>
+                    <button
+                      type="button"
+                      onClick={() => setAttsOpen((o) => !o)}
+                      className="flex items-center gap-1 hover:text-primary transition-colors"
+                      aria-expanded={attsOpen}
+                      aria-controls="attachments-diff-panel"
+                    >
+                      <ChevronRight className={`h-3.5 w-3.5 transition-transform ${attsOpen ? "rotate-90" : ""}`} />
+                      <Paperclip className="h-3.5 w-3.5" /> Attachments
+                    </button>
                     <span className="flex items-center gap-1 text-[10px] font-normal text-muted-foreground">
                       <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/30">+{addedAtts.length}</Badge>
                       <Badge variant="outline" className="text-[10px] bg-destructive/10 text-destructive border-destructive/30">-{removedAtts.length}</Badge>
                       {unchangedAtts.length > 0 && <Badge variant="outline" className="text-[10px]">{unchangedAtts.length} unchanged</Badge>}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-[10px] ml-1"
+                        onClick={() => setAttsOpen((o) => !o)}
+                        aria-label={attsOpen ? "Collapse attachments" : "Expand attachments"}
+                      >
+                        {attsOpen ? "Collapse" : "Expand"}
+                      </Button>
                     </span>
                   </div>
-                  {leftAtts.length === 0 && rightAtts.length === 0 ? (
-                    <div className="text-[11px] text-muted-foreground italic px-1">No attachments on either version.</div>
+                  {!attsOpen ? null : leftAtts.length === 0 && rightAtts.length === 0 ? (
+                    <div id="attachments-diff-panel" className="text-[11px] text-muted-foreground italic px-1">No attachments on either version.</div>
                   ) : (
+                    <div id="attachments-diff-panel">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div className="rounded border bg-background overflow-hidden">
                         <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30 flex items-center justify-between">

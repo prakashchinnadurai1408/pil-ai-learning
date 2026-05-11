@@ -591,10 +591,13 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                   if (next < 0) next = nodes.length - 1;
                   if (next >= nodes.length) next = 0;
                   changeIdxRef.current = next;
+                  setChangeIdx(next);
+                  setChangeTotal(nodes.length);
                   nodes[next].scrollIntoView({ block: "center", behavior: "smooth" });
                   nodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
                   nodes[next].classList.add("ring-2", "ring-primary");
                 };
+                const visibleChanges = changeTotal;
                 return (
                   <div className="rounded border bg-muted/20 p-2 space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -610,16 +613,17 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                           <Switch id="only-changes" checked={onlyChanges} onCheckedChange={setOnlyChanges} />
                           <Label htmlFor="only-changes" className="text-xs cursor-pointer">Show only changes</Label>
                         </div>
-                        {onlyChanges && (
-                          <div className="flex items-center gap-1">
-                            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(-1)} title="Previous change" disabled={totalChanged === 0}>
-                              <ChevronUp className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(1)} title="Next change" disabled={totalChanged === 0}>
-                              <ChevronDown className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1" role="group" aria-label="Navigate between changes">
+                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(-1)} title="Previous change" aria-label="Previous change" disabled={visibleChanges === 0}>
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <span className="text-[10px] text-muted-foreground tabular-nums min-w-[44px] text-center" aria-live="polite">
+                            {visibleChanges === 0 ? "0 / 0" : `${Math.min(changeIdx + 1, visibleChanges)} / ${visibleChanges}`}
+                          </span>
+                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => goToChange(1)} title="Next change" aria-label="Next change" disabled={visibleChanges === 0}>
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                         <Button
                           size="sm"
                           variant="outline"
@@ -637,6 +641,26 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                         </Button>
                       </div>
                     </div>
+                    <div className="relative">
+                      <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <Input
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Filter notes, feedback, and attachment names…"
+                        className="h-8 pl-7 pr-7 text-xs"
+                        aria-label="Filter diff by keyword"
+                      />
+                      {query && (
+                        <button
+                          type="button"
+                          onClick={() => setQuery("")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          aria-label="Clear search"
+                        >
+                          <XIcon className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                     <div className="flex flex-wrap items-center gap-2 text-[11px] pt-1 border-t border-border/50">
                       <span className="text-muted-foreground">Breakdown:</span>
                       <Badge variant="outline" className="text-[10px]">
@@ -649,6 +673,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                         <span className="ml-1 text-success">+{fbC.added}</span>
                         <span className="ml-1 text-destructive">-{fbC.removed}</span>
                       </Badge>
+                      {q && <span className="text-muted-foreground italic">· filtered by "{query}"</span>}
                     </div>
                     {leftId && rightId && leftId === rightId && (
                       <div className="text-xs text-muted-foreground italic">Pick two different versions to see a diff.</div>

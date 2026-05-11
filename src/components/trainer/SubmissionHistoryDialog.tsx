@@ -295,6 +295,24 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     } catch { /* ignore */ }
   }, [submission, tab, leftId, rightId, onlyChanges]);
 
+  // When "Show only changes" is enabled, auto-scroll the compare panel to the
+  // first changed block so the user immediately sees the most important edits.
+  useEffect(() => {
+    if (!onlyChanges || tab !== "compare") return;
+    const root = compareRef.current;
+    if (!root) return;
+    // Wait a tick for the filtered rows to render.
+    const t = setTimeout(() => {
+      const first = root.querySelector<HTMLElement>('[data-diff-change="true"]');
+      if (!first) return;
+      first.scrollIntoView({ block: "start", behavior: "smooth" });
+      first.classList.add("ring-2", "ring-primary");
+      changeIdxRef.current = 0;
+      setTimeout(() => first.classList.remove("ring-2", "ring-primary"), 1500);
+    }, 60);
+    return () => clearTimeout(t);
+  }, [onlyChanges, tab, leftId, rightId, rows]);
+
   // Clean URL params when closing.
   const handleClose = () => {
     try {
@@ -341,13 +359,29 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const notesRows = useMemo(() => (onlyChanges ? filterChangedRows(notesRowsAll) : notesRowsAll), [notesRowsAll, onlyChanges]);
   const fbRows = useMemo(() => (onlyChanges ? filterChangedRows(fbRowsAll) : fbRowsAll), [fbRowsAll, onlyChanges]);
 
-  // Attachment diff: compare by name + url across the two versions.
+  // Attachment diff: support multiple attachments per snapshot. The persisted
+  // fields can hold a single URL or a delimited list (newline / comma / pipe);
+  // names are paired positionally and fall back to "attachment".
   type Att = { name: string; url: string };
-  const leftAtt: Att | null = left?.attachment_url ? { name: left.attachment_name || "attachment", url: left.attachment_url } : null;
-  const rightAtt: Att | null = right?.attachment_url ? { name: right.attachment_name || "attachment", url: right.attachment_url } : null;
-  const sameAtt = !!leftAtt && !!rightAtt && leftAtt.url === rightAtt.url && leftAtt.name === rightAtt.name;
-  const removedAtt = leftAtt && (!rightAtt || !sameAtt) ? leftAtt : null;
-  const addedAtt = rightAtt && (!leftAtt || !sameAtt) ? rightAtt : null;
+  const parseAtts = (row: HistoryRow | null): Att[] => {
+    if (!row || !row.attachment_url) return [];
+    const urls = row.attachment_url.split(/[\n,|]+/).map((s) => s.trim()).filter(Boolean);
+    const names = (row.attachment_name || "").split(/[\n,|]+/).map((s) => s.trim());
+    return urls.map((url, i) => ({ url, name: names[i] || names[0] || "attachment" }));
+  };
+  const leftAtts = useMemo(() => parseAtts(left), [left]);
+  const rightAtts = useMemo(() => parseAtts(right), [right]);
+  const leftUrlSet = useMemo(() => new Set(leftAtts.map((a) => a.url)), [leftAtts]);
+  const rightUrlSet = useMemo(() => new Set(rightAtts.map((a) => a.url)), [rightAtts]);
+  const removedAtts = useMemo(() => leftAtts.filter((a) => !rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
+  const addedAtts = useMemo(() => rightAtts.filter((a) => !leftUrlSet.has(a.url)), [rightAtts, leftUrlSet]);
+  const unchangedAtts = useMemo(() => leftAtts.filter((a) => rightUrlSet.has(a.url)), [leftAtts, rightUrlSet]);
+  const sameAtt = removedAtts.length === 0 && addedAtts.length === 0 && unchangedAtts.length > 0;
+  // Single-item shortcuts retained for the export helper signature.
+  const removedAtt = removedAtts[0] || null;
+  const addedAtt = addedAtts[0] || null;
+  const leftAtt = leftAtts[0] || null;
+  const rightAtt = rightAtts[0] || null;
 
   return (
     <Dialog open={!!submission} onOpenChange={(b) => !b && handleClose()}>
@@ -522,9 +556,11 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
               {(() => {
                 const notesC = countChanges(notesRowsAll);
                 const fbC = countChanges(fbRowsAll);
-                const attAdded = addedAtt ? 1 : 0;
-                const attRemoved = removedAtt ? 1 : 0;
-                const totalChanged = notesC.added + notesC.removed + fbC.added + fbC.removed;
+                const attAdded = addedAtts.length;
+                const attRemoved = removedAtts.length;
+                const notesChanged = notesC.added + notesC.removed;
+                const fbChanged = fbC.added + fbC.removed;
+                const totalChanged = notesChanged + fbChanged;
                 const goToChange = (dir: 1 | -1) => {
                   const root = compareRef.current;
                   if (!root) return;
@@ -580,6 +616,19 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                         </Button>
                       </div>
                     </div>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] pt-1 border-t border-border/50">
+                      <span className="text-muted-foreground">Breakdown:</span>
+                      <Badge variant="outline" className="text-[10px]">
+                        <StickyNote className="h-2.5 w-2.5 mr-1" /> Notes: {notesChanged}
+                        <span className="ml-1 text-success">+{notesC.added}</span>
+                        <span className="ml-1 text-destructive ml-1">-{notesC.removed}</span>
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        <MessageSquare className="h-2.5 w-2.5 mr-1" /> Feedback: {fbChanged}
+                        <span className="ml-1 text-success">+{fbC.added}</span>
+                        <span className="ml-1 text-destructive">-{fbC.removed}</span>
+                      </Badge>
+                    </div>
                     {leftId && rightId && leftId === rightId && (
                       <div className="text-xs text-muted-foreground italic">Pick two different versions to see a diff.</div>
                     )}
@@ -588,50 +637,77 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
               })()}
 
               <div ref={compareRef} className="space-y-4">
-                {/* Attachments diff */}
+                {/* Attachments diff (multi-file aware) */}
                 <div className="space-y-2">
-                  <div className="text-xs font-semibold flex items-center gap-1"><Paperclip className="h-3.5 w-3.5" /> Attachments</div>
-                  {!leftAtt && !rightAtt ? (
+                  <div className="text-xs font-semibold flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1"><Paperclip className="h-3.5 w-3.5" /> Attachments</span>
+                    <span className="flex items-center gap-1 text-[10px] font-normal text-muted-foreground">
+                      <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/30">+{addedAtts.length}</Badge>
+                      <Badge variant="outline" className="text-[10px] bg-destructive/10 text-destructive border-destructive/30">-{removedAtts.length}</Badge>
+                      {unchangedAtts.length > 0 && <Badge variant="outline" className="text-[10px]">{unchangedAtts.length} unchanged</Badge>}
+                    </span>
+                  </div>
+                  {leftAtts.length === 0 && rightAtts.length === 0 ? (
                     <div className="text-[11px] text-muted-foreground italic px-1">No attachments on either version.</div>
-                  ) : sameAtt ? (
-                    <div className="rounded border bg-muted/20 p-2 text-xs flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-2 min-w-0"><FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="truncate">{leftAtt!.name}</span></span>
-                      <Badge variant="outline" className="text-[10px]">unchanged</Badge>
-                    </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div className="rounded border bg-background overflow-hidden">
-                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30">Removed (left)</div>
-                        <div className="p-2" data-diff-change={removedAtt ? "true" : undefined}>
-                          {removedAtt ? (
-                            <div className="flex items-center justify-between gap-2 text-xs bg-destructive/10 rounded p-2">
-                              <span className="flex items-center gap-1.5 min-w-0"><Minus className="h-3 w-3 text-destructive shrink-0" /><span className="truncate" title={removedAtt.name}>{removedAtt.name}</span></span>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30 flex items-center justify-between">
+                          <span>Removed (left)</span>
+                          <span>{removedAtts.length}</span>
+                        </div>
+                        <div className="p-2 space-y-1.5">
+                          {removedAtts.length === 0 ? (
+                            <div className="text-[11px] text-muted-foreground italic">— none —</div>
+                          ) : removedAtts.map((a) => (
+                            <div key={`r-${a.url}`} className="flex items-center justify-between gap-2 text-xs bg-destructive/10 rounded p-2" data-diff-change="true">
+                              <span className="flex items-center gap-1.5 min-w-0"><Minus className="h-3 w-3 text-destructive shrink-0" /><span className="truncate" title={a.name}>{a.name}</span></span>
                               <div className="flex items-center gap-1 shrink-0">
-                                <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={removedAtt.url} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /></a></Button>
-                                <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={removedAtt.url} download={removedAtt.name}><Download className="h-3 w-3" /></a></Button>
+                                <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={a.url} target="_blank" rel="noreferrer" aria-label={`Open ${a.name}`}><ExternalLink className="h-3 w-3" /></a></Button>
+                                <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={a.url} download={a.name} aria-label={`Download ${a.name}`}><Download className="h-3 w-3" /></a></Button>
                               </div>
                             </div>
-                          ) : (
-                            <div className="text-[11px] text-muted-foreground italic">— none —</div>
-                          )}
+                          ))}
                         </div>
                       </div>
                       <div className="rounded border bg-background overflow-hidden">
-                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30">Added (right)</div>
-                        <div className="p-2" data-diff-change={addedAtt ? "true" : undefined}>
-                          {addedAtt ? (
-                            <div className="flex items-center justify-between gap-2 text-xs bg-success/10 rounded p-2">
-                              <span className="flex items-center gap-1.5 min-w-0"><Plus className="h-3 w-3 text-success shrink-0" /><span className="truncate" title={addedAtt.name}>{addedAtt.name}</span></span>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30 flex items-center justify-between">
+                          <span>Added (right)</span>
+                          <span>{addedAtts.length}</span>
+                        </div>
+                        <div className="p-2 space-y-1.5">
+                          {addedAtts.length === 0 ? (
+                            <div className="text-[11px] text-muted-foreground italic">— none —</div>
+                          ) : addedAtts.map((a) => (
+                            <div key={`a-${a.url}`} className="flex items-center justify-between gap-2 text-xs bg-success/10 rounded p-2" data-diff-change="true">
+                              <span className="flex items-center gap-1.5 min-w-0"><Plus className="h-3 w-3 text-success shrink-0" /><span className="truncate" title={a.name}>{a.name}</span></span>
                               <div className="flex items-center gap-1 shrink-0">
-                                <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={addedAtt.url} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /></a></Button>
-                                <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={addedAtt.url} download={addedAtt.name}><Download className="h-3 w-3" /></a></Button>
+                                <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={a.url} target="_blank" rel="noreferrer" aria-label={`Open ${a.name}`}><ExternalLink className="h-3 w-3" /></a></Button>
+                                <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={a.url} download={a.name} aria-label={`Download ${a.name}`}><Download className="h-3 w-3" /></a></Button>
                               </div>
                             </div>
-                          ) : (
-                            <div className="text-[11px] text-muted-foreground italic">— none —</div>
-                          )}
+                          ))}
                         </div>
                       </div>
+                      {unchangedAtts.length > 0 && (
+                        <div className="rounded border bg-muted/20 overflow-hidden sm:col-span-2">
+                          <div className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1 border-b bg-muted/30 flex items-center justify-between">
+                            <span>Unchanged (in both)</span>
+                            <span>{unchangedAtts.length}</span>
+                          </div>
+                          <div className="p-2 space-y-1.5">
+                            {unchangedAtts.map((a) => (
+                              <div key={`u-${a.url}`} className="flex items-center justify-between gap-2 text-xs">
+                                <span className="flex items-center gap-1.5 min-w-0"><FileText className="h-3 w-3 text-muted-foreground shrink-0" /><span className="truncate" title={a.name}>{a.name}</span></span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <Button asChild size="sm" variant="ghost" className="h-6 px-1.5"><a href={a.url} target="_blank" rel="noreferrer" aria-label={`Open ${a.name}`}><ExternalLink className="h-3 w-3" /></a></Button>
+                                  <Button asChild size="sm" variant="outline" className="h-6 px-1.5 text-[11px]"><a href={a.url} download={a.name} aria-label={`Download ${a.name}`}><Download className="h-3 w-3" /></a></Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

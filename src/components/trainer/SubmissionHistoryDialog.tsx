@@ -314,6 +314,14 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       if (typeof ao === "boolean") setAttsOpen(ao);
       const om = urlOnlyM != null ? urlOnlyM === "1" : stored?.onlyMatches;
       if (typeof om === "boolean") setOnlyMatches(om);
+      const mi = params.get("histM");
+      if (mi != null) {
+        const n = parseInt(mi, 10);
+        if (Number.isFinite(n) && n >= 0) {
+          matchIdxRef.current = n;
+          setMatchIdx(n);
+        }
+      }
     } catch { /* ignore */ }
   }, [submission]);
 
@@ -340,10 +348,11 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       if (query) url.searchParams.set("histQ", query); else url.searchParams.delete("histQ");
       url.searchParams.set("histAtts", attsOpen ? "1" : "0");
       url.searchParams.set("histOnlyM", onlyMatches ? "1" : "0");
+      if (matchIdx > 0) url.searchParams.set("histM", String(matchIdx)); else url.searchParams.delete("histM");
       window.history.replaceState({}, "", url.toString());
       localStorage.setItem(LS_KEY(submission.id), JSON.stringify({ tab, leftId, rightId, onlyChanges, query, attsOpen, onlyMatches }));
     } catch { /* ignore */ }
-  }, [submission, tab, leftId, rightId, onlyChanges, query, attsOpen, onlyMatches]);
+  }, [submission, tab, leftId, rightId, onlyChanges, query, attsOpen, onlyMatches, matchIdx]);
 
   // Auto-scroll to the first visible changed block whenever the user toggles
   // "Show only changes" OR updates the search query, so relevant edits are
@@ -392,11 +401,33 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       setMatchTotal(nodes.length);
       if (matchIdxRef.current >= nodes.length) {
         matchIdxRef.current = nodes.length > 0 ? 0 : -1;
-        setMatchIdx(0);
+        setMatchIdx(matchIdxRef.current < 0 ? 0 : matchIdxRef.current);
       }
     }, 80);
     return () => clearTimeout(t);
   }, [tab, query, onlyChanges, onlyMatches, leftId, rightId, rows, attsOpen]);
+
+  // Auto-scroll to the first highlighted match whenever the user enables
+  // "Show only matches" or changes the search query, so the relevant area is
+  // immediately in view. Reset the match cursor to 0 so the navigator agrees.
+  useEffect(() => {
+    if (tab !== "compare") return;
+    if (!query) return;
+    const root = compareRef.current;
+    if (!root) return;
+    const t = setTimeout(() => {
+      const nodes = root.querySelectorAll<HTMLElement>('mark[data-hl="true"]');
+      if (nodes.length === 0) return;
+      matchIdxRef.current = 0;
+      setMatchIdx(0);
+      setMatchTotal(nodes.length);
+      const first = nodes[0];
+      first.scrollIntoView({ block: "center", behavior: "smooth" });
+      first.classList.add("ring-2", "ring-primary");
+      setTimeout(() => first.classList.remove("ring-2", "ring-primary"), 1500);
+    }, 110);
+    return () => clearTimeout(t);
+  }, [query, onlyMatches, tab, leftId, rightId]);
 
   // Keyboard shortcuts inside the dialog: N = next change, P = previous change,
   // Esc = clear search (only when search has a value; otherwise let the dialog close).
@@ -461,7 +492,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const handleClose = () => {
     try {
       const url = new URL(window.location.href);
-      ["histTab", "histLeft", "histRight", "histOnly", "histQ", "histAtts", "histOnlyM"].forEach((k) => url.searchParams.delete(k));
+      ["histTab", "histLeft", "histRight", "histOnly", "histQ", "histAtts", "histOnlyM", "histM"].forEach((k) => url.searchParams.delete(k));
       window.history.replaceState({}, "", url.toString());
     } catch { /* ignore */ }
     onClose();

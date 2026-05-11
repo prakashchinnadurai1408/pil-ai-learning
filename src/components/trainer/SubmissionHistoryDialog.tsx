@@ -291,8 +291,10 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       const urlLeft = params.get("histLeft");
       const urlRight = params.get("histRight");
       const urlOnly = params.get("histOnly");
+      const urlQ = params.get("histQ");
+      const urlAtts = params.get("histAtts");
       const stored = JSON.parse(localStorage.getItem(LS_KEY(submission.id)) || "null") as
-        | { tab?: string; leftId?: string; rightId?: string; onlyChanges?: boolean }
+        | { tab?: string; leftId?: string; rightId?: string; onlyChanges?: boolean; query?: string; attsOpen?: boolean }
         | null;
       const t = (urlTab || stored?.tab) as "timeline" | "compare" | undefined;
       if (t === "timeline" || t === "compare") setTab(t);
@@ -300,6 +302,10 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       if (urlRight || stored?.rightId) setRightId(urlRight || stored!.rightId!);
       const only = urlOnly != null ? urlOnly === "1" : stored?.onlyChanges;
       if (typeof only === "boolean") setOnlyChanges(only);
+      const qv = urlQ != null ? urlQ : stored?.query;
+      if (typeof qv === "string") setQuery(qv);
+      const ao = urlAtts != null ? urlAtts === "1" : stored?.attsOpen;
+      if (typeof ao === "boolean") setAttsOpen(ao);
     } catch { /* ignore */ }
   }, [submission]);
 

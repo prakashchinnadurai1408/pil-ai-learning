@@ -379,7 +379,24 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       }
     }, 70);
     return () => clearTimeout(t);
-  }, [tab, query, onlyChanges, leftId, rightId, rows, attsOpen]);
+  }, [tab, query, onlyChanges, onlyMatches, leftId, rightId, rows, attsOpen]);
+
+  // Recount keyword matches (rendered <mark> elements) so the match navigator
+  // pager stays accurate as the user types or toggles "Only matches".
+  useEffect(() => {
+    if (tab !== "compare") { setMatchTotal(0); setMatchIdx(0); matchIdxRef.current = -1; return; }
+    const root = compareRef.current;
+    if (!root) { setMatchTotal(0); setMatchIdx(0); matchIdxRef.current = -1; return; }
+    const t = setTimeout(() => {
+      const nodes = root.querySelectorAll<HTMLElement>('mark[data-hl="true"]');
+      setMatchTotal(nodes.length);
+      if (matchIdxRef.current >= nodes.length) {
+        matchIdxRef.current = nodes.length > 0 ? 0 : -1;
+        setMatchIdx(0);
+      }
+    }, 80);
+    return () => clearTimeout(t);
+  }, [tab, query, onlyChanges, onlyMatches, leftId, rightId, rows, attsOpen]);
 
   // Keyboard shortcuts inside the dialog: N = next change, P = previous change,
   // Esc = clear search (only when search has a value; otherwise let the dialog close).

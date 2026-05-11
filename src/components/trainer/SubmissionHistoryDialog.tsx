@@ -247,6 +247,10 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const [leftId, setLeftId] = useState<string>("");
   const [rightId, setRightId] = useState<string>("");
   const [onlyChanges, setOnlyChanges] = useState(false);
+  const [query, setQuery] = useState("");
+  const [attsOpen, setAttsOpen] = useState(true);
+  const [changeIdx, setChangeIdx] = useState(0);
+  const [changeTotal, setChangeTotal] = useState(0);
   const compareRef = useRef<HTMLDivElement | null>(null);
   const changeIdxRef = useRef<number>(-1);
 

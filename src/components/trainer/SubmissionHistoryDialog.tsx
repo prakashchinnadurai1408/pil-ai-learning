@@ -275,12 +275,17 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const [leftId, setLeftId] = useState<string>("");
   const [rightId, setRightId] = useState<string>("");
   const [onlyChanges, setOnlyChanges] = useState(false);
+  const [onlyMatches, setOnlyMatches] = useState(false);
   const [query, setQuery] = useState("");
   const [attsOpen, setAttsOpen] = useState(true);
   const [changeIdx, setChangeIdx] = useState(0);
   const [changeTotal, setChangeTotal] = useState(0);
+  const [matchIdx, setMatchIdx] = useState(0);
+  const [matchTotal, setMatchTotal] = useState(0);
+  const [linkCopied, setLinkCopied] = useState(false);
   const compareRef = useRef<HTMLDivElement | null>(null);
   const changeIdxRef = useRef<number>(-1);
+  const matchIdxRef = useRef<number>(-1);
 
   // Restore persisted selections (URL > localStorage) when dialog opens.
   useEffect(() => {

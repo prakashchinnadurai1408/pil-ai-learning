@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Activity, GitCompare, Paperclip, MessageSquare, Users, Pin, RotateCcw, StickyNote, X, Download, AlertTriangle, Minimize2, Maximize2 } from "lucide-react";
+import { Loader2, Activity, GitCompare, Paperclip, MessageSquare, Users, Pin, RotateCcw, StickyNote, X, Download, AlertTriangle, Minimize2, Maximize2, History, Trash2, RefreshCw } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -79,24 +79,33 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
 
-  // Export progress + cancellation + background mode
+  // Background export jobs (server-side, durable across refreshes)
   const HARD_MAX = 20000;
   type Cursor = { createdAt: string; id: string };
-  const [exportState, setExportState] = useState<{
-    open: boolean;
-    minimized: boolean;
+  type ExportJob = {
+    id: string;
     format: "csv" | "pdf";
-    loaded: number;
-    pages: number;
-    phase: "fetching" | "rendering" | "done" | "canceled" | "error";
-    jobLabel?: string;
-  } | null>(null);
-  const exportCancelRef = useRef(false);
-  const [resumeOffer, setResumeOffer] = useState<{
-    format: "csv" | "pdf";
-    cursor: Cursor;
-    previousCount: number;
-  } | null>(null);
+    status: "queued" | "running" | "done" | "canceled" | "error";
+    rows_fetched: number;
+    pages_fetched: number;
+    estimated_total: number;
+    hard_max: number;
+    will_truncate: boolean;
+    cancel_requested: boolean;
+    error_message: string;
+    file_path: string;
+    file_size_bytes: number;
+    format_downgraded: boolean;
+    cursor_created_at: string | null;
+    cursor_id: string | null;
+    job_label: string;
+    created_at: string;
+    completed_at: string | null;
+  };
+  const [exportJobs, setExportJobs] = useState<ExportJob[]>([]);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [activeMinimized, setActiveMinimized] = useState(false);
+  const [showJobsPanel, setShowJobsPanel] = useState(false);
   const [estimate, setEstimate] = useState<{
     format: "csv" | "pdf";
     loading: boolean;
@@ -105,7 +114,15 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
     error?: string;
     startCursor?: Cursor;
     jobLabel?: string;
+    parentJobId?: string;
   } | null>(null);
+  const [resumeOffer, setResumeOffer] = useState<{
+    format: "csv" | "pdf";
+    cursor: Cursor;
+    previousCount: number;
+    parentJobId: string;
+  } | null>(null);
+  const dismissedResumeRef = useRef<Set<string>>(new Set());
 
 
   const sidsKey = studentIds.join(",");
@@ -312,25 +329,71 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
 
   const filtersStamp = `${days}d_${fCurriculum}_${fStudent}_${fStatus}_${fActorRole}_${search || "all"}`.replace(/[^\w-]+/g, "-").slice(0, 80);
 
-  // Pull the full filtered window straight from Supabase using stable keyset
-  // pagination on (created_at desc, id desc). Avoids missing/duplicating rows
-  // when offset windows shift, and lets resume jobs continue exactly where
-  // the previous one stopped.
-  const buildBaseQuery = (sinceIso: string) => {
-    let q = supabase
-      .from("curriculum_submission_history")
-      .select("id, created_at, submission_id, curriculum_id, student_id, student_name, kind, status, version_number, attachment_name, attachment_url, trainer_feedback, notes, score, max_score, actor_role, actor_name")
-      .in("student_id", studentIds)
-      .gte("created_at", sinceIso);
-    if (fCurriculum !== ALL) q = q.eq("curriculum_id", fCurriculum);
-    if (fStudent !== ALL) q = q.eq("student_id", fStudent);
-    if (fStatus !== ALL) q = q.ilike("status", fStatus);
-    if (fActorRole !== ALL) q = q.ilike("actor_role", fActorRole);
-    return q;
-  };
+  // (Server-side keyset pagination, estimator, and job lifecycle live below.)
+
+
+  // ---------- Server-side background export jobs ----------
+
+  const reloadJobs = useCallback(async () => {
+    if (!trainerId || !trainerEmail) { setExportJobs([]); return; }
+    const { data, error } = await supabase.rpc("list_trainer_export_jobs", {
+      _trainer_id: trainerId, _email: trainerEmail, _limit: 10,
+    });
+    if (error) { console.warn("list jobs", error); return; }
+    setExportJobs((data as any[]) || []);
+  }, [trainerId, trainerEmail]);
+
+  useEffect(() => { reloadJobs(); }, [reloadJobs]);
+
+  // Realtime: subscribe to all of this trainer's export job rows.
+  useEffect(() => {
+    if (!trainerEmail) return;
+    const channel = supabase
+      .channel(`trainer_export_jobs:${trainerEmail}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "trainer_export_jobs", filter: `trainer_email=eq.${trainerEmail.toLowerCase()}` },
+        (payload) => {
+          const newRow = payload.new as ExportJob | undefined;
+          const oldRow = payload.old as ExportJob | undefined;
+          setExportJobs((prev) => {
+            if (payload.eventType === "DELETE") {
+              return prev.filter((j) => j.id !== oldRow?.id);
+            }
+            if (!newRow) return prev;
+            const idx = prev.findIndex((j) => j.id === newRow.id);
+            if (idx === -1) return [newRow, ...prev].slice(0, 10);
+            const next = prev.slice();
+            next[idx] = { ...next[idx], ...newRow };
+            return next;
+          });
+          // When a job finishes truncated, surface the resume offer (once per job).
+          if (newRow && newRow.status === "done" && newRow.will_truncate
+              && newRow.cursor_created_at && newRow.cursor_id
+              && !dismissedResumeRef.current.has(newRow.id)) {
+            setResumeOffer({
+              format: newRow.format,
+              cursor: { createdAt: newRow.cursor_created_at, id: newRow.cursor_id },
+              previousCount: newRow.rows_fetched,
+              parentJobId: newRow.id,
+            });
+          }
+          if (newRow && newRow.status === "done" && newRow.id === activeJobId) {
+            toast.success(`Export ready · ${newRow.rows_fetched.toLocaleString()} rows`, {
+              description: "Click Download in the export panel.",
+            });
+          }
+          if (newRow && newRow.status === "error" && newRow.id === activeJobId) {
+            toast.error(`Export failed: ${newRow.error_message || "unknown"}`);
+          }
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [trainerEmail, activeJobId]);
 
   // Pre-export estimator: counts rows server-side without fetching them.
-  const estimateRowCount = async (): Promise<number | null> => {
+  const estimateRowCount = async (startCursor?: Cursor): Promise<number | null> => {
     if (!studentIds.length) return 0;
     const since = new Date(Date.now() - days * 86400000).toISOString();
     let q = supabase
@@ -342,187 +405,136 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
     if (fStudent !== ALL) q = q.eq("student_id", fStudent);
     if (fStatus !== ALL) q = q.ilike("status", fStatus);
     if (fActorRole !== ALL) q = q.ilike("actor_role", fActorRole);
+    if (startCursor) {
+      q = q.or(`created_at.lt.${startCursor.createdAt},and(created_at.eq.${startCursor.createdAt},id.lt.${startCursor.id})`);
+    }
     const { count, error } = await q;
     if (error) throw error;
     return count ?? 0;
   };
 
-  const fetchAllFiltered = async (opts: {
-    onProgress?: (loaded: number, pages: number) => void;
-    isCanceled?: () => boolean;
-    startCursor?: Cursor;
-    maxRows?: number;
-  } = {}): Promise<{ rows: any[]; truncated: boolean; lastCursor: Cursor | null; canceled: boolean }> => {
-    if (!studentIds.length) return { rows: [], truncated: false, lastCursor: null, canceled: false };
-    const since = new Date(Date.now() - days * 86400000).toISOString();
-    const PAGE = 1000;
-    const cap = opts.maxRows ?? HARD_MAX;
-    const out: any[] = [];
-    let cursor: Cursor | undefined = opts.startCursor;
-    let pages = 0;
-    let truncated = false;
-    while (out.length < cap) {
-      if (opts.isCanceled?.()) {
-        return { rows: out, truncated: false, lastCursor: cursor ?? null, canceled: true };
-      }
-      let q = buildBaseQuery(since);
-      if (cursor) {
-        // Strict keyset filter: rows strictly older than cursor (by created_at, then id).
-        q = q.or(
-          `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`,
-        );
-      }
-      const { data, error } = await q
-        .order("created_at", { ascending: false })
-        .order("id", { ascending: false })
-        .limit(PAGE);
-      if (error) throw error;
-      const batch = (data as any[]) || [];
-      out.push(...batch);
-      pages += 1;
-      opts.onProgress?.(out.length, pages);
-      if (batch.length < PAGE) break;
-      const last = batch[batch.length - 1];
-      cursor = { createdAt: last.created_at, id: last.id };
-      if (out.length >= cap) { truncated = true; break; }
-    }
-    const lastRow = out[out.length - 1];
-    const lastCursor: Cursor | null = lastRow ? { createdAt: lastRow.created_at, id: lastRow.id } : (cursor ?? null);
-    // Apply the same client-side text search the table uses
-    const q = search.trim().toLowerCase();
-    const enrichedAll = out.map((r) => ({
-      ...r,
-      student_name: r.student_name || studentNameById[r.student_id] || subs[r.submission_id]?.student_name || "Student",
-      attCount: countAtts(r.attachment_name),
-      pinned: !!pinIdMap[r.id],
-    }));
-    const finalRows = !q ? enrichedAll : enrichedAll.filter((r) =>
-      r.student_name.toLowerCase().includes(q) ||
-      (r.attachment_name || "").toLowerCase().includes(q) ||
-      (r.actor_name || "").toLowerCase().includes(q) ||
-      (r.curriculum_id || "").toLowerCase().includes(q) ||
-      (r.notes || "").toLowerCase().includes(q),
-    );
-    return { rows: finalRows, truncated, lastCursor, canceled: false };
-  };
-
-  const buildCsv = (rowsAll: any[]) => {
-    const header = ["created_at", "student_id", "student_name", "curriculum_id", "submission_id", "kind", "version_number", "attachments", "status", "actor_role", "actor_name", "trainer_feedback", "notes", "pinned"];
-    const lines = [header.join(",")].concat(rowsAll.map((r) => [
-      r.created_at, r.student_id, r.student_name, r.curriculum_id, r.submission_id,
-      r.kind, r.version_number ?? "", r.attCount, r.status, r.actor_role, r.actor_name,
-      (r.trainer_feedback || "").replace(/\n/g, " "), (r.notes || "").replace(/\n/g, " "), r.pinned ? "yes" : "",
-    ].map(csvCell).join(",")));
-    return lines.join("\n");
-  };
-
-  const buildPdf = async (rowsAll: any[], suffix: string) => {
-    const [{ default: jsPDF }, autoTableMod] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
-    const autoTable = (autoTableMod as any).default || (autoTableMod as any);
-    const doc = new jsPDF({ orientation: "landscape" });
-    doc.setFontSize(14);
-    doc.text(`Submission Diff Events${suffix ? ` · ${suffix}` : ""}`, 14, 14);
-    doc.setFontSize(9);
-    doc.text(
-      `Window: last ${days}d · Curriculum: ${fCurriculum === ALL ? "all" : fCurriculum.slice(0, 8)} · Student: ${fStudent === ALL ? "all" : (studentNameById[fStudent] || fStudent)} · Status: ${fStatus === ALL ? "all" : fStatus} · Actor: ${fActorRole === ALL ? "all" : fActorRole}${search ? ` · Search: "${search}"` : ""}`,
-      14, 20,
-    );
-    doc.text(`${rowsAll.length} rows · exported by ${trainerName} · ${new Date().toLocaleString()}`, 14, 26);
-    autoTable(doc, {
-      startY: 32,
-      head: [["When", "Student", "Curriculum", "Kind", "Ver", "Atts", "Status", "Actor", "Pinned"]],
-      body: rowsAll.map((r) => [
-        new Date(r.created_at).toLocaleString(), r.student_name,
-        (r.curriculum_id || "").slice(0, 8), r.kind, r.version_number ?? "—",
-        r.attCount, r.status || "—", r.actor_name || r.actor_role || "—", r.pinned ? "★" : "",
-      ]),
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [37, 99, 235] },
-    });
-    return doc;
-  };
-
-  const runExport = async (format: "csv" | "pdf", startCursor?: Cursor, jobLabel?: string) => {
-    exportCancelRef.current = false;
-    setExportState({ open: true, minimized: false, format, loaded: 0, pages: 0, phase: "fetching", jobLabel });
-    if (format === "pdf") setExportingPdf(true);
+  const beginExport = async (
+    format: "csv" | "pdf",
+    startCursor?: Cursor,
+    jobLabel?: string,
+    parentJobId?: string,
+  ) => {
+    setEstimate({ format, loading: true, count: null, willTruncate: false, startCursor, jobLabel, parentJobId });
     try {
-      const result = await fetchAllFiltered({
-        startCursor,
-        isCanceled: () => exportCancelRef.current,
-        onProgress: (loaded, pages) =>
-          setExportState((s) => (s ? { ...s, loaded, pages } : s)),
-      });
-      if (result.canceled) {
-        setExportState((s) => (s ? { ...s, phase: "canceled", minimized: false } : s));
-        toast.message("Export canceled", { description: `Stopped after ${result.rows.length} rows.` });
-        return;
-      }
-      setExportState((s) => (s ? { ...s, phase: "rendering", loaded: result.rows.length } : s));
-      const stamp = `${filtersStamp}${jobLabel ? `_${jobLabel}` : ""}`;
-      if (format === "csv") {
-        downloadBlob(`diff-events-${stamp}.csv`, "text/csv;charset=utf-8", buildCsv(result.rows));
-      } else {
-        const doc = await buildPdf(result.rows, jobLabel ? `part ${jobLabel}` : "");
-        doc.save(`diff-events-${stamp}.pdf`);
-      }
-      setExportState((s) => (s ? { ...s, phase: "done", minimized: false } : s));
-      toast.success(`Exported ${result.rows.length} rows to ${format.toUpperCase()}`, {
-        description: jobLabel ? `Job ${jobLabel} complete.` : undefined,
-      });
-      if (result.truncated && result.lastCursor) {
-        setResumeOffer({ format, cursor: result.lastCursor, previousCount: result.rows.length });
-      }
-    } catch (e) {
-      console.error(e);
-      setExportState((s) => (s ? { ...s, phase: "error", minimized: false } : s));
-      toast.error(`${format.toUpperCase()} export failed`);
-    } finally {
-      if (format === "pdf") setExportingPdf(false);
-    }
-  };
-
-  const beginExport = async (format: "csv" | "pdf", startCursor?: Cursor, jobLabel?: string) => {
-    setEstimate({ format, loading: true, count: null, willTruncate: false, startCursor, jobLabel });
-    try {
-      const total = await estimateRowCount();
-      // If resuming, we don't know exactly how many remain, but the cap still applies.
+      const total = await estimateRowCount(startCursor);
       const projected = total ?? 0;
       setEstimate({
-        format,
-        loading: false,
-        count: projected,
+        format, loading: false, count: projected,
         willTruncate: projected > HARD_MAX,
-        startCursor,
-        jobLabel,
+        startCursor, jobLabel, parentJobId,
       });
     } catch (e) {
       console.error(e);
-      setEstimate({ format, loading: false, count: null, willTruncate: false, error: "Could not estimate row count.", startCursor, jobLabel });
+      setEstimate({ format, loading: false, count: null, willTruncate: false,
+        error: "Could not estimate row count.", startCursor, jobLabel, parentJobId });
     }
   };
 
-  const confirmEstimate = () => {
-    if (!estimate) return;
-    const { format, startCursor, jobLabel } = estimate;
+  const confirmEstimate = async () => {
+    if (!estimate || !trainerId || !trainerEmail) { setEstimate(null); return; }
+    const { format, startCursor, jobLabel, parentJobId, count } = estimate;
     setEstimate(null);
-    runExport(format, startCursor, jobLabel);
+
+    const filters = {
+      days,
+      curriculum_id: fCurriculum !== ALL ? fCurriculum : "",
+      student_id: fStudent !== ALL ? fStudent : "",
+      status: fStatus !== ALL ? fStatus : "",
+      actor_role: fActorRole !== ALL ? fActorRole : "",
+    };
+
+    const { data: jobId, error } = await supabase.rpc("create_trainer_export_job", {
+      _trainer_id: trainerId, _email: trainerEmail, _trainer_name: trainerName,
+      _format: format, _filters: filters, _student_ids: studentIds,
+      _estimated_total: count ?? 0, _hard_max: HARD_MAX,
+      _will_truncate: (count ?? 0) > HARD_MAX,
+      _start_cursor_created_at: startCursor?.createdAt ?? null,
+      _start_cursor_id: startCursor?.id ?? null,
+      _job_label: jobLabel ?? "",
+      _parent_job_id: parentJobId ?? null,
+    });
+    if (error || !jobId) {
+      console.error(error);
+      toast.error("Could not queue export job");
+      return;
+    }
+    setActiveJobId(jobId as string);
+    setActiveMinimized(false);
+    setShowJobsPanel(true);
+
+    // Fire-and-forget runner; it returns immediately and processes in background.
+    supabase.functions.invoke("trainer-export-runner", { body: { jobId } })
+      .catch((e) => console.error("invoke runner", e));
+
+    toast.message("Export started in the background", {
+      description: "Safe to refresh or close this tab — you can resume from the Recent exports panel.",
+    });
+    reloadJobs();
   };
 
   const exportCsv = () => beginExport("csv");
   const exportPdf = () => beginExport("pdf");
-  const cancelExport = () => { exportCancelRef.current = true; };
-  const closeExportDialog = () => { exportCancelRef.current = false; setExportState(null); };
-  const minimizeExport = () => setExportState((s) => (s ? { ...s, minimized: true } : s));
-  const restoreExport = () => setExportState((s) => (s ? { ...s, minimized: false } : s));
+
+  const cancelJob = async (jobId: string) => {
+    if (!trainerId || !trainerEmail) return;
+    await supabase.rpc("cancel_trainer_export_job", { _trainer_id: trainerId, _email: trainerEmail, _job_id: jobId });
+    toast.message("Cancellation requested", { description: "The job will stop after the current page." });
+  };
+
+  const downloadJob = async (jobId: string) => {
+    if (!trainerId || !trainerEmail) return;
+    try {
+      const { data, error } = await supabase.functions.invoke("trainer-export-download", {
+        body: { jobId, trainerId, trainerEmail },
+      });
+      if (error) throw error;
+      const url = (data as any)?.url;
+      if (!url) throw new Error("No URL returned");
+      const a = document.createElement("a");
+      a.href = url; a.target = "_blank"; a.rel = "noopener"; a.click();
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not get download link");
+    }
+  };
+
+  const deleteJob = async (jobId: string) => {
+    if (!trainerId || !trainerEmail) return;
+    await supabase.rpc("delete_trainer_export_job", { _trainer_id: trainerId, _email: trainerEmail, _job_id: jobId });
+    setExportJobs((prev) => prev.filter((j) => j.id !== jobId));
+    if (activeJobId === jobId) setActiveJobId(null);
+  };
 
   const runResumeJob = () => {
     if (!resumeOffer) return;
-    const { format, cursor, previousCount } = resumeOffer;
+    const { format, cursor, previousCount, parentJobId } = resumeOffer;
+    dismissedResumeRef.current.add(parentJobId);
     const jobLabel = `continued-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}`;
     setResumeOffer(null);
     toast.message("Starting follow-up export", { description: `Fetching rows older than the previous ${previousCount}.` });
-    beginExport(format, cursor, jobLabel);
+    beginExport(format, cursor, jobLabel, parentJobId);
+  };
+
+  const dismissResumeOffer = () => {
+    if (resumeOffer) dismissedResumeRef.current.add(resumeOffer.parentJobId);
+    setResumeOffer(null);
+  };
+
+  const activeJob = useMemo(
+    () => exportJobs.find((j) => j.id === activeJobId) || null,
+    [exportJobs, activeJobId],
+  );
+  const isJobRunning = (s: string) => s === "queued" || s === "running";
+  const jobProgressPct = (j: ExportJob) => {
+    if (j.status === "done") return 100;
+    const denom = j.estimated_total > 0 ? Math.min(j.estimated_total, j.hard_max) : j.hard_max;
+    if (!denom) return 0;
+    return Math.min(99, Math.round((j.rows_fetched / denom) * 100));
   };
 
 
@@ -840,110 +852,169 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Export progress + cancellation + background mode */}
+      {/* Active job dialog (server-side, durable) */}
       <Dialog
-        open={!!exportState?.open && !exportState?.minimized}
+        open={!!activeJob && !activeMinimized}
         onOpenChange={(o) => {
           if (o) return;
-          // Closing while running = minimize to background. Closing after finish = dismiss.
-          if (exportState?.phase === "fetching" || exportState?.phase === "rendering") {
-            minimizeExport();
-          } else {
-            closeExportDialog();
-          }
+          if (activeJob && isJobRunning(activeJob.status)) setActiveMinimized(true);
+          else setActiveJobId(null);
         }}
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {exportState?.phase === "fetching" && `Preparing ${exportState.format.toUpperCase()} export…`}
-              {exportState?.phase === "rendering" && `Building ${exportState.format.toUpperCase()} file…`}
-              {exportState?.phase === "done" && `Export ready`}
-              {exportState?.phase === "canceled" && `Export canceled`}
-              {exportState?.phase === "error" && `Export failed`}
+              {activeJob?.status === "queued" && `Queued · ${activeJob.format.toUpperCase()} export`}
+              {activeJob?.status === "running" && `Running · ${activeJob.format.toUpperCase()} export`}
+              {activeJob?.status === "done" && `${activeJob.format.toUpperCase()} export ready`}
+              {activeJob?.status === "canceled" && `Export canceled`}
+              {activeJob?.status === "error" && `Export failed`}
             </DialogTitle>
-            <DialogDescription>
-              {exportState?.phase === "fetching"
-                ? `Fetched ${exportState.loaded.toLocaleString()} rows across ${exportState.pages} page${exportState.pages === 1 ? "" : "s"} (cap ${HARD_MAX.toLocaleString()}). You can run this in the background.`
-                : exportState?.phase === "rendering"
-                  ? `Rendering ${exportState.loaded.toLocaleString()} rows…`
-                  : exportState?.phase === "done"
-                    ? `Downloaded ${exportState.loaded.toLocaleString()} rows.`
-                    : exportState?.phase === "canceled"
-                      ? `Stopped after ${exportState.loaded.toLocaleString()} rows. No file was downloaded.`
-                      : "Something went wrong. Check the console and try again."}
+            <DialogDescription asChild>
+              <div className="space-y-1">
+                {activeJob && (
+                  <>
+                    <p>
+                      {activeJob.rows_fetched.toLocaleString()} of ~{Math.min(activeJob.estimated_total || activeJob.hard_max, activeJob.hard_max).toLocaleString()} rows
+                      {" · "}{activeJob.pages_fetched} page{activeJob.pages_fetched === 1 ? "" : "s"}
+                    </p>
+                    {activeJob.will_truncate && (
+                      <p className="flex items-start gap-2 text-warning">
+                        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span>This job is likely to be truncated at the {activeJob.hard_max.toLocaleString()}-row cap. A follow-up will be offered automatically.</span>
+                      </p>
+                    )}
+                    {activeJob.format_downgraded && (
+                      <p className="text-warning">PDF was downgraded to CSV because the dataset is too large to render as a PDF.</p>
+                    )}
+                    {activeJob.status === "error" && (
+                      <p className="text-destructive">{activeJob.error_message || "Unknown error"}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">Runs on the server — safe to refresh or close this tab.</p>
+                  </>
+                )}
+              </div>
             </DialogDescription>
           </DialogHeader>
-          {(exportState?.phase === "fetching" || exportState?.phase === "rendering") && (
-            <Progress
-              value={exportState.phase === "rendering"
-                ? 100
-                : Math.min(99, Math.round((exportState.loaded / HARD_MAX) * 100))}
-            />
+          {activeJob && isJobRunning(activeJob.status) && (
+            <Progress value={jobProgressPct(activeJob)} />
           )}
           <DialogFooter>
-            {(exportState?.phase === "fetching" || exportState?.phase === "rendering") ? (
+            {activeJob && isJobRunning(activeJob.status) ? (
               <>
-                <Button variant="outline" onClick={minimizeExport}>
+                <Button variant="outline" onClick={() => setActiveMinimized(true)}>
                   <Minimize2 className="h-3.5 w-3.5 mr-1" />Run in background
                 </Button>
-                <Button variant="destructive" onClick={cancelExport}>
+                <Button variant="destructive" onClick={() => cancelJob(activeJob.id)} disabled={activeJob.cancel_requested}>
                   <X className="h-3.5 w-3.5 mr-1" />Cancel
                 </Button>
               </>
+            ) : activeJob?.status === "done" ? (
+              <>
+                <Button variant="outline" onClick={() => setActiveJobId(null)}>Close</Button>
+                <Button onClick={() => downloadJob(activeJob.id)}>
+                  <Download className="h-3.5 w-3.5 mr-1" />Download
+                </Button>
+              </>
             ) : (
-              <Button onClick={closeExportDialog}>Close</Button>
+              <Button onClick={() => setActiveJobId(null)}>Close</Button>
             )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Floating background-job chip when minimized */}
-      {exportState && exportState.minimized && (
+      {activeJob && activeMinimized && (
         <div className="fixed bottom-4 right-4 z-50 w-72 bg-card border border-border shadow-lg rounded-lg p-3 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm font-medium text-card-foreground">
-              {exportState.phase === "fetching" || exportState.phase === "rendering" ? (
+              {isJobRunning(activeJob.status) ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
               ) : (
                 <Download className="h-3.5 w-3.5 text-success" />
               )}
               <span>
-                {exportState.phase === "fetching" && `Exporting ${exportState.format.toUpperCase()}…`}
-                {exportState.phase === "rendering" && `Building ${exportState.format.toUpperCase()}…`}
-                {exportState.phase === "done" && `${exportState.format.toUpperCase()} ready`}
-                {exportState.phase === "canceled" && `Canceled`}
-                {exportState.phase === "error" && `Failed`}
+                {activeJob.status === "queued" && `Queued ${activeJob.format.toUpperCase()}…`}
+                {activeJob.status === "running" && `Exporting ${activeJob.format.toUpperCase()}…`}
+                {activeJob.status === "done" && `${activeJob.format.toUpperCase()} ready`}
+                {activeJob.status === "canceled" && `Canceled`}
+                {activeJob.status === "error" && `Failed`}
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={restoreExport} title="Restore">
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setActiveMinimized(false)} title="Restore">
                 <Maximize2 className="h-3 w-3" />
               </Button>
-              {(exportState.phase === "fetching" || exportState.phase === "rendering") ? (
-                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={cancelExport} title="Cancel">
-                  <X className="h-3 w-3" />
-                </Button>
-              ) : (
-                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={closeExportDialog} title="Dismiss">
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setActiveJobId(null)} title="Dismiss">
+                <X className="h-3 w-3" />
+              </Button>
             </div>
           </div>
-          <Progress
-            value={exportState.phase === "rendering" || exportState.phase === "done"
-              ? 100
-              : Math.min(99, Math.round((exportState.loaded / HARD_MAX) * 100))}
-          />
+          <Progress value={jobProgressPct(activeJob)} />
           <p className="text-[11px] text-muted-foreground">
-            {exportState.loaded.toLocaleString()} rows · {exportState.pages} page{exportState.pages === 1 ? "" : "s"}
+            {activeJob.rows_fetched.toLocaleString()} / ~{Math.min(activeJob.estimated_total || activeJob.hard_max, activeJob.hard_max).toLocaleString()} rows · {activeJob.pages_fetched} pg
+            {activeJob.will_truncate ? " · may truncate" : ""}
           </p>
         </div>
       )}
 
+      {/* Recent exports panel */}
+      <Dialog open={showJobsPanel} onOpenChange={setShowJobsPanel}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><History className="h-4 w-4" /> Recent exports</DialogTitle>
+            <DialogDescription>Background jobs persist across refreshes. Files are kept for 7 days.</DialogDescription>
+          </DialogHeader>
+          {exportJobs.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">No export jobs yet.</p>
+          ) : (
+            <div className="divide-y divide-border max-h-[60vh] overflow-y-auto">
+              {exportJobs.map((j) => (
+                <div key={j.id} className="py-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge variant="outline">{j.format.toUpperCase()}</Badge>
+                      <Badge variant={j.status === "done" ? "default" : j.status === "error" ? "destructive" : "secondary"}>{j.status}</Badge>
+                      {j.will_truncate && <Badge variant="outline" className="text-warning border-warning/40">truncated</Badge>}
+                      {j.format_downgraded && <Badge variant="outline">PDF→CSV</Badge>}
+                      <span className="text-xs text-muted-foreground">{new Date(j.created_at).toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {j.status === "done" && (
+                        <Button size="sm" variant="outline" onClick={() => downloadJob(j.id)}>
+                          <Download className="h-3.5 w-3.5 mr-1" />Download
+                        </Button>
+                      )}
+                      {isJobRunning(j.status) && (
+                        <Button size="sm" variant="ghost" onClick={() => cancelJob(j.id)} disabled={j.cancel_requested}>
+                          <X className="h-3.5 w-3.5 mr-1" />Cancel
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => { setActiveJobId(j.id); setActiveMinimized(false); }}>Open</Button>
+                      <Button size="sm" variant="ghost" onClick={() => deleteJob(j.id)} title="Delete">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  <Progress value={jobProgressPct(j)} />
+                  <p className="text-[11px] text-muted-foreground">
+                    {j.rows_fetched.toLocaleString()} / ~{Math.min(j.estimated_total || j.hard_max, j.hard_max).toLocaleString()} rows
+                    {" · "}{j.pages_fetched} pages
+                    {j.error_message ? ` · ${j.error_message}` : ""}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={reloadJobs}><RefreshCw className="h-3.5 w-3.5 mr-1" />Refresh</Button>
+            <Button onClick={() => setShowJobsPanel(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Resume offer when HARD_MAX is reached */}
-      <AlertDialog open={!!resumeOffer} onOpenChange={(o) => { if (!o) setResumeOffer(null); }}>
+      <AlertDialog open={!!resumeOffer} onOpenChange={(o) => { if (!o) dismissResumeOffer(); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
@@ -960,13 +1031,14 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Skip</AlertDialogCancel>
+            <AlertDialogCancel onClick={dismissResumeOffer}>Skip</AlertDialogCancel>
             <AlertDialogAction onClick={(e) => { e.preventDefault(); runResumeJob(); }}>
               Export remaining rows
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
     </div>
   );
 };

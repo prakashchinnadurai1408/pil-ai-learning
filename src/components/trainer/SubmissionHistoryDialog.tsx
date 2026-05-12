@@ -500,6 +500,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     if (!query) {
       pendingMatchRef.current = null;
       setRestoringMatch(false);
+      try { if (submission) sessionStorage.removeItem(PENDING_HIST_M_KEY(submission.id)); } catch { /* ignore */ }
       return;
     }
     const root = compareRef.current;
@@ -508,27 +509,59 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       const nodes = root.querySelectorAll<HTMLElement>('mark[data-hl="true"]');
       if (nodes.length === 0) return;
       let idx: number;
+      let clampedDuringRestore = false;
       if (pendingMatchRef.current != null) {
         const requested = pendingMatchRef.current;
         idx = Math.min(Math.max(0, requested), nodes.length - 1);
-        // Surface a subtle hint when the shared link asked for an index that
-        // was out-of-range and we had to clamp it.
-        if (requested !== idx) setClampedFrom(requested);
+        if (requested !== idx) {
+          clampedDuringRestore = true;
+          setClampedFrom(requested);
+          emitDiffEvent("diff_link_clamped", {
+            requested,
+            clampedTo: idx,
+            available: nodes.length,
+            source: "scroll",
+            submissionId: submission?.id,
+          });
+        }
         pendingMatchRef.current = null;
+        try { if (submission) sessionStorage.removeItem(PENDING_HIST_M_KEY(submission.id)); } catch { /* ignore */ }
       } else {
         idx = 0;
       }
       matchIdxRef.current = idx;
       setMatchIdx(idx);
       setMatchTotal(nodes.length);
-      setRestoringMatch(false);
       const target = nodes[idx];
       target.scrollIntoView({ block: "center", behavior: "smooth" });
       target.classList.add("ring-2", "ring-primary");
       setTimeout(() => target.classList.remove("ring-2", "ring-primary"), 1500);
+
+      // Turn off the "Jumping to shared match…" hint precisely when the
+      // target enters the viewport rather than after a fixed delay.
+      if (restoringMatch || clampedDuringRestore) {
+        let cleared = false;
+        const finish = () => {
+          if (cleared) return;
+          cleared = true;
+          setRestoringMatch(false);
+          focusMatchNode(target);
+          io.disconnect();
+        };
+        const io = new IntersectionObserver((entries) => {
+          if (entries.some((e) => e.isIntersecting)) finish();
+        }, { threshold: 0.4 });
+        io.observe(target);
+        // Hard fallback in case IO never fires (e.g. element hidden by
+        // collapsing parent).
+        window.setTimeout(finish, 1500);
+      } else {
+        // Manual jump (typing) — still move focus for keyboard users.
+        focusMatchNode(target);
+      }
     }, 500);
     return () => clearTimeout(t);
-  }, [query, onlyMatches, tab, leftId, rightId, rows]);
+  }, [query, onlyMatches, tab, leftId, rightId, rows, submission, restoringMatch]);
 
   // Keyboard shortcuts inside the dialog: N = next change, P = previous change,
   // Esc = clear search (only when search has a value; otherwise let the dialog close).

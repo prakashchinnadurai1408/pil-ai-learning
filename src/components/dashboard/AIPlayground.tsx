@@ -55,6 +55,7 @@ const AIPlayground = () => {
   const [lang, setLang] = useState<LanguageCode>("en-IN");
   const [lastError, setLastError] = useState<string | null>(null);
   const [lastFailedPrompt, setLastFailedPrompt] = useState<string | null>(null);
+  const [streamStatus, setStreamStatus] = useState<"idle" | "streaming" | "completed" | "failed">("idle");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [studentCtx, setStudentCtx] = useState<Record<string, any> | undefined>(undefined);
 
@@ -137,6 +138,7 @@ const AIPlayground = () => {
     setIsLoading(true);
     setLastError(null);
     setLastFailedPrompt(null);
+    setStreamStatus("streaming");
     // Onboarding: mark first AI chat
     import("./OnboardingChecklist").then(({ markFirstAiChat }) => markFirstAiChat()).catch(() => {});
 
@@ -175,6 +177,7 @@ const AIPlayground = () => {
         },
         onDone: () => {
           setIsLoading(false);
+          setStreamStatus("completed");
           if (!assistantSoFar.trim()) {
             setMessages(prev => {
               const last = prev[prev.length - 1];
@@ -189,6 +192,7 @@ const AIPlayground = () => {
     } catch (e) {
       console.error(e);
       setIsLoading(false);
+      setStreamStatus("failed");
       const errorMessage = e instanceof Error && e.message.includes("Rate limit")
         ? "⏳ Too many requests — please wait a moment and try again."
         : e instanceof Error && e.message.includes("usage limit")
@@ -222,7 +226,28 @@ const AIPlayground = () => {
             <Sparkles className="h-4 w-4 text-primary-foreground" aria-hidden="true" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-display font-semibold text-card-foreground text-sm sm:text-base truncate">Prakash — AI Coach</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-display font-semibold text-card-foreground text-sm sm:text-base truncate">Prakash — AI Coach</h3>
+              {streamStatus !== "idle" && (
+                <span
+                  className={
+                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border " +
+                    (streamStatus === "streaming"
+                      ? "bg-primary/10 text-primary border-primary/30"
+                      : streamStatus === "completed"
+                      ? "bg-success/10 text-success border-success/30"
+                      : "bg-destructive/10 text-destructive border-destructive/30")
+                  }
+                  role="status"
+                  aria-live="polite"
+                >
+                  {streamStatus === "streaming" && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" aria-hidden="true" />
+                  )}
+                  {streamStatus === "streaming" ? "Streaming…" : streamStatus === "completed" ? "Completed" : "Failed"}
+                </span>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground truncate hidden sm:block">Multilingual AI coach with voice — remembers your conversation</p>
           </div>
         </div>

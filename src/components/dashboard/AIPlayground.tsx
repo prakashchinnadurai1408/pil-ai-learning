@@ -194,10 +194,25 @@ const AIPlayground = () => {
         : e instanceof Error && e.message.includes("usage limit")
         ? "💳 AI usage limit reached. Please try again later."
         : FALLBACK_ERROR;
-      setMessages(prev => [...prev, { role: "assistant", content: `⚠️ ${errorMessage}` }]);
+      setLastError(errorMessage);
+      setLastFailedPrompt(trimmedMsg);
+      // Drop the optimistically-appended user message so Retry doesn't duplicate it.
+      setMessages(prev => (prev[prev.length - 1]?.role === "user" && prev[prev.length - 1].content === trimmedMsg ? prev.slice(0, -1) : prev));
       toast.error("AI service temporarily unavailable", { duration: 3000 });
     }
-  }, [input, isLoading, messages, lang]);
+  }, [input, isLoading, messages, lang, studentCtx]);
+
+  const retryLast = useCallback(() => {
+    if (lastFailedPrompt) handleSend(lastFailedPrompt);
+  }, [lastFailedPrompt, handleSend]);
+
+  const clearConversation = useCallback(() => {
+    setMessages([INITIAL_GREETING]);
+    setLastError(null);
+    setLastFailedPrompt(null);
+    try { localStorage.removeItem(storageKey); } catch { /* ignore */ }
+    toast.success("Conversation cleared");
+  }, [storageKey]);
 
   return (
     <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden w-full max-w-full" role="region" aria-label="AI Chat Playground">

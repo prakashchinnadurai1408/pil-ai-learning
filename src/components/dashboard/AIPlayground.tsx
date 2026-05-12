@@ -177,6 +177,7 @@ const AIPlayground = () => {
         },
         onDone: () => {
           setIsLoading(false);
+          setStreamStatus("completed");
           if (!assistantSoFar.trim()) {
             setMessages(prev => {
               const last = prev[prev.length - 1];
@@ -191,6 +192,7 @@ const AIPlayground = () => {
     } catch (e) {
       console.error(e);
       setIsLoading(false);
+      setStreamStatus("failed");
       const errorMessage = e instanceof Error && e.message.includes("Rate limit")
         ? "⏳ Too many requests — please wait a moment and try again."
         : e instanceof Error && e.message.includes("usage limit")

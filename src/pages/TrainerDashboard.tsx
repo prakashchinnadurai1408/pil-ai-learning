@@ -44,6 +44,7 @@ const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytic
 const ModuleGroupsManager = lazy(() => import("@/components/admin/ModuleGroupsManager"));
 const TrainerCurriculumBuilder = lazy(() => import("@/components/trainer/TrainerCurriculumBuilder"));
 const CurriculumAssignmentAnalytics = lazy(() => import("@/components/trainer/CurriculumAssignmentAnalytics"));
+const TrainerDiffAnalytics = lazy(() => import("@/components/trainer/TrainerDiffAnalytics"));
 import AssignProjectDialog from "@/components/shared/AssignProjectDialog";
 import TrainerUpgradeDialog from "@/components/trainer/TrainerUpgradeDialog";
 

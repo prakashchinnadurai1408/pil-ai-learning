@@ -13,6 +13,42 @@ import { toast } from "@/hooks/use-toast";
 
 type AnySubmission = { id: string; student_name?: string } | null;
 
+// Lightweight analytics emitter — broadcasts diff/match events on the window so
+// the host app (or future telemetry hook) can listen without coupling.
+const emitDiffEvent = (event: string, detail: Record<string, any> = {}) => {
+  try {
+    const payload = { event, ts: Date.now(), ...detail };
+    if (typeof window !== "undefined") {
+      (window as any).__diffAnalytics = (window as any).__diffAnalytics || [];
+      (window as any).__diffAnalytics.push(payload);
+      window.dispatchEvent(new CustomEvent("diff:analytics", { detail: payload }));
+    }
+    // eslint-disable-next-line no-console
+    console.debug("[diff-analytics]", event, detail);
+  } catch { /* ignore */ }
+};
+
+// Move keyboard focus to the active match. For attachment-rooted matches we
+// also focus the surrounding attachment row (when discoverable) so screen
+// readers announce the parent context.
+const focusMatchNode = (node: HTMLElement) => {
+  try {
+    if (!node.hasAttribute("tabindex")) node.setAttribute("tabindex", "-1");
+    node.focus({ preventScroll: true });
+    const att = node.closest<HTMLElement>('[data-attachment-item="true"], [data-attachment-row="true"]');
+    if (att) {
+      if (!att.hasAttribute("tabindex")) att.setAttribute("tabindex", "-1");
+      att.setAttribute("aria-current", "true");
+      window.setTimeout(() => att.removeAttribute("aria-current"), 1500);
+    }
+  } catch { /* ignore */ }
+};
+
+// Persisted pending histM key — survives re-renders / brief unmounts while we
+// wait for slow-loading rows to render the requested match.
+const PENDING_HIST_M_KEY = (id: string) => `histM:pending:${id}`;
+
+
 type HistoryRow = {
   id: string;
   submission_id: string;
@@ -326,18 +362,29 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       const om = urlOnlyM != null ? urlOnlyM === "1" : stored?.onlyMatches;
       if (typeof om === "boolean") setOnlyMatches(om);
       const mi = params.get("histM");
+      let pendingFromUrl: number | null = null;
       if (mi != null) {
         const n = parseInt(mi, 10);
-        if (Number.isFinite(n) && n >= 0) {
-          // Defer the actual scroll/clamp until matches have rendered so the
-          // index can be clamped against the real number of matches.
-          pendingMatchRef.current = n;
-          matchIdxRef.current = n;
-          setMatchIdx(n);
-          // Flip a brief loading state so the UI tells the user we're waiting
-          // for rows / matches before scrolling.
-          setRestoringMatch(true);
-        }
+        if (Number.isFinite(n) && n >= 0) pendingFromUrl = n;
+      }
+      // Persistence: if the URL didn't carry histM but a previous render saved
+      // a pending value (slow load), restore it so we keep trying until the
+      // match actually highlights.
+      if (pendingFromUrl == null) {
+        try {
+          const saved = sessionStorage.getItem(PENDING_HIST_M_KEY(submission.id));
+          if (saved != null) {
+            const sv = parseInt(saved, 10);
+            if (Number.isFinite(sv) && sv >= 0) pendingFromUrl = sv;
+          }
+        } catch { /* ignore */ }
+      }
+      if (pendingFromUrl != null) {
+        pendingMatchRef.current = pendingFromUrl;
+        matchIdxRef.current = pendingFromUrl;
+        setMatchIdx(pendingFromUrl);
+        setRestoringMatch(true);
+        try { sessionStorage.setItem(PENDING_HIST_M_KEY(submission.id), String(pendingFromUrl)); } catch { /* ignore */ }
       }
     } catch { /* ignore */ }
   }, [submission]);
@@ -428,9 +475,17 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       } else if (matchIdxRef.current >= nodes.length) {
         // Capture the originally-requested index so we can surface a subtle
         // "Adjusted to nearest match" hint to the user.
-        setClampedFrom(matchIdxRef.current);
+        const requested = matchIdxRef.current;
+        setClampedFrom(requested);
         matchIdxRef.current = nodes.length - 1;
         setMatchIdx(nodes.length - 1);
+        emitDiffEvent("diff_link_clamped", {
+          requested,
+          clampedTo: nodes.length - 1,
+          available: nodes.length,
+          source: "recount",
+          submissionId: submission?.id,
+        });
       }
     }, 80);
     return () => clearTimeout(t);
@@ -445,6 +500,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     if (!query) {
       pendingMatchRef.current = null;
       setRestoringMatch(false);
+      try { if (submission) sessionStorage.removeItem(PENDING_HIST_M_KEY(submission.id)); } catch { /* ignore */ }
       return;
     }
     const root = compareRef.current;
@@ -453,27 +509,59 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       const nodes = root.querySelectorAll<HTMLElement>('mark[data-hl="true"]');
       if (nodes.length === 0) return;
       let idx: number;
+      let clampedDuringRestore = false;
       if (pendingMatchRef.current != null) {
         const requested = pendingMatchRef.current;
         idx = Math.min(Math.max(0, requested), nodes.length - 1);
-        // Surface a subtle hint when the shared link asked for an index that
-        // was out-of-range and we had to clamp it.
-        if (requested !== idx) setClampedFrom(requested);
+        if (requested !== idx) {
+          clampedDuringRestore = true;
+          setClampedFrom(requested);
+          emitDiffEvent("diff_link_clamped", {
+            requested,
+            clampedTo: idx,
+            available: nodes.length,
+            source: "scroll",
+            submissionId: submission?.id,
+          });
+        }
         pendingMatchRef.current = null;
+        try { if (submission) sessionStorage.removeItem(PENDING_HIST_M_KEY(submission.id)); } catch { /* ignore */ }
       } else {
         idx = 0;
       }
       matchIdxRef.current = idx;
       setMatchIdx(idx);
       setMatchTotal(nodes.length);
-      setRestoringMatch(false);
       const target = nodes[idx];
       target.scrollIntoView({ block: "center", behavior: "smooth" });
       target.classList.add("ring-2", "ring-primary");
       setTimeout(() => target.classList.remove("ring-2", "ring-primary"), 1500);
+
+      // Turn off the "Jumping to shared match…" hint precisely when the
+      // target enters the viewport rather than after a fixed delay.
+      if (restoringMatch || clampedDuringRestore) {
+        let cleared = false;
+        const finish = () => {
+          if (cleared) return;
+          cleared = true;
+          setRestoringMatch(false);
+          focusMatchNode(target);
+          io.disconnect();
+        };
+        const io = new IntersectionObserver((entries) => {
+          if (entries.some((e) => e.isIntersecting)) finish();
+        }, { threshold: 0.4 });
+        io.observe(target);
+        // Hard fallback in case IO never fires (e.g. element hidden by
+        // collapsing parent).
+        window.setTimeout(finish, 1500);
+      } else {
+        // Manual jump (typing) — still move focus for keyboard users.
+        focusMatchNode(target);
+      }
     }, 500);
     return () => clearTimeout(t);
-  }, [query, onlyMatches, tab, leftId, rightId, rows]);
+  }, [query, onlyMatches, tab, leftId, rightId, rows, submission, restoringMatch]);
 
   // Keyboard shortcuts inside the dialog: N = next change, P = previous change,
   // Esc = clear search (only when search has a value; otherwise let the dialog close).
@@ -512,15 +600,19 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
             const all = Array.from(root2.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
             if (all.length === 0) return;
             const dir2: 1 | -1 = (e.key === "P" || e.key === "p") ? -1 : 1;
-            let nx = matchIdxRef.current + dir2;
-            if (nx < 0) nx = all.length - 1;
-            if (nx >= all.length) nx = 0;
+            const prev2 = matchIdxRef.current;
+            let nx = prev2 + dir2;
+            let wrapped2 = false;
+            if (nx < 0) { nx = all.length - 1; wrapped2 = true; }
+            if (nx >= all.length) { nx = 0; wrapped2 = true; }
             matchIdxRef.current = nx;
             setMatchIdx(nx);
             setMatchTotal(all.length);
             all[nx].scrollIntoView({ block: "center", behavior: "smooth" });
             all.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
             all[nx].classList.add("ring-2", "ring-primary");
+            focusMatchNode(all[nx]);
+            if (wrapped2) emitDiffEvent("diff_match_wraparound", { from: prev2, to: nx, total: all.length, source: "keyboard", attsAutoExpanded: true, submissionId: submission?.id });
           });
           e.preventDefault();
           return;
@@ -528,14 +620,18 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
         const matchNodes = Array.from(root.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
         if (matchNodes.length === 0) return;
         const dir: 1 | -1 = (e.key === "P" || e.key === "p") ? -1 : 1;
-        let next = matchIdxRef.current + dir;
-        if (next < 0) next = matchNodes.length - 1;
-        if (next >= matchNodes.length) next = 0;
+        const prev = matchIdxRef.current;
+        let next = prev + dir;
+        let wrapped = false;
+        if (next < 0) { next = matchNodes.length - 1; wrapped = true; }
+        if (next >= matchNodes.length) { next = 0; wrapped = true; }
         matchIdxRef.current = next;
         setMatchIdx(next);
         matchNodes[next].scrollIntoView({ block: "center", behavior: "smooth" });
         matchNodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
         matchNodes[next].classList.add("ring-2", "ring-primary");
+        focusMatchNode(matchNodes[next]);
+        if (wrapped) emitDiffEvent("diff_match_wraparound", { from: prev, to: next, total: matchNodes.length, source: "keyboard", submissionId: submission?.id });
         e.preventDefault();
         return;
       }
@@ -565,6 +661,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       const url = new URL(window.location.href);
       ["histTab", "histLeft", "histRight", "histOnly", "histQ", "histAtts", "histOnlyM", "histM"].forEach((k) => url.searchParams.delete(k));
       window.history.replaceState({}, "", url.toString());
+      if (submission) sessionStorage.removeItem(PENDING_HIST_M_KEY(submission.id));
     } catch { /* ignore */ }
     onClose();
   };
@@ -878,29 +975,37 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                       if (!r2) return;
                       const all = Array.from(r2.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
                       if (all.length === 0) return;
-                      let nx = matchIdxRef.current + dir;
-                      if (nx < 0) nx = all.length - 1;
-                      if (nx >= all.length) nx = 0;
+                      const prev = matchIdxRef.current;
+                      let nx = prev + dir;
+                      let wrapped = false;
+                      if (nx < 0) { nx = all.length - 1; wrapped = true; }
+                      if (nx >= all.length) { nx = 0; wrapped = true; }
                       matchIdxRef.current = nx;
                       setMatchIdx(nx);
                       setMatchTotal(all.length);
                       all[nx].scrollIntoView({ block: "center", behavior: "smooth" });
                       all.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
                       all[nx].classList.add("ring-2", "ring-primary");
+                      focusMatchNode(all[nx]);
+                      if (wrapped) emitDiffEvent("diff_match_wraparound", { from: prev, to: nx, total: all.length, source: "button", attsAutoExpanded: true, submissionId: submission?.id });
                     });
                     return;
                   }
                   const nodes = Array.from(root.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
                   if (nodes.length === 0) return;
-                  let next = matchIdxRef.current + dir;
-                  if (next < 0) next = nodes.length - 1;
-                  if (next >= nodes.length) next = 0;
+                  const prev = matchIdxRef.current;
+                  let next = prev + dir;
+                  let wrapped = false;
+                  if (next < 0) { next = nodes.length - 1; wrapped = true; }
+                  if (next >= nodes.length) { next = 0; wrapped = true; }
                   matchIdxRef.current = next;
                   setMatchIdx(next);
                   setMatchTotal(nodes.length);
                   nodes[next].scrollIntoView({ block: "center", behavior: "smooth" });
                   nodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
                   nodes[next].classList.add("ring-2", "ring-primary");
+                  focusMatchNode(nodes[next]);
+                  if (wrapped) emitDiffEvent("diff_match_wraparound", { from: prev, to: next, total: nodes.length, source: "button", submissionId: submission?.id });
                 };
                 const visibleChanges = changeTotal;
                 return (

@@ -42,6 +42,7 @@ interface Props {
   studentNameById: Record<string, string>;
   trainerId?: string;
   trainerName?: string;
+  trainerEmail?: string;
 }
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];

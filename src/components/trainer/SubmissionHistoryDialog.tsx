@@ -475,9 +475,17 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       } else if (matchIdxRef.current >= nodes.length) {
         // Capture the originally-requested index so we can surface a subtle
         // "Adjusted to nearest match" hint to the user.
-        setClampedFrom(matchIdxRef.current);
+        const requested = matchIdxRef.current;
+        setClampedFrom(requested);
         matchIdxRef.current = nodes.length - 1;
         setMatchIdx(nodes.length - 1);
+        emitDiffEvent("diff_link_clamped", {
+          requested,
+          clampedTo: nodes.length - 1,
+          available: nodes.length,
+          source: "recount",
+          submissionId: submission?.id,
+        });
       }
     }, 80);
     return () => clearTimeout(t);

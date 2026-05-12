@@ -995,7 +995,41 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                           Match {matchTotal === 0 ? 0 : Math.min(matchIdx + 1, matchTotal)} of {matchTotal}
                         </Badge>
                       )}
+                      {restoringMatch && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] shrink-0 bg-primary/10 text-primary border-primary/30 animate-pulse"
+                          aria-live="polite"
+                        >
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          Jumping to shared match…
+                        </Badge>
+                      )}
                     </div>
+                    {clampedFrom != null && (
+                      <div
+                        role="status"
+                        aria-live="polite"
+                        className="rounded border border-dashed border-warning/40 bg-warning/10 text-warning-foreground px-3 py-1.5 flex items-center justify-between gap-2 text-[11px]"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+                          Adjusted shared link match{" "}
+                          <span className="font-medium">#{clampedFrom + 1}</span>{" "}
+                          to nearest available match{" "}
+                          <span className="font-medium">#{Math.min(matchIdx + 1, matchTotal)}</span>.
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-[10px] shrink-0"
+                          onClick={() => setClampedFrom(null)}
+                          aria-label="Dismiss adjusted match notice"
+                        >
+                          <XIcon className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                     {query && matchTotal === 0 && (
                       <div
                         role="status"

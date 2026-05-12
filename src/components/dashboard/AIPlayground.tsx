@@ -226,7 +226,28 @@ const AIPlayground = () => {
             <Sparkles className="h-4 w-4 text-primary-foreground" aria-hidden="true" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-display font-semibold text-card-foreground text-sm sm:text-base truncate">Prakash — AI Coach</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-display font-semibold text-card-foreground text-sm sm:text-base truncate">Prakash — AI Coach</h3>
+              {streamStatus !== "idle" && (
+                <span
+                  className={
+                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border " +
+                    (streamStatus === "streaming"
+                      ? "bg-primary/10 text-primary border-primary/30"
+                      : streamStatus === "completed"
+                      ? "bg-success/10 text-success border-success/30"
+                      : "bg-destructive/10 text-destructive border-destructive/30")
+                  }
+                  role="status"
+                  aria-live="polite"
+                >
+                  {streamStatus === "streaming" && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" aria-hidden="true" />
+                  )}
+                  {streamStatus === "streaming" ? "Streaming…" : streamStatus === "completed" ? "Completed" : "Failed"}
+                </span>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground truncate hidden sm:block">Multilingual AI coach with voice — remembers your conversation</p>
           </div>
         </div>

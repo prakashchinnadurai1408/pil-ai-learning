@@ -661,6 +661,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       const url = new URL(window.location.href);
       ["histTab", "histLeft", "histRight", "histOnly", "histQ", "histAtts", "histOnlyM", "histM"].forEach((k) => url.searchParams.delete(k));
       window.history.replaceState({}, "", url.toString());
+      if (submission) sessionStorage.removeItem(PENDING_HIST_M_KEY(submission.id));
     } catch { /* ignore */ }
     onClose();
   };

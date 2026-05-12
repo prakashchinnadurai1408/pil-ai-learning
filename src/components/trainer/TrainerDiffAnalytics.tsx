@@ -348,7 +348,7 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
   const reloadJobs = useCallback(async () => {
     if (!trainerId || !trainerEmail) { setExportJobs([]); return; }
     const { data, error } = await supabase.rpc("list_trainer_export_jobs", {
-      _trainer_id: trainerId, _email: trainerEmail, _limit: 10,
+      _trainer_id: trainerId, _email: trainerEmail, _limit: 100,
     });
     if (error) { console.warn("list jobs", error); return; }
     setExportJobs((data as any[]) || []);

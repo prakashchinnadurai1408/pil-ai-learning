@@ -334,6 +334,9 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
           pendingMatchRef.current = n;
           matchIdxRef.current = n;
           setMatchIdx(n);
+          // Flip a brief loading state so the UI tells the user we're waiting
+          // for rows / matches before scrolling.
+          setRestoringMatch(true);
         }
       }
     } catch { /* ignore */ }

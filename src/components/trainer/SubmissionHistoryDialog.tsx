@@ -428,6 +428,10 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   // cursor — the jump only fires after a brief pause.
   useEffect(() => {
     if (tab !== "compare") return;
+    if (!query) {
+      pendingMatchRef.current = null;
+      return;
+    }
     const root = compareRef.current;
     if (!root) return;
     const t = setTimeout(() => {

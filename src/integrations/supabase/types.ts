@@ -2711,6 +2711,23 @@ export type Database = {
         Args: { _mobile: string; _student_id: string }
         Returns: boolean
       }
+      _verify_trainer: {
+        Args: { _email: string; _trainer_id: string }
+        Returns: boolean
+      }
+      add_trainer_note: {
+        Args: {
+          _curriculum_id: string
+          _email: string
+          _note: string
+          _status: string
+          _student_id: string
+          _submission_id: string
+          _trainer_id: string
+          _trainer_name: string
+        }
+        Returns: string
+      }
       delete_video_quiz_progress: {
         Args: { _lesson_id: string; _mobile: string; _student_id: string }
         Returns: undefined
@@ -2733,6 +2750,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      list_trainer_pins: {
+        Args: { _email: string; _trainer_id: string }
+        Returns: {
+          created_at: string
+          curriculum_id: string
+          history_id: string
+          id: string
+          student_id: string
+          submission_id: string
+        }[]
+      }
       match_rag_chunks: {
         Args: { doc_id: string; match_count?: number; query_embedding: string }
         Returns: {
@@ -2742,6 +2770,33 @@ export type Database = {
           page_number: number
           similarity: number
         }[]
+      }
+      pin_diff: {
+        Args: {
+          _curriculum_id: string
+          _email: string
+          _history_id: string
+          _student_id: string
+          _submission_id: string
+          _trainer_id: string
+        }
+        Returns: string
+      }
+      request_resubmission: {
+        Args: {
+          _curriculum_id: string
+          _email: string
+          _message: string
+          _student_id: string
+          _submission_id: string
+          _trainer_id: string
+          _trainer_name: string
+        }
+        Returns: string
+      }
+      unpin_diff: {
+        Args: { _email: string; _pin_id: string; _trainer_id: string }
+        Returns: undefined
       }
       upsert_video_quiz_progress: {
         Args: {

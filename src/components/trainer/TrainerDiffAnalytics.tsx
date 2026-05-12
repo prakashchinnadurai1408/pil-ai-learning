@@ -42,6 +42,7 @@ interface Props {
   studentNameById: Record<string, string>;
   trainerId?: string;
   trainerName?: string;
+  trainerEmail?: string;
 }
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
@@ -60,7 +61,7 @@ const downloadBlob = (filename: string, mime: string, content: string) => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
-const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", trainerName = "Trainer" }: Props) => {
+const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", trainerName = "Trainer", trainerEmail = "" }: Props) => {
   const [rows, setRows] = useState<HistoryRow[]>([]);
   const [subs, setSubs] = useState<Record<string, { curriculum_id: string; student_id: string; student_name: string }>>({});
   const [pinIdMap, setPinIdMap] = useState<Record<string, string>>({}); // history_id -> pin row id
@@ -80,12 +81,12 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
   const sidsKey = studentIds.join(",");
 
   const fetchPins = useCallback(async () => {
-    if (!trainerId) { setPinIdMap({}); return; }
-    const { data } = await supabase.from("trainer_diff_pins").select("id, history_id").eq("trainer_id", trainerId);
+    if (!trainerId || !trainerEmail) { setPinIdMap({}); return; }
+    const { data } = await supabase.rpc("list_trainer_pins", { _trainer_id: trainerId, _email: trainerEmail });
     const m: Record<string, string> = {};
     (data || []).forEach((p: any) => { m[p.history_id] = p.id; });
     setPinIdMap(m);
-  }, [trainerId]);
+  }, [trainerId, trainerEmail]);
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
@@ -226,77 +227,55 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
   const recent = filtered.slice(0, 20);
 
   const togglePin = async (r: any) => {
-    if (!trainerId) { toast.error("Trainer session missing"); return; }
+    if (!trainerId || !trainerEmail) { toast.error("Trainer session missing"); return; }
     const existing = pinIdMap[r.id];
     if (existing) {
-      const { error } = await supabase.from("trainer_diff_pins").delete().eq("id", existing);
+      const { error } = await supabase.rpc("unpin_diff", { _trainer_id: trainerId, _email: trainerEmail, _pin_id: existing });
       if (error) { toast.error("Failed to unpin"); return; }
       setPinIdMap((m) => { const n = { ...m }; delete n[r.id]; return n; });
       toast.success("Unpinned");
     } else {
-      const { data, error } = await supabase.from("trainer_diff_pins").insert({
-        trainer_id: trainerId,
-        history_id: r.id,
-        student_id: r.student_id,
-        curriculum_id: r.curriculum_id,
-        submission_id: r.submission_id,
-      }).select("id").single();
-      if (error) { toast.error("Failed to pin"); return; }
-      setPinIdMap((m) => ({ ...m, [r.id]: data!.id }));
+      const { data, error } = await supabase.rpc("pin_diff", {
+        _trainer_id: trainerId, _email: trainerEmail,
+        _history_id: r.id, _student_id: r.student_id,
+        _curriculum_id: r.curriculum_id, _submission_id: r.submission_id,
+      });
+      if (error || !data) { toast.error("Failed to pin"); return; }
+      setPinIdMap((m) => ({ ...m, [r.id]: data as string }));
       toast.success(`Pinned to ${r.student_name || "student"}`);
     }
   };
 
   const requestResubmission = async (r: any) => {
     if (!r.submission_id) { toast.error("No submission linked"); return; }
+    if (!trainerId || !trainerEmail) { toast.error("Trainer session missing"); return; }
     setActionBusy(r.id);
-    const newStatus = "revision_requested";
-    const { error: upErr } = await supabase
-      .from("curriculum_submissions")
-      .update({ status: newStatus, reviewed_by: trainerId, reviewed_by_name: trainerName, reviewed_at: new Date().toISOString() })
-      .eq("id", r.submission_id);
-    if (upErr) { toast.error("Failed to update submission"); setActionBusy(null); return; }
-    const { data: histRow, error: histErr } = await supabase.from("curriculum_submission_history").insert({
-      submission_id: r.submission_id,
-      curriculum_id: r.curriculum_id,
-      student_id: r.student_id,
-      kind: "revision_requested",
-      status: newStatus,
-      revision_message: "Trainer requested a fresh revision from analytics view.",
-      actor_id: trainerId,
-      actor_name: trainerName,
-      actor_role: "trainer",
-    }).select("id").single();
-    if (histErr) {
-      toast.warning("Submission status updated, but history event failed to log");
-    } else {
-      toast.success("Resubmission requested", {
-        description: `Status → revision_requested · history event #${histRow!.id.slice(0, 8)} logged for ${r.student_name}`,
-      });
-    }
+    const { data, error } = await supabase.rpc("request_resubmission", {
+      _trainer_id: trainerId, _email: trainerEmail, _trainer_name: trainerName,
+      _submission_id: r.submission_id, _curriculum_id: r.curriculum_id, _student_id: r.student_id,
+      _message: "Trainer requested a fresh revision from analytics view.",
+    });
     setActionBusy(null);
     setConfirmResub(null);
+    if (error) { toast.error("Failed to request resubmission"); return; }
+    toast.success("Resubmission requested", {
+      description: `Status → revision_requested · history event #${String(data).slice(0, 8)} logged for ${r.student_name}`,
+    });
     fetchRows();
   };
 
   const submitNote = async () => {
     if (!noteFor || !noteText.trim()) return;
+    if (!trainerId || !trainerEmail) { toast.error("Trainer session missing"); return; }
     setActionBusy(noteFor.id);
-    const { data: histRow, error } = await supabase.from("curriculum_submission_history").insert({
-      submission_id: noteFor.submission_id,
-      curriculum_id: noteFor.curriculum_id,
-      student_id: noteFor.student_id,
-      kind: "trainer_note",
-      status: noteFor.status || "",
-      notes: noteText.trim(),
-      trainer_feedback: noteText.trim(),
-      actor_id: trainerId,
-      actor_name: trainerName,
-      actor_role: "trainer",
-    }).select("id").single();
+    const { data, error } = await supabase.rpc("add_trainer_note", {
+      _trainer_id: trainerId, _email: trainerEmail, _trainer_name: trainerName,
+      _submission_id: noteFor.submission_id, _curriculum_id: noteFor.curriculum_id, _student_id: noteFor.student_id,
+      _status: noteFor.status || "", _note: noteText.trim(),
+    });
     setActionBusy(null);
     if (error) { toast.error("Failed to add note"); return; }
-    toast.success("Note added", { description: `History event #${histRow!.id.slice(0, 8)} logged for ${noteFor.student_name}` });
+    toast.success("Note added", { description: `History event #${String(data).slice(0, 8)} logged for ${noteFor.student_name}` });
     setNoteFor(null); setNoteText("");
     fetchRows();
   };

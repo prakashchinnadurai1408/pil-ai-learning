@@ -26,20 +26,46 @@ const defaultSuggestions = [
 const FALLBACK_ERROR = "I'm having trouble connecting right now. Please try again in a moment.";
 const EMPTY_RESPONSE_MSG = "I wasn't able to generate a response for that. Could you try rephrasing your question?";
 
+const INITIAL_GREETING: Message = { role: "assistant", content: "👋 Hi! I'm **Prakash**, your AI Coach. Ask me anything about AI concepts, tools, or prompt engineering — in English or any Indian language! Try the suggestions below to get started." };
+
+const STORAGE_KEY = (sid: string | null) => `aiPlayground:conversation:${sid || "guest"}`;
+const MAX_PERSISTED_MESSAGES = 50;
+
 const AIPlayground = () => {
+  const studentId = typeof window !== "undefined" ? sessionStorage.getItem("studentId") : null;
+  const storageKey = useMemo(() => STORAGE_KEY(studentId), [studentId]);
+
   const { items: adminChatItems } = usePublishedSectionContent("ai_chat");
   const promptSuggestions = [
     ...defaultSuggestions,
     ...adminChatItems.map(item => item.content?.prompt).filter(Boolean),
   ];
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "👋 Hi! I'm **Prakash**, your AI Coach. Ask me anything about AI concepts, tools, or prompt engineering — in English or any Indian language! Try the suggestions below to get started." },
-  ]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY(typeof window !== "undefined" ? sessionStorage.getItem("studentId") : null)) : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed as Message[];
+      }
+    } catch { /* ignore */ }
+    return [INITIAL_GREETING];
+  });
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [lang, setLang] = useState<LanguageCode>("en-IN");
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [lastFailedPrompt, setLastFailedPrompt] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [studentCtx, setStudentCtx] = useState<Record<string, any> | undefined>(undefined);
+
+  // Persist conversation to localStorage (trim to last N messages)
+  useEffect(() => {
+    try {
+      const trimmed = messages.slice(-MAX_PERSISTED_MESSAGES);
+      localStorage.setItem(storageKey, JSON.stringify(trimmed));
+    } catch { /* quota or unavailable — ignore */ }
+  }, [messages, storageKey]);
+
 
   // Fetch student learning context for adaptive AI
   useEffect(() => {

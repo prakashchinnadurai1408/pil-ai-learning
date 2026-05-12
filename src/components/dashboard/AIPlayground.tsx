@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Sparkles, Lightbulb } from "lucide-react";
+import { Send, Sparkles, Lightbulb, RotateCcw, AlertTriangle, Trash2 } from "lucide-react";
 import { streamChat } from "@/lib/streamChat";
 import { getFallbackResponse, FALLBACK_BANNER } from "@/lib/aiFallbackResponses";
 import { toast } from "sonner";

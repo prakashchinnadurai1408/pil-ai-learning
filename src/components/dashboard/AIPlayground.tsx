@@ -226,8 +226,41 @@ const AIPlayground = () => {
             <p className="text-xs text-muted-foreground truncate hidden sm:block">Multilingual AI coach with voice — remembers your conversation</p>
           </div>
         </div>
-        <ChatLanguageSelector value={lang} onChange={setLang} />
+        <div className="flex items-center gap-2">
+          <ChatLanguageSelector value={lang} onChange={setLang} />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearConversation}
+            disabled={isLoading || messages.length <= 1}
+            className="text-muted-foreground hover:text-foreground"
+            aria-label="Clear conversation"
+            title="Clear conversation"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
+
+      {lastError && (
+        <div className="mx-3 sm:mx-4 mt-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 flex items-start gap-3" role="alert">
+          <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" aria-hidden="true" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-destructive">Response failed</p>
+            <p className="text-xs text-destructive/80 mt-0.5 break-words">{lastError}</p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={retryLast}
+            disabled={isLoading || !lastFailedPrompt}
+            className="flex-shrink-0 gap-1.5"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Retry
+          </Button>
+        </div>
+      )}
 
       <div ref={scrollRef} className="h-[380px] sm:h-[420px] overflow-y-auto p-3 sm:p-4 space-y-4" role="log" aria-label="Chat messages" aria-live="polite">
         {messages.map((msg, i) => (

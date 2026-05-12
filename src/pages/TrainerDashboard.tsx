@@ -53,7 +53,7 @@ type TabKey =
   | "analytics" | "projects" | "assigned-projects" | "coding"
   | "modules" | "content" | "question-bank" | "coding-bank" | "learning-paths"
   | "module-groups" | "curriculum" | "curriculum-analytics"
-  | "proctoring" | "llm-usage" | "coordinator-review";
+  | "proctoring" | "llm-usage" | "coordinator-review" | "diff-analytics";
 
 // Map dashboard tabs to access-control menu keys (trainer audience)
 const TAB_TO_MENU_KEY: Partial<Record<TabKey, string>> = {

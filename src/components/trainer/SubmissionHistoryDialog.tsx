@@ -361,8 +361,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   }, [submission, tab, leftId, rightId, onlyChanges, query, attsOpen, onlyMatches, matchIdx]);
 
   // Auto-scroll to the first visible changed block whenever the user toggles
-  // "Show only changes" OR updates the search query, so relevant edits are
-  // immediately in view.
+  // "Show only changes" so relevant edits are immediately in view.
   useEffect(() => {
     if (tab !== "compare") return;
     const root = compareRef.current;
@@ -377,7 +376,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       setTimeout(() => first.classList.remove("ring-2", "ring-primary"), 1500);
     }, 80);
     return () => clearTimeout(t);
-  }, [onlyChanges, query, tab, leftId, rightId, rows]);
+  }, [onlyChanges, tab, leftId, rightId, rows]);
 
   // Recount visible change blocks whenever the filtered diff changes so the
   // prev/next counter stays accurate as the user types or toggles filters.

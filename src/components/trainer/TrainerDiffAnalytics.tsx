@@ -79,20 +79,32 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
 
-  // Export progress + cancellation
+  // Export progress + cancellation + background mode
   const HARD_MAX = 20000;
+  type Cursor = { createdAt: string; id: string };
   const [exportState, setExportState] = useState<{
     open: boolean;
+    minimized: boolean;
     format: "csv" | "pdf";
     loaded: number;
     pages: number;
     phase: "fetching" | "rendering" | "done" | "canceled" | "error";
+    jobLabel?: string;
   } | null>(null);
   const exportCancelRef = useRef(false);
   const [resumeOffer, setResumeOffer] = useState<{
     format: "csv" | "pdf";
-    cursorBefore: string;
+    cursor: Cursor;
     previousCount: number;
+  } | null>(null);
+  const [estimate, setEstimate] = useState<{
+    format: "csv" | "pdf";
+    loading: boolean;
+    count: number | null;
+    willTruncate: boolean;
+    error?: string;
+    startCursor?: Cursor;
+    jobLabel?: string;
   } | null>(null);
 
 

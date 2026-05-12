@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Sparkles, Lightbulb } from "lucide-react";
+import { Send, Sparkles, Lightbulb, RotateCcw, AlertTriangle, Trash2 } from "lucide-react";
 import { streamChat } from "@/lib/streamChat";
 import { getFallbackResponse, FALLBACK_BANNER } from "@/lib/aiFallbackResponses";
 import { toast } from "sonner";
@@ -26,20 +26,46 @@ const defaultSuggestions = [
 const FALLBACK_ERROR = "I'm having trouble connecting right now. Please try again in a moment.";
 const EMPTY_RESPONSE_MSG = "I wasn't able to generate a response for that. Could you try rephrasing your question?";
 
+const INITIAL_GREETING: Message = { role: "assistant", content: "👋 Hi! I'm **Prakash**, your AI Coach. Ask me anything about AI concepts, tools, or prompt engineering — in English or any Indian language! Try the suggestions below to get started." };
+
+const STORAGE_KEY = (sid: string | null) => `aiPlayground:conversation:${sid || "guest"}`;
+const MAX_PERSISTED_MESSAGES = 50;
+
 const AIPlayground = () => {
+  const studentId = typeof window !== "undefined" ? sessionStorage.getItem("studentId") : null;
+  const storageKey = useMemo(() => STORAGE_KEY(studentId), [studentId]);
+
   const { items: adminChatItems } = usePublishedSectionContent("ai_chat");
   const promptSuggestions = [
     ...defaultSuggestions,
     ...adminChatItems.map(item => item.content?.prompt).filter(Boolean),
   ];
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "👋 Hi! I'm **Prakash**, your AI Coach. Ask me anything about AI concepts, tools, or prompt engineering — in English or any Indian language! Try the suggestions below to get started." },
-  ]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY(typeof window !== "undefined" ? sessionStorage.getItem("studentId") : null)) : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed as Message[];
+      }
+    } catch { /* ignore */ }
+    return [INITIAL_GREETING];
+  });
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [lang, setLang] = useState<LanguageCode>("en-IN");
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [lastFailedPrompt, setLastFailedPrompt] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [studentCtx, setStudentCtx] = useState<Record<string, any> | undefined>(undefined);
+
+  // Persist conversation to localStorage (trim to last N messages)
+  useEffect(() => {
+    try {
+      const trimmed = messages.slice(-MAX_PERSISTED_MESSAGES);
+      localStorage.setItem(storageKey, JSON.stringify(trimmed));
+    } catch { /* quota or unavailable — ignore */ }
+  }, [messages, storageKey]);
+
 
   // Fetch student learning context for adaptive AI
   useEffect(() => {
@@ -82,21 +108,38 @@ const AIPlayground = () => {
     fetchContext();
   }, []);
 
+  // Auto-scroll to bottom on every message change (covers streaming chunks too).
+  // Use rAF so the scroll runs after layout commits — guarantees the new message is in view.
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
+    const el = scrollRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    });
+  }, [messages, isLoading]);
+
+  // Snap to bottom on initial mount so restored history shows the latest reply.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, []);
 
   const handleSend = useCallback(async (text?: string) => {
     const msg = text || input;
     if (!msg.trim() || isLoading) return;
 
-    const userMsg: Message = { role: "user", content: msg.trim() };
+    const trimmedMsg = msg.trim();
+    const userMsg: Message = { role: "user", content: trimmedMsg };
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
+    setLastError(null);
+    setLastFailedPrompt(null);
     // Onboarding: mark first AI chat
     import("./OnboardingChecklist").then(({ markFirstAiChat }) => markFirstAiChat()).catch(() => {});
+
 
     const selectedLang = LANGUAGES.find(l => l.code === lang);
 
@@ -151,10 +194,25 @@ const AIPlayground = () => {
         : e instanceof Error && e.message.includes("usage limit")
         ? "💳 AI usage limit reached. Please try again later."
         : FALLBACK_ERROR;
-      setMessages(prev => [...prev, { role: "assistant", content: `⚠️ ${errorMessage}` }]);
+      setLastError(errorMessage);
+      setLastFailedPrompt(trimmedMsg);
+      // Drop the optimistically-appended user message so Retry doesn't duplicate it.
+      setMessages(prev => (prev[prev.length - 1]?.role === "user" && prev[prev.length - 1].content === trimmedMsg ? prev.slice(0, -1) : prev));
       toast.error("AI service temporarily unavailable", { duration: 3000 });
     }
-  }, [input, isLoading, messages, lang]);
+  }, [input, isLoading, messages, lang, studentCtx]);
+
+  const retryLast = useCallback(() => {
+    if (lastFailedPrompt) handleSend(lastFailedPrompt);
+  }, [lastFailedPrompt, handleSend]);
+
+  const clearConversation = useCallback(() => {
+    setMessages([INITIAL_GREETING]);
+    setLastError(null);
+    setLastFailedPrompt(null);
+    try { localStorage.removeItem(storageKey); } catch { /* ignore */ }
+    toast.success("Conversation cleared");
+  }, [storageKey]);
 
   return (
     <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden w-full max-w-full" role="region" aria-label="AI Chat Playground">
@@ -168,8 +226,41 @@ const AIPlayground = () => {
             <p className="text-xs text-muted-foreground truncate hidden sm:block">Multilingual AI coach with voice — remembers your conversation</p>
           </div>
         </div>
-        <ChatLanguageSelector value={lang} onChange={setLang} />
+        <div className="flex items-center gap-2">
+          <ChatLanguageSelector value={lang} onChange={setLang} />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearConversation}
+            disabled={isLoading || messages.length <= 1}
+            className="text-muted-foreground hover:text-foreground"
+            aria-label="Clear conversation"
+            title="Clear conversation"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
+
+      {lastError && (
+        <div className="mx-3 sm:mx-4 mt-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 flex items-start gap-3" role="alert">
+          <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" aria-hidden="true" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-destructive">Response failed</p>
+            <p className="text-xs text-destructive/80 mt-0.5 break-words">{lastError}</p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={retryLast}
+            disabled={isLoading || !lastFailedPrompt}
+            className="flex-shrink-0 gap-1.5"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Retry
+          </Button>
+        </div>
+      )}
 
       <div ref={scrollRef} className="h-[380px] sm:h-[420px] overflow-y-auto p-3 sm:p-4 space-y-4" role="log" aria-label="Chat messages" aria-live="polite">
         {messages.map((msg, i) => (

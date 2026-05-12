@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Activity, GitCompare, Paperclip, MessageSquare, Users, Pin, RotateCcw, StickyNote, X, Download } from "lucide-react";
+import { Loader2, Activity, GitCompare, Paperclip, MessageSquare, Users, Pin, RotateCcw, StickyNote, X, Download, AlertTriangle } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -77,6 +78,23 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
   const [confirmResub, setConfirmResub] = useState<HistoryRow | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
+
+  // Export progress + cancellation
+  const HARD_MAX = 20000;
+  const [exportState, setExportState] = useState<{
+    open: boolean;
+    format: "csv" | "pdf";
+    loaded: number;
+    pages: number;
+    phase: "fetching" | "rendering" | "done" | "canceled" | "error";
+  } | null>(null);
+  const exportCancelRef = useRef(false);
+  const [resumeOffer, setResumeOffer] = useState<{
+    format: "csv" | "pdf";
+    cursorBefore: string;
+    previousCount: number;
+  } | null>(null);
+
 
   const sidsKey = studentIds.join(",");
 
@@ -282,22 +300,30 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
 
   const filtersStamp = `${days}d_${fCurriculum}_${fStudent}_${fStatus}_${fActorRole}_${search || "all"}`.replace(/[^\w-]+/g, "-").slice(0, 80);
 
-  // Pull the full filtered window straight from Supabase (paginated, server-side filters),
-  // so exports aren't capped by the 2000-row in-memory list used for the on-screen analytics.
-  const fetchAllFiltered = async (): Promise<any[]> => {
-    if (!studentIds.length) return [];
+  // Pull the full filtered window straight from Supabase (paginated, server-side filters).
+  // Supports progress callback, cancellation and an optional `beforeIso` cursor for resume jobs.
+  const fetchAllFiltered = async (opts: {
+    onProgress?: (loaded: number, pages: number) => void;
+    isCanceled?: () => boolean;
+    beforeIso?: string;
+    maxRows?: number;
+  } = {}): Promise<{ rows: any[]; truncated: boolean; oldestIso: string | null; canceled: boolean }> => {
+    if (!studentIds.length) return { rows: [], truncated: false, oldestIso: null, canceled: false };
     const since = new Date(Date.now() - days * 86400000).toISOString();
     const PAGE = 1000;
+    const cap = opts.maxRows ?? HARD_MAX;
     const out: any[] = [];
     let from = 0;
-    // Hard upper bound to keep the browser sane on huge windows
-    const HARD_MAX = 20000;
-    while (out.length < HARD_MAX) {
+    let pages = 0;
+    let truncated = false;
+    while (out.length < cap) {
+      if (opts.isCanceled?.()) return { rows: out, truncated: false, oldestIso: out.at(-1)?.created_at ?? null, canceled: true };
       let q = supabase
         .from("curriculum_submission_history")
         .select("id, created_at, submission_id, curriculum_id, student_id, student_name, kind, status, version_number, attachment_name, attachment_url, trainer_feedback, notes, score, max_score, actor_role, actor_name")
         .in("student_id", studentIds)
         .gte("created_at", since);
+      if (opts.beforeIso) q = q.lt("created_at", opts.beforeIso);
       if (fCurriculum !== ALL) q = q.eq("curriculum_id", fCurriculum);
       if (fStudent !== ALL) q = q.eq("student_id", fStudent);
       if (fStatus !== ALL) q = q.ilike("status", fStatus);
@@ -306,8 +332,11 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
       if (error) throw error;
       const batch = (data as any[]) || [];
       out.push(...batch);
+      pages += 1;
+      opts.onProgress?.(out.length, pages);
       if (batch.length < PAGE) break;
       from += PAGE;
+      if (out.length >= cap) { truncated = true; break; }
     }
     // Apply the same client-side text search the table uses
     const q = search.trim().toLowerCase();
@@ -317,77 +346,104 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
       attCount: countAtts(r.attachment_name),
       pinned: !!pinIdMap[r.id],
     }));
-    if (!q) return enrichedAll;
-    return enrichedAll.filter((r) =>
+    const finalRows = !q ? enrichedAll : enrichedAll.filter((r) =>
       r.student_name.toLowerCase().includes(q) ||
       (r.attachment_name || "").toLowerCase().includes(q) ||
       (r.actor_name || "").toLowerCase().includes(q) ||
       (r.curriculum_id || "").toLowerCase().includes(q) ||
       (r.notes || "").toLowerCase().includes(q),
     );
+    return { rows: finalRows, truncated, oldestIso: out.at(-1)?.created_at ?? null, canceled: false };
   };
 
-  const exportCsv = async () => {
-    try {
-      const rowsAll = await fetchAllFiltered();
-      const header = ["created_at", "student_id", "student_name", "curriculum_id", "submission_id", "kind", "version_number", "attachments", "status", "actor_role", "actor_name", "trainer_feedback", "notes", "pinned"];
-      const lines = [header.join(",")].concat(rowsAll.map((r) => [
-        r.created_at, r.student_id, r.student_name, r.curriculum_id, r.submission_id,
-        r.kind, r.version_number ?? "", r.attCount, r.status, r.actor_role, r.actor_name,
-        (r.trainer_feedback || "").replace(/\n/g, " "), (r.notes || "").replace(/\n/g, " "), r.pinned ? "yes" : "",
-      ].map(csvCell).join(",")));
-      downloadBlob(`diff-events-${filtersStamp}.csv`, "text/csv;charset=utf-8", lines.join("\n"));
-      toast.success(`Exported ${rowsAll.length} rows to CSV`);
-    } catch (e) {
-      console.error(e);
-      toast.error("CSV export failed");
-    }
+  const buildCsv = (rowsAll: any[]) => {
+    const header = ["created_at", "student_id", "student_name", "curriculum_id", "submission_id", "kind", "version_number", "attachments", "status", "actor_role", "actor_name", "trainer_feedback", "notes", "pinned"];
+    const lines = [header.join(",")].concat(rowsAll.map((r) => [
+      r.created_at, r.student_id, r.student_name, r.curriculum_id, r.submission_id,
+      r.kind, r.version_number ?? "", r.attCount, r.status, r.actor_role, r.actor_name,
+      (r.trainer_feedback || "").replace(/\n/g, " "), (r.notes || "").replace(/\n/g, " "), r.pinned ? "yes" : "",
+    ].map(csvCell).join(",")));
+    return lines.join("\n");
   };
 
-  const exportPdf = async () => {
-    setExportingPdf(true);
+  const buildPdf = async (rowsAll: any[], suffix: string) => {
+    const [{ default: jsPDF }, autoTableMod] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+    const autoTable = (autoTableMod as any).default || (autoTableMod as any);
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.setFontSize(14);
+    doc.text(`Submission Diff Events${suffix ? ` · ${suffix}` : ""}`, 14, 14);
+    doc.setFontSize(9);
+    doc.text(
+      `Window: last ${days}d · Curriculum: ${fCurriculum === ALL ? "all" : fCurriculum.slice(0, 8)} · Student: ${fStudent === ALL ? "all" : (studentNameById[fStudent] || fStudent)} · Status: ${fStatus === ALL ? "all" : fStatus} · Actor: ${fActorRole === ALL ? "all" : fActorRole}${search ? ` · Search: "${search}"` : ""}`,
+      14, 20,
+    );
+    doc.text(`${rowsAll.length} rows · exported by ${trainerName} · ${new Date().toLocaleString()}`, 14, 26);
+    autoTable(doc, {
+      startY: 32,
+      head: [["When", "Student", "Curriculum", "Kind", "Ver", "Atts", "Status", "Actor", "Pinned"]],
+      body: rowsAll.map((r) => [
+        new Date(r.created_at).toLocaleString(), r.student_name,
+        (r.curriculum_id || "").slice(0, 8), r.kind, r.version_number ?? "—",
+        r.attCount, r.status || "—", r.actor_name || r.actor_role || "—", r.pinned ? "★" : "",
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [37, 99, 235] },
+    });
+    return doc;
+  };
+
+  const runExport = async (format: "csv" | "pdf", beforeIso?: string, jobLabel?: string) => {
+    exportCancelRef.current = false;
+    setExportState({ open: true, format, loaded: 0, pages: 0, phase: "fetching" });
+    if (format === "pdf") setExportingPdf(true);
     try {
-      const [rowsAll, { default: jsPDF }, autoTableMod] = await Promise.all([
-        fetchAllFiltered(),
-        import("jspdf"),
-        import("jspdf-autotable"),
-      ]);
-      const autoTable = (autoTableMod as any).default || (autoTableMod as any);
-      const doc = new jsPDF({ orientation: "landscape" });
-      doc.setFontSize(14);
-      doc.text("Submission Diff Events", 14, 14);
-      doc.setFontSize(9);
-      doc.text(
-        `Window: last ${days}d · Curriculum: ${fCurriculum === ALL ? "all" : fCurriculum.slice(0, 8)} · Student: ${fStudent === ALL ? "all" : (studentNameById[fStudent] || fStudent)} · Status: ${fStatus === ALL ? "all" : fStatus} · Actor: ${fActorRole === ALL ? "all" : fActorRole}${search ? ` · Search: "${search}"` : ""}`,
-        14, 20,
-      );
-      doc.text(`${rowsAll.length} rows · exported by ${trainerName} · ${new Date().toLocaleString()}`, 14, 26);
-      autoTable(doc, {
-        startY: 32,
-        head: [["When", "Student", "Curriculum", "Kind", "Ver", "Atts", "Status", "Actor", "Pinned"]],
-        body: rowsAll.map((r) => [
-          new Date(r.created_at).toLocaleString(),
-          r.student_name,
-          (r.curriculum_id || "").slice(0, 8),
-          r.kind,
-          r.version_number ?? "—",
-          r.attCount,
-          r.status || "—",
-          r.actor_name || r.actor_role || "—",
-          r.pinned ? "★" : "",
-        ]),
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [37, 99, 235] },
+      const result = await fetchAllFiltered({
+        beforeIso,
+        isCanceled: () => exportCancelRef.current,
+        onProgress: (loaded, pages) =>
+          setExportState((s) => (s ? { ...s, loaded, pages } : s)),
       });
-      doc.save(`diff-events-${filtersStamp}.pdf`);
-      toast.success(`Exported ${rowsAll.length} rows to PDF`);
+      if (result.canceled) {
+        setExportState((s) => (s ? { ...s, phase: "canceled" } : s));
+        toast.message("Export canceled", { description: `Stopped after ${result.rows.length} rows.` });
+        return;
+      }
+      setExportState((s) => (s ? { ...s, phase: "rendering", loaded: result.rows.length } : s));
+      const stamp = `${filtersStamp}${jobLabel ? `_${jobLabel}` : ""}`;
+      if (format === "csv") {
+        downloadBlob(`diff-events-${stamp}.csv`, "text/csv;charset=utf-8", buildCsv(result.rows));
+      } else {
+        const doc = await buildPdf(result.rows, jobLabel ? `part ${jobLabel}` : "");
+        doc.save(`diff-events-${stamp}.pdf`);
+      }
+      setExportState((s) => (s ? { ...s, phase: "done" } : s));
+      toast.success(`Exported ${result.rows.length} rows to ${format.toUpperCase()}`);
+      if (result.truncated && result.oldestIso) {
+        setResumeOffer({ format, cursorBefore: result.oldestIso, previousCount: result.rows.length });
+      }
     } catch (e) {
       console.error(e);
-      toast.error("PDF export failed");
+      setExportState((s) => (s ? { ...s, phase: "error" } : s));
+      toast.error(`${format.toUpperCase()} export failed`);
     } finally {
-      setExportingPdf(false);
+      if (format === "pdf") setExportingPdf(false);
     }
   };
+
+  const exportCsv = () => runExport("csv");
+  const exportPdf = () => runExport("pdf");
+  const cancelExport = () => { exportCancelRef.current = true; };
+  const closeExportDialog = () => { exportCancelRef.current = false; setExportState(null); };
+
+  const runResumeJob = () => {
+    if (!resumeOffer) return;
+    const { format, cursorBefore, previousCount } = resumeOffer;
+    const jobLabel = `continued-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}`;
+    setResumeOffer(null);
+    toast.message("Starting follow-up export", { description: `Fetching rows older than the previous ${previousCount}.` });
+    runExport(format, cursorBefore, jobLabel);
+  };
+
 
 
   const clearFilters = () => { setSearch(""); setFCurriculum(ALL); setFStudent(ALL); setFStatus(ALL); setFActorRole(ALL); };
@@ -651,6 +707,84 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
               onClick={(e) => { e.preventDefault(); if (confirmResub) requestResubmission(confirmResub); }}
             >
               {actionBusy === confirmResub?.id && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}Request resubmission
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Export progress + cancellation */}
+      <Dialog
+        open={!!exportState?.open}
+        onOpenChange={(o) => {
+          if (o) return;
+          if (exportState?.phase === "fetching" || exportState?.phase === "rendering") {
+            cancelExport();
+          } else {
+            closeExportDialog();
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {exportState?.phase === "fetching" && `Preparing ${exportState.format.toUpperCase()} export…`}
+              {exportState?.phase === "rendering" && `Building ${exportState.format.toUpperCase()} file…`}
+              {exportState?.phase === "done" && `Export ready`}
+              {exportState?.phase === "canceled" && `Export canceled`}
+              {exportState?.phase === "error" && `Export failed`}
+            </DialogTitle>
+            <DialogDescription>
+              {exportState?.phase === "fetching"
+                ? `Fetched ${exportState.loaded.toLocaleString()} rows across ${exportState.pages} page${exportState.pages === 1 ? "" : "s"} (cap ${HARD_MAX.toLocaleString()}).`
+                : exportState?.phase === "rendering"
+                  ? `Rendering ${exportState.loaded.toLocaleString()} rows…`
+                  : exportState?.phase === "done"
+                    ? `Downloaded ${exportState.loaded.toLocaleString()} rows.`
+                    : exportState?.phase === "canceled"
+                      ? `Stopped after ${exportState.loaded.toLocaleString()} rows. No file was downloaded.`
+                      : "Something went wrong. Check the console and try again."}
+            </DialogDescription>
+          </DialogHeader>
+          {(exportState?.phase === "fetching" || exportState?.phase === "rendering") && (
+            <Progress
+              value={exportState.phase === "rendering"
+                ? 100
+                : Math.min(99, Math.round((exportState.loaded / HARD_MAX) * 100))}
+            />
+          )}
+          <DialogFooter>
+            {(exportState?.phase === "fetching" || exportState?.phase === "rendering") ? (
+              <Button variant="outline" onClick={cancelExport}>
+                <X className="h-3.5 w-3.5 mr-1" />Cancel
+              </Button>
+            ) : (
+              <Button onClick={closeExportDialog}>Close</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resume offer when HARD_MAX is reached */}
+      <AlertDialog open={!!resumeOffer} onOpenChange={(o) => { if (!o) setResumeOffer(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              Export hit the {HARD_MAX.toLocaleString()}-row safety cap
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {resumeOffer && (
+                <>
+                  We saved the first <b>{resumeOffer.previousCount.toLocaleString()}</b> rows. There may be older rows in the same window that weren't included.
+                  Start a follow-up {resumeOffer.format.toUpperCase()} export for everything older than the last row?
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Skip</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); runResumeJob(); }}>
+              Export remaining rows
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

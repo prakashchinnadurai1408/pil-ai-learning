@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Activity, GitCompare, Paperclip, MessageSquare, Users, Pin, RotateCcw, StickyNote, X, Download, AlertTriangle, Minimize2, Maximize2 } from "lucide-react";
+import { Loader2, Activity, GitCompare, Paperclip, MessageSquare, Users, Pin, RotateCcw, StickyNote, X, Download, AlertTriangle, Minimize2, Maximize2, History, Trash2, RefreshCw } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";

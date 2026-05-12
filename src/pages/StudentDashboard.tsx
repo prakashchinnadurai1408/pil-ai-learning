@@ -159,6 +159,12 @@ const StudentDashboard = () => {
   const [userTier, setUserTier] = useState<Tier>("free");
   const [menuAccess, setMenuAccess] = useState<MenuAccessConfig>({});
 
+  // Auth guard: if no student session in storage, send back to login.
+  // Hooks above stay unconditional so React's rules-of-hooks holds.
+  if (!studentId) {
+    return <Navigate to="/student-login" replace />;
+  }
+
   useEffect(() => {
     getMenuAccess("student").then(setMenuAccess);
     if (studentId) {

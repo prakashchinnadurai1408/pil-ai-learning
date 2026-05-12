@@ -711,6 +711,84 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Export progress + cancellation */}
+      <Dialog
+        open={!!exportState?.open}
+        onOpenChange={(o) => {
+          if (o) return;
+          if (exportState?.phase === "fetching" || exportState?.phase === "rendering") {
+            cancelExport();
+          } else {
+            closeExportDialog();
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {exportState?.phase === "fetching" && `Preparing ${exportState.format.toUpperCase()} export…`}
+              {exportState?.phase === "rendering" && `Building ${exportState.format.toUpperCase()} file…`}
+              {exportState?.phase === "done" && `Export ready`}
+              {exportState?.phase === "canceled" && `Export canceled`}
+              {exportState?.phase === "error" && `Export failed`}
+            </DialogTitle>
+            <DialogDescription>
+              {exportState?.phase === "fetching"
+                ? `Fetched ${exportState.loaded.toLocaleString()} rows across ${exportState.pages} page${exportState.pages === 1 ? "" : "s"} (cap ${HARD_MAX.toLocaleString()}).`
+                : exportState?.phase === "rendering"
+                  ? `Rendering ${exportState.loaded.toLocaleString()} rows…`
+                  : exportState?.phase === "done"
+                    ? `Downloaded ${exportState.loaded.toLocaleString()} rows.`
+                    : exportState?.phase === "canceled"
+                      ? `Stopped after ${exportState.loaded.toLocaleString()} rows. No file was downloaded.`
+                      : "Something went wrong. Check the console and try again."}
+            </DialogDescription>
+          </DialogHeader>
+          {(exportState?.phase === "fetching" || exportState?.phase === "rendering") && (
+            <Progress
+              value={exportState.phase === "rendering"
+                ? 100
+                : Math.min(99, Math.round((exportState.loaded / HARD_MAX) * 100))}
+            />
+          )}
+          <DialogFooter>
+            {(exportState?.phase === "fetching" || exportState?.phase === "rendering") ? (
+              <Button variant="outline" onClick={cancelExport}>
+                <X className="h-3.5 w-3.5 mr-1" />Cancel
+              </Button>
+            ) : (
+              <Button onClick={closeExportDialog}>Close</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resume offer when HARD_MAX is reached */}
+      <AlertDialog open={!!resumeOffer} onOpenChange={(o) => { if (!o) setResumeOffer(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              Export hit the {HARD_MAX.toLocaleString()}-row safety cap
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {resumeOffer && (
+                <>
+                  We saved the first <b>{resumeOffer.previousCount.toLocaleString()}</b> rows. There may be older rows in the same window that weren't included.
+                  Start a follow-up {resumeOffer.format.toUpperCase()} export for everything older than the last row?
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Skip</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); runResumeJob(); }}>
+              Export remaining rows
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

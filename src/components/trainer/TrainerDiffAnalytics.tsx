@@ -373,7 +373,7 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
             }
             if (!newRow) return prev;
             const idx = prev.findIndex((j) => j.id === newRow.id);
-            if (idx === -1) return [newRow, ...prev].slice(0, 10);
+            if (idx === -1) return [newRow, ...prev].slice(0, 100);
             const next = prev.slice();
             next[idx] = { ...next[idx], ...newRow };
             return next;
@@ -391,11 +391,16 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
           }
           if (newRow && newRow.status === "done" && newRow.id === activeJobId) {
             toast.success(`Export ready · ${newRow.rows_fetched.toLocaleString()} rows`, {
-              description: "Click Download in the export panel.",
+              description: autoDownload ? "Downloading automatically…" : "Click Download in the export panel.",
             });
           }
           if (newRow && newRow.status === "error" && newRow.id === activeJobId) {
             toast.error(`Export failed: ${newRow.error_message || "unknown"}`);
+          }
+          // Auto-download as soon as any job becomes done (once per job)
+          if (newRow && newRow.status === "done" && autoDownload && !autoDownloadedRef.current.has(newRow.id)) {
+            autoDownloadedRef.current.add(newRow.id);
+            downloadJob(newRow.id).catch(() => {});
           }
         },
       )

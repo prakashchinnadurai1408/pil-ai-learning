@@ -79,6 +79,23 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
 
+  // Export progress + cancellation
+  const HARD_MAX = 20000;
+  const [exportState, setExportState] = useState<{
+    open: boolean;
+    format: "csv" | "pdf";
+    loaded: number;
+    pages: number;
+    phase: "fetching" | "rendering" | "done" | "canceled" | "error";
+  } | null>(null);
+  const exportCancelRef = useRef(false);
+  const [resumeOffer, setResumeOffer] = useState<{
+    format: "csv" | "pdf";
+    cursorBefore: string;
+    previousCount: number;
+  } | null>(null);
+
+
   const sidsKey = studentIds.join(",");
 
   const fetchPins = useCallback(async () => {

@@ -578,6 +578,7 @@ const TrainerDashboard = () => {
               studentNameById={Object.fromEntries(students.map((s) => [s.id, s.name]))}
               trainerId={trainerId}
               trainerName={trainerName}
+              trainerEmail={trainerEmail}
             />
           </Suspense>
         );

@@ -183,6 +183,7 @@ const TrainerDashboard = () => {
 
   const trainerId = typeof window !== "undefined" ? (sessionStorage.getItem("trainerId") || "") : "";
   const trainerName = typeof window !== "undefined" ? (sessionStorage.getItem("trainerName") || "Trainer") : "Trainer";
+  const trainerEmail = typeof window !== "undefined" ? (sessionStorage.getItem("trainerEmail") || "") : "";
 
   const [menuAccess, setMenuAccess] = useState<MenuAccessConfig>({});
   const [tier, setTier] = useState<Tier>("free");

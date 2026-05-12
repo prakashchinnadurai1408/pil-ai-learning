@@ -793,13 +793,61 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Export progress + cancellation */}
+      {/* Pre-export estimator */}
+      <AlertDialog open={!!estimate} onOpenChange={(o) => { if (!o && !estimate?.loading) setEstimate(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {estimate?.loading
+                ? `Estimating ${estimate.format.toUpperCase()} export…`
+                : `Confirm ${estimate?.format.toUpperCase()} export`}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                {estimate?.loading && (
+                  <p className="flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" /> Counting matching rows server-side…</p>
+                )}
+                {!estimate?.loading && estimate?.error && (
+                  <p className="text-destructive">{estimate.error} You can still continue; pagination will stop at the safety cap.</p>
+                )}
+                {!estimate?.loading && estimate?.count !== null && estimate && (
+                  <>
+                    <p>
+                      About to export <b>{estimate.count.toLocaleString()}</b> rows for the current filters
+                      {estimate.startCursor ? " (resume job, older than previous cutoff)" : ""}.
+                      Client text search will further narrow this set after fetching.
+                    </p>
+                    {estimate.willTruncate && (
+                      <p className="flex items-start gap-2 text-warning">
+                        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span>
+                          Estimate exceeds the {HARD_MAX.toLocaleString()}-row safety cap. Only the most recent
+                          {" "}<b>{HARD_MAX.toLocaleString()}</b> rows will be in this file. You can run a follow-up export afterwards.
+                        </span>
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={estimate?.loading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={estimate?.loading} onClick={(e) => { e.preventDefault(); confirmEstimate(); }}>
+              Start export
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Export progress + cancellation + background mode */}
       <Dialog
-        open={!!exportState?.open}
+        open={!!exportState?.open && !exportState?.minimized}
         onOpenChange={(o) => {
           if (o) return;
+          // Closing while running = minimize to background. Closing after finish = dismiss.
           if (exportState?.phase === "fetching" || exportState?.phase === "rendering") {
-            cancelExport();
+            minimizeExport();
           } else {
             closeExportDialog();
           }
@@ -816,7 +864,7 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
             </DialogTitle>
             <DialogDescription>
               {exportState?.phase === "fetching"
-                ? `Fetched ${exportState.loaded.toLocaleString()} rows across ${exportState.pages} page${exportState.pages === 1 ? "" : "s"} (cap ${HARD_MAX.toLocaleString()}).`
+                ? `Fetched ${exportState.loaded.toLocaleString()} rows across ${exportState.pages} page${exportState.pages === 1 ? "" : "s"} (cap ${HARD_MAX.toLocaleString()}). You can run this in the background.`
                 : exportState?.phase === "rendering"
                   ? `Rendering ${exportState.loaded.toLocaleString()} rows…`
                   : exportState?.phase === "done"
@@ -835,15 +883,64 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
           )}
           <DialogFooter>
             {(exportState?.phase === "fetching" || exportState?.phase === "rendering") ? (
-              <Button variant="outline" onClick={cancelExport}>
-                <X className="h-3.5 w-3.5 mr-1" />Cancel
-              </Button>
+              <>
+                <Button variant="outline" onClick={minimizeExport}>
+                  <Minimize2 className="h-3.5 w-3.5 mr-1" />Run in background
+                </Button>
+                <Button variant="destructive" onClick={cancelExport}>
+                  <X className="h-3.5 w-3.5 mr-1" />Cancel
+                </Button>
+              </>
             ) : (
               <Button onClick={closeExportDialog}>Close</Button>
             )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Floating background-job chip when minimized */}
+      {exportState && exportState.minimized && (
+        <div className="fixed bottom-4 right-4 z-50 w-72 bg-card border border-border shadow-lg rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-card-foreground">
+              {exportState.phase === "fetching" || exportState.phase === "rendering" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+              ) : (
+                <Download className="h-3.5 w-3.5 text-success" />
+              )}
+              <span>
+                {exportState.phase === "fetching" && `Exporting ${exportState.format.toUpperCase()}…`}
+                {exportState.phase === "rendering" && `Building ${exportState.format.toUpperCase()}…`}
+                {exportState.phase === "done" && `${exportState.format.toUpperCase()} ready`}
+                {exportState.phase === "canceled" && `Canceled`}
+                {exportState.phase === "error" && `Failed`}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={restoreExport} title="Restore">
+                <Maximize2 className="h-3 w-3" />
+              </Button>
+              {(exportState.phase === "fetching" || exportState.phase === "rendering") ? (
+                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={cancelExport} title="Cancel">
+                  <X className="h-3 w-3" />
+                </Button>
+              ) : (
+                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={closeExportDialog} title="Dismiss">
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          </div>
+          <Progress
+            value={exportState.phase === "rendering" || exportState.phase === "done"
+              ? 100
+              : Math.min(99, Math.round((exportState.loaded / HARD_MAX) * 100))}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            {exportState.loaded.toLocaleString()} rows · {exportState.pages} page{exportState.pages === 1 ? "" : "s"}
+          </p>
+        </div>
+      )}
 
       {/* Resume offer when HARD_MAX is reached */}
       <AlertDialog open={!!resumeOffer} onOpenChange={(o) => { if (!o) setResumeOffer(null); }}>

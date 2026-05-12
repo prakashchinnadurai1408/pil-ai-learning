@@ -1064,47 +1064,139 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
             <DialogTitle className="flex items-center gap-2"><History className="h-4 w-4" /> Recent exports</DialogTitle>
             <DialogDescription>Background jobs persist across refreshes. Files are kept for 7 days.</DialogDescription>
           </DialogHeader>
-          {exportJobs.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">No export jobs yet.</p>
+
+          {/* Filter bar + auto-download toggle */}
+          <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border">
+            <Select value={jobsStatusFilter} onValueChange={(v) => { setJobsStatusFilter(v); setJobsPage(1); }}>
+              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All status</SelectItem>
+                <SelectItem value="queued">Queued</SelectItem>
+                <SelectItem value="running">Running</SelectItem>
+                <SelectItem value="done">Done</SelectItem>
+                <SelectItem value="canceled">Canceled</SelectItem>
+                <SelectItem value="error">Error</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={jobsFormatFilter} onValueChange={(v) => { setJobsFormatFilter(v); setJobsPage(1); }}>
+              <SelectTrigger className="w-[120px] h-8 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All types</SelectItem>
+                <SelectItem value="csv">CSV</SelectItem>
+                <SelectItem value="pdf">PDF</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={jobsDateFilter} onValueChange={(v) => { setJobsDateFilter(v as any); setJobsPage(1); }}>
+              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Date range" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any date</SelectItem>
+                <SelectItem value="today">Last 24 hours</SelectItem>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+              </SelectContent>
+            </Select>
+            {jobsHaveFilters && (
+              <Button size="sm" variant="ghost" className="h-8" onClick={clearJobsFilters}>
+                <X className="h-3 w-3 mr-1" />Clear
+              </Button>
+            )}
+            <div className="ml-auto flex items-center gap-2">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 accent-primary"
+                  checked={autoDownload}
+                  onChange={(e) => setAutoDownload(e.target.checked)}
+                />
+                Auto-download when ready
+              </label>
+            </div>
+          </div>
+
+          {filteredJobs.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              {exportJobs.length === 0 ? "No export jobs yet." : "No jobs match the current filters."}
+            </p>
           ) : (
-            <div className="divide-y divide-border max-h-[60vh] overflow-y-auto">
-              {exportJobs.map((j) => (
-                <div key={j.id} className="py-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Badge variant="outline">{j.format.toUpperCase()}</Badge>
-                      <Badge variant={j.status === "done" ? "default" : j.status === "error" ? "destructive" : "secondary"}>{j.status}</Badge>
-                      {j.will_truncate && <Badge variant="outline" className="text-warning border-warning/40">truncated</Badge>}
-                      {j.format_downgraded && <Badge variant="outline">PDF→CSV</Badge>}
-                      <span className="text-xs text-muted-foreground">{new Date(j.created_at).toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {j.status === "done" && (
-                        <Button size="sm" variant="outline" onClick={() => downloadJob(j.id)}>
-                          <Download className="h-3.5 w-3.5 mr-1" />Download
+            <div className="divide-y divide-border max-h-[55vh] overflow-y-auto">
+              {pagedJobs.map((j) => {
+                const failed = j.status === "error" || j.status === "canceled";
+                const reason = failed ? explainFailure(j) : null;
+                return (
+                  <div key={j.id} className="py-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-sm flex-wrap">
+                        <Badge variant="outline">{j.format.toUpperCase()}</Badge>
+                        <Badge variant={j.status === "done" ? "default" : j.status === "error" ? "destructive" : "secondary"}>{j.status}</Badge>
+                        {j.will_truncate && <Badge variant="outline" className="text-warning border-warning/40">truncated</Badge>}
+                        {j.format_downgraded && <Badge variant="outline">PDF→CSV</Badge>}
+                        <span className="text-xs text-muted-foreground">{new Date(j.created_at).toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {j.status === "done" && (
+                          <Button size="sm" variant="outline" onClick={() => downloadJob(j.id)}>
+                            <Download className="h-3.5 w-3.5 mr-1" />Download
+                          </Button>
+                        )}
+                        {failed && (
+                          <Button size="sm" variant="outline" onClick={() => retryFailedJob(j)}>
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                            {j.cursor_created_at ? "Resume" : "Retry"}
+                          </Button>
+                        )}
+                        {isJobRunning(j.status) && (
+                          <Button size="sm" variant="ghost" onClick={() => cancelJob(j.id)} disabled={j.cancel_requested}>
+                            <X className="h-3.5 w-3.5 mr-1" />Cancel
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" onClick={() => { setActiveJobId(j.id); setActiveMinimized(false); }}>Open</Button>
+                        <Button size="sm" variant="ghost" onClick={() => deleteJob(j.id)} title="Delete">
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
-                      )}
-                      {isJobRunning(j.status) && (
-                        <Button size="sm" variant="ghost" onClick={() => cancelJob(j.id)} disabled={j.cancel_requested}>
-                          <X className="h-3.5 w-3.5 mr-1" />Cancel
-                        </Button>
-                      )}
-                      <Button size="sm" variant="ghost" onClick={() => { setActiveJobId(j.id); setActiveMinimized(false); }}>Open</Button>
-                      <Button size="sm" variant="ghost" onClick={() => deleteJob(j.id)} title="Delete">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      </div>
                     </div>
+                    <Progress value={jobProgressPct(j)} />
+                    <p className="text-[11px] text-muted-foreground">
+                      {j.rows_fetched.toLocaleString()} / ~{Math.min(j.estimated_total || j.hard_max, j.hard_max).toLocaleString()} rows
+                      {" · "}{j.pages_fetched} pages
+                    </p>
+                    {reason && (
+                      <div className={`text-xs rounded-md p-2 border ${j.status === "error" ? "border-destructive/40 bg-destructive/5 text-destructive" : "border-warning/40 bg-warning/5 text-warning-foreground"}`}>
+                        <p className="font-medium flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />{reason.title}
+                        </p>
+                        <p className="mt-1 text-muted-foreground">{reason.detail}</p>
+                        <div className="mt-2 flex gap-2">
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => retryFailedJob(j)}>
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                            {j.cursor_created_at ? "Resume from saved cursor" : "Start a fresh export"}
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => deleteJob(j.id)}>
+                            Dismiss
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <Progress value={jobProgressPct(j)} />
-                  <p className="text-[11px] text-muted-foreground">
-                    {j.rows_fetched.toLocaleString()} / ~{Math.min(j.estimated_total || j.hard_max, j.hard_max).toLocaleString()} rows
-                    {" · "}{j.pages_fetched} pages
-                    {j.error_message ? ` · ${j.error_message}` : ""}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
+
+          {/* Pagination controls */}
+          {filteredJobs.length > JOBS_PAGE_SIZE && (
+            <div className="flex items-center justify-between pt-2 text-xs text-muted-foreground">
+              <span>
+                Showing {(jobsPage - 1) * JOBS_PAGE_SIZE + 1}–{Math.min(jobsPage * JOBS_PAGE_SIZE, filteredJobs.length)} of {filteredJobs.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button size="sm" variant="ghost" className="h-7" disabled={jobsPage <= 1} onClick={() => setJobsPage((p) => Math.max(1, p - 1))}>Prev</Button>
+                <span>Page {jobsPage} / {jobsPageCount}</span>
+                <Button size="sm" variant="ghost" className="h-7" disabled={jobsPage >= jobsPageCount} onClick={() => setJobsPage((p) => Math.min(jobsPageCount, p + 1))}>Next</Button>
+              </div>
+            </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={reloadJobs}><RefreshCw className="h-3.5 w-3.5 mr-1" />Refresh</Button>
             <Button onClick={() => setShowJobsPanel(false)}>Close</Button>

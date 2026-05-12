@@ -13,7 +13,7 @@ import {
 import {
   Users, BarChart3, ClipboardCheck, LogOut, TrendingUp, Eye, Loader2,
   Search, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FolderKanban, Code2, Sparkles,
-  BookOpen, Layers, Database, Route, Activity, Lock, Crown,
+  BookOpen, Layers, Database, Route, Activity, Lock, Crown, GitCompare,
 } from "lucide-react";
 import { getMenuAccess, isAllowed, TIER_META, TIERS, type MenuAccessConfig, type Tier } from "@/hooks/useMenuAccessControls";
 import { toast } from "sonner";
@@ -44,6 +44,7 @@ const LLMUsageAnalytics = lazy(() => import("@/components/admin/LLMUsageAnalytic
 const ModuleGroupsManager = lazy(() => import("@/components/admin/ModuleGroupsManager"));
 const TrainerCurriculumBuilder = lazy(() => import("@/components/trainer/TrainerCurriculumBuilder"));
 const CurriculumAssignmentAnalytics = lazy(() => import("@/components/trainer/CurriculumAssignmentAnalytics"));
+const TrainerDiffAnalytics = lazy(() => import("@/components/trainer/TrainerDiffAnalytics"));
 import AssignProjectDialog from "@/components/shared/AssignProjectDialog";
 import TrainerUpgradeDialog from "@/components/trainer/TrainerUpgradeDialog";
 
@@ -52,7 +53,7 @@ type TabKey =
   | "analytics" | "projects" | "assigned-projects" | "coding"
   | "modules" | "content" | "question-bank" | "coding-bank" | "learning-paths"
   | "module-groups" | "curriculum" | "curriculum-analytics"
-  | "proctoring" | "llm-usage" | "coordinator-review";
+  | "proctoring" | "llm-usage" | "coordinator-review" | "diff-analytics";
 
 // Map dashboard tabs to access-control menu keys (trainer audience)
 const TAB_TO_MENU_KEY: Partial<Record<TabKey, string>> = {
@@ -103,6 +104,7 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
       { key: "assessment-analytics", label: "Assessments", icon: BarChart3 },
       { key: "analytics", label: "Modules", icon: BarChart3 },
       { key: "curriculum-analytics", label: "Curriculum Submissions", icon: BarChart3 },
+      { key: "diff-analytics", label: "Submission Diffs", icon: GitCompare },
       { key: "coding", label: "Coding", icon: Code2 },
       { key: "proctoring", label: "Proctoring", icon: Eye },
       { key: "llm-usage", label: "LLM Usage", icon: Activity },
@@ -564,6 +566,15 @@ const TrainerDashboard = () => {
               ownerId={trainerId}
               ownerName={trainerName}
               ownerCollege={trainerCollege}
+            />
+          </Suspense>
+        );
+      case "diff-analytics":
+        return (
+          <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+            <TrainerDiffAnalytics
+              studentIds={students.map((s) => s.id)}
+              studentNameById={Object.fromEntries(students.map((s) => [s.id, s.name]))}
             />
           </Suspense>
         );

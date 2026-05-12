@@ -282,21 +282,73 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
 
   const filtersStamp = `${days}d_${fCurriculum}_${fStudent}_${fStatus}_${fActorRole}_${search || "all"}`.replace(/[^\w-]+/g, "-").slice(0, 80);
 
-  const exportCsv = () => {
-    const header = ["created_at", "student_id", "student_name", "curriculum_id", "submission_id", "kind", "version_number", "attachments", "status", "actor_role", "actor_name", "trainer_feedback", "notes", "pinned"];
-    const lines = [header.join(",")].concat(filtered.map((r) => [
-      r.created_at, r.student_id, r.student_name, r.curriculum_id, r.submission_id,
-      r.kind, r.version_number ?? "", r.attCount, r.status, r.actor_role, r.actor_name,
-      (r.trainer_feedback || "").replace(/\n/g, " "), (r.notes || "").replace(/\n/g, " "), r.pinned ? "yes" : "",
-    ].map(csvCell).join(",")));
-    downloadBlob(`diff-events-${filtersStamp}.csv`, "text/csv;charset=utf-8", lines.join("\n"));
-    toast.success(`Exported ${filtered.length} rows to CSV`);
+  // Pull the full filtered window straight from Supabase (paginated, server-side filters),
+  // so exports aren't capped by the 2000-row in-memory list used for the on-screen analytics.
+  const fetchAllFiltered = async (): Promise<any[]> => {
+    if (!studentIds.length) return [];
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+    const PAGE = 1000;
+    const out: any[] = [];
+    let from = 0;
+    // Hard upper bound to keep the browser sane on huge windows
+    const HARD_MAX = 20000;
+    while (out.length < HARD_MAX) {
+      let q = supabase
+        .from("curriculum_submission_history")
+        .select("id, created_at, submission_id, curriculum_id, student_id, student_name, kind, status, version_number, attachment_name, attachment_url, trainer_feedback, notes, score, max_score, actor_role, actor_name")
+        .in("student_id", studentIds)
+        .gte("created_at", since);
+      if (fCurriculum !== ALL) q = q.eq("curriculum_id", fCurriculum);
+      if (fStudent !== ALL) q = q.eq("student_id", fStudent);
+      if (fStatus !== ALL) q = q.ilike("status", fStatus);
+      if (fActorRole !== ALL) q = q.ilike("actor_role", fActorRole);
+      const { data, error } = await q.order("created_at", { ascending: false }).range(from, from + PAGE - 1);
+      if (error) throw error;
+      const batch = (data as any[]) || [];
+      out.push(...batch);
+      if (batch.length < PAGE) break;
+      from += PAGE;
+    }
+    // Apply the same client-side text search the table uses
+    const q = search.trim().toLowerCase();
+    const enrichedAll = out.map((r) => ({
+      ...r,
+      student_name: r.student_name || studentNameById[r.student_id] || subs[r.submission_id]?.student_name || "Student",
+      attCount: countAtts(r.attachment_name),
+      pinned: !!pinIdMap[r.id],
+    }));
+    if (!q) return enrichedAll;
+    return enrichedAll.filter((r) =>
+      r.student_name.toLowerCase().includes(q) ||
+      (r.attachment_name || "").toLowerCase().includes(q) ||
+      (r.actor_name || "").toLowerCase().includes(q) ||
+      (r.curriculum_id || "").toLowerCase().includes(q) ||
+      (r.notes || "").toLowerCase().includes(q),
+    );
+  };
+
+  const exportCsv = async () => {
+    try {
+      const rowsAll = await fetchAllFiltered();
+      const header = ["created_at", "student_id", "student_name", "curriculum_id", "submission_id", "kind", "version_number", "attachments", "status", "actor_role", "actor_name", "trainer_feedback", "notes", "pinned"];
+      const lines = [header.join(",")].concat(rowsAll.map((r) => [
+        r.created_at, r.student_id, r.student_name, r.curriculum_id, r.submission_id,
+        r.kind, r.version_number ?? "", r.attCount, r.status, r.actor_role, r.actor_name,
+        (r.trainer_feedback || "").replace(/\n/g, " "), (r.notes || "").replace(/\n/g, " "), r.pinned ? "yes" : "",
+      ].map(csvCell).join(",")));
+      downloadBlob(`diff-events-${filtersStamp}.csv`, "text/csv;charset=utf-8", lines.join("\n"));
+      toast.success(`Exported ${rowsAll.length} rows to CSV`);
+    } catch (e) {
+      console.error(e);
+      toast.error("CSV export failed");
+    }
   };
 
   const exportPdf = async () => {
     setExportingPdf(true);
     try {
-      const [{ default: jsPDF }, autoTableMod] = await Promise.all([
+      const [rowsAll, { default: jsPDF }, autoTableMod] = await Promise.all([
+        fetchAllFiltered(),
         import("jspdf"),
         import("jspdf-autotable"),
       ]);
@@ -309,11 +361,11 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
         `Window: last ${days}d · Curriculum: ${fCurriculum === ALL ? "all" : fCurriculum.slice(0, 8)} · Student: ${fStudent === ALL ? "all" : (studentNameById[fStudent] || fStudent)} · Status: ${fStatus === ALL ? "all" : fStatus} · Actor: ${fActorRole === ALL ? "all" : fActorRole}${search ? ` · Search: "${search}"` : ""}`,
         14, 20,
       );
-      doc.text(`${filtered.length} rows · exported by ${trainerName} · ${new Date().toLocaleString()}`, 14, 26);
+      doc.text(`${rowsAll.length} rows · exported by ${trainerName} · ${new Date().toLocaleString()}`, 14, 26);
       autoTable(doc, {
         startY: 32,
         head: [["When", "Student", "Curriculum", "Kind", "Ver", "Atts", "Status", "Actor", "Pinned"]],
-        body: filtered.map((r) => [
+        body: rowsAll.map((r) => [
           new Date(r.created_at).toLocaleString(),
           r.student_name,
           (r.curriculum_id || "").slice(0, 8),
@@ -328,7 +380,7 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
         headStyles: { fillColor: [37, 99, 235] },
       });
       doc.save(`diff-events-${filtersStamp}.pdf`);
-      toast.success(`Exported ${filtered.length} rows to PDF`);
+      toast.success(`Exported ${rowsAll.length} rows to PDF`);
     } catch (e) {
       console.error(e);
       toast.error("PDF export failed");
@@ -336,6 +388,7 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
       setExportingPdf(false);
     }
   };
+
 
   const clearFilters = () => { setSearch(""); setFCurriculum(ALL); setFStudent(ALL); setFStatus(ALL); setFActorRole(ALL); };
   const hasFilters = search || fCurriculum !== ALL || fStudent !== ALL || fStatus !== ALL || fActorRole !== ALL;

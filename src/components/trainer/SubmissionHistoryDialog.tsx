@@ -283,6 +283,14 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const [matchIdx, setMatchIdx] = useState(0);
   const [matchTotal, setMatchTotal] = useState(0);
   const [linkCopied, setLinkCopied] = useState(false);
+  // Subtle UI hint shown when a shared-link histM had to be clamped to a
+  // smaller in-range value. Holds the originally-requested index until
+  // dismissed or the user navigates manually.
+  const [clampedFrom, setClampedFrom] = useState<number | null>(null);
+  // True while we are still waiting for history rows / DOM matches to render
+  // for a pending shared-link histM. Drives the "Jumping to shared match…"
+  // inline indicator next to the match badge.
+  const [restoringMatch, setRestoringMatch] = useState(false);
   const compareRef = useRef<HTMLDivElement | null>(null);
   const changeIdxRef = useRef<number>(-1);
   const matchIdxRef = useRef<number>(-1);

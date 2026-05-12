@@ -500,9 +500,9 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
 
       // Shift+N / Shift+P navigate keyword matches; plain N/P navigate change blocks.
       if (e.shiftKey && (e.key === "N" || e.key === "P" || e.key === "n" || e.key === "p")) {
-        // If attachment matches exist but the panel is collapsed, expand it
-        // first so attachment <mark> nodes participate in the match sequence.
-        if (!attsOpen && hasAttMatch) {
+        // If the attachments panel is collapsed, expand it first so any
+        // attachment <mark> nodes participate in the wraparound match sequence.
+        if (!attsOpen) {
           setAttsOpen(true);
           // Defer the navigation to the next render so the new <mark> nodes
           // are in the DOM and counted in wraparound math.

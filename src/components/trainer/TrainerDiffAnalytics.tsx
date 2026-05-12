@@ -364,182 +364,209 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
     return count ?? 0;
   };
 
-  const fetchAllFiltered = async (opts: {
-    onProgress?: (loaded: number, pages: number) => void;
-    isCanceled?: () => boolean;
-    startCursor?: Cursor;
-    maxRows?: number;
-  } = {}): Promise<{ rows: any[]; truncated: boolean; lastCursor: Cursor | null; canceled: boolean }> => {
-    if (!studentIds.length) return { rows: [], truncated: false, lastCursor: null, canceled: false };
-    const since = new Date(Date.now() - days * 86400000).toISOString();
-    const PAGE = 1000;
-    const cap = opts.maxRows ?? HARD_MAX;
-    const out: any[] = [];
-    let cursor: Cursor | undefined = opts.startCursor;
-    let pages = 0;
-    let truncated = false;
-    while (out.length < cap) {
-      if (opts.isCanceled?.()) {
-        return { rows: out, truncated: false, lastCursor: cursor ?? null, canceled: true };
-      }
-      let q = buildBaseQuery(since);
-      if (cursor) {
-        // Strict keyset filter: rows strictly older than cursor (by created_at, then id).
-        q = q.or(
-          `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`,
-        );
-      }
-      const { data, error } = await q
-        .order("created_at", { ascending: false })
-        .order("id", { ascending: false })
-        .limit(PAGE);
-      if (error) throw error;
-      const batch = (data as any[]) || [];
-      out.push(...batch);
-      pages += 1;
-      opts.onProgress?.(out.length, pages);
-      if (batch.length < PAGE) break;
-      const last = batch[batch.length - 1];
-      cursor = { createdAt: last.created_at, id: last.id };
-      if (out.length >= cap) { truncated = true; break; }
-    }
-    const lastRow = out[out.length - 1];
-    const lastCursor: Cursor | null = lastRow ? { createdAt: lastRow.created_at, id: lastRow.id } : (cursor ?? null);
-    // Apply the same client-side text search the table uses
-    const q = search.trim().toLowerCase();
-    const enrichedAll = out.map((r) => ({
-      ...r,
-      student_name: r.student_name || studentNameById[r.student_id] || subs[r.submission_id]?.student_name || "Student",
-      attCount: countAtts(r.attachment_name),
-      pinned: !!pinIdMap[r.id],
-    }));
-    const finalRows = !q ? enrichedAll : enrichedAll.filter((r) =>
-      r.student_name.toLowerCase().includes(q) ||
-      (r.attachment_name || "").toLowerCase().includes(q) ||
-      (r.actor_name || "").toLowerCase().includes(q) ||
-      (r.curriculum_id || "").toLowerCase().includes(q) ||
-      (r.notes || "").toLowerCase().includes(q),
-    );
-    return { rows: finalRows, truncated, lastCursor, canceled: false };
-  };
+  // ---------- Server-side background export jobs ----------
 
-  const buildCsv = (rowsAll: any[]) => {
-    const header = ["created_at", "student_id", "student_name", "curriculum_id", "submission_id", "kind", "version_number", "attachments", "status", "actor_role", "actor_name", "trainer_feedback", "notes", "pinned"];
-    const lines = [header.join(",")].concat(rowsAll.map((r) => [
-      r.created_at, r.student_id, r.student_name, r.curriculum_id, r.submission_id,
-      r.kind, r.version_number ?? "", r.attCount, r.status, r.actor_role, r.actor_name,
-      (r.trainer_feedback || "").replace(/\n/g, " "), (r.notes || "").replace(/\n/g, " "), r.pinned ? "yes" : "",
-    ].map(csvCell).join(",")));
-    return lines.join("\n");
-  };
-
-  const buildPdf = async (rowsAll: any[], suffix: string) => {
-    const [{ default: jsPDF }, autoTableMod] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
-    const autoTable = (autoTableMod as any).default || (autoTableMod as any);
-    const doc = new jsPDF({ orientation: "landscape" });
-    doc.setFontSize(14);
-    doc.text(`Submission Diff Events${suffix ? ` · ${suffix}` : ""}`, 14, 14);
-    doc.setFontSize(9);
-    doc.text(
-      `Window: last ${days}d · Curriculum: ${fCurriculum === ALL ? "all" : fCurriculum.slice(0, 8)} · Student: ${fStudent === ALL ? "all" : (studentNameById[fStudent] || fStudent)} · Status: ${fStatus === ALL ? "all" : fStatus} · Actor: ${fActorRole === ALL ? "all" : fActorRole}${search ? ` · Search: "${search}"` : ""}`,
-      14, 20,
-    );
-    doc.text(`${rowsAll.length} rows · exported by ${trainerName} · ${new Date().toLocaleString()}`, 14, 26);
-    autoTable(doc, {
-      startY: 32,
-      head: [["When", "Student", "Curriculum", "Kind", "Ver", "Atts", "Status", "Actor", "Pinned"]],
-      body: rowsAll.map((r) => [
-        new Date(r.created_at).toLocaleString(), r.student_name,
-        (r.curriculum_id || "").slice(0, 8), r.kind, r.version_number ?? "—",
-        r.attCount, r.status || "—", r.actor_name || r.actor_role || "—", r.pinned ? "★" : "",
-      ]),
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [37, 99, 235] },
+  const reloadJobs = useCallback(async () => {
+    if (!trainerId || !trainerEmail) { setExportJobs([]); return; }
+    const { data, error } = await supabase.rpc("list_trainer_export_jobs", {
+      _trainer_id: trainerId, _email: trainerEmail, _limit: 10,
     });
-    return doc;
-  };
+    if (error) { console.warn("list jobs", error); return; }
+    setExportJobs((data as any[]) || []);
+  }, [trainerId, trainerEmail]);
 
-  const runExport = async (format: "csv" | "pdf", startCursor?: Cursor, jobLabel?: string) => {
-    exportCancelRef.current = false;
-    setExportState({ open: true, minimized: false, format, loaded: 0, pages: 0, phase: "fetching", jobLabel });
-    if (format === "pdf") setExportingPdf(true);
-    try {
-      const result = await fetchAllFiltered({
-        startCursor,
-        isCanceled: () => exportCancelRef.current,
-        onProgress: (loaded, pages) =>
-          setExportState((s) => (s ? { ...s, loaded, pages } : s)),
-      });
-      if (result.canceled) {
-        setExportState((s) => (s ? { ...s, phase: "canceled", minimized: false } : s));
-        toast.message("Export canceled", { description: `Stopped after ${result.rows.length} rows.` });
-        return;
-      }
-      setExportState((s) => (s ? { ...s, phase: "rendering", loaded: result.rows.length } : s));
-      const stamp = `${filtersStamp}${jobLabel ? `_${jobLabel}` : ""}`;
-      if (format === "csv") {
-        downloadBlob(`diff-events-${stamp}.csv`, "text/csv;charset=utf-8", buildCsv(result.rows));
-      } else {
-        const doc = await buildPdf(result.rows, jobLabel ? `part ${jobLabel}` : "");
-        doc.save(`diff-events-${stamp}.pdf`);
-      }
-      setExportState((s) => (s ? { ...s, phase: "done", minimized: false } : s));
-      toast.success(`Exported ${result.rows.length} rows to ${format.toUpperCase()}`, {
-        description: jobLabel ? `Job ${jobLabel} complete.` : undefined,
-      });
-      if (result.truncated && result.lastCursor) {
-        setResumeOffer({ format, cursor: result.lastCursor, previousCount: result.rows.length });
-      }
-    } catch (e) {
-      console.error(e);
-      setExportState((s) => (s ? { ...s, phase: "error", minimized: false } : s));
-      toast.error(`${format.toUpperCase()} export failed`);
-    } finally {
-      if (format === "pdf") setExportingPdf(false);
+  useEffect(() => { reloadJobs(); }, [reloadJobs]);
+
+  // Realtime: subscribe to all of this trainer's export job rows.
+  useEffect(() => {
+    if (!trainerEmail) return;
+    const channel = supabase
+      .channel(`trainer_export_jobs:${trainerEmail}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "trainer_export_jobs", filter: `trainer_email=eq.${trainerEmail.toLowerCase()}` },
+        (payload) => {
+          const newRow = payload.new as ExportJob | undefined;
+          const oldRow = payload.old as ExportJob | undefined;
+          setExportJobs((prev) => {
+            if (payload.eventType === "DELETE") {
+              return prev.filter((j) => j.id !== oldRow?.id);
+            }
+            if (!newRow) return prev;
+            const idx = prev.findIndex((j) => j.id === newRow.id);
+            if (idx === -1) return [newRow, ...prev].slice(0, 10);
+            const next = prev.slice();
+            next[idx] = { ...next[idx], ...newRow };
+            return next;
+          });
+          // When a job finishes truncated, surface the resume offer (once per job).
+          if (newRow && newRow.status === "done" && newRow.will_truncate
+              && newRow.cursor_created_at && newRow.cursor_id
+              && !dismissedResumeRef.current.has(newRow.id)) {
+            setResumeOffer({
+              format: newRow.format,
+              cursor: { createdAt: newRow.cursor_created_at, id: newRow.cursor_id },
+              previousCount: newRow.rows_fetched,
+              parentJobId: newRow.id,
+            });
+          }
+          if (newRow && newRow.status === "done" && newRow.id === activeJobId) {
+            toast.success(`Export ready · ${newRow.rows_fetched.toLocaleString()} rows`, {
+              description: "Click Download in the export panel.",
+            });
+          }
+          if (newRow && newRow.status === "error" && newRow.id === activeJobId) {
+            toast.error(`Export failed: ${newRow.error_message || "unknown"}`);
+          }
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [trainerEmail, activeJobId]);
+
+  // Pre-export estimator: counts rows server-side without fetching them.
+  const estimateRowCount = async (startCursor?: Cursor): Promise<number | null> => {
+    if (!studentIds.length) return 0;
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+    let q = supabase
+      .from("curriculum_submission_history")
+      .select("id", { count: "exact", head: true })
+      .in("student_id", studentIds)
+      .gte("created_at", since);
+    if (fCurriculum !== ALL) q = q.eq("curriculum_id", fCurriculum);
+    if (fStudent !== ALL) q = q.eq("student_id", fStudent);
+    if (fStatus !== ALL) q = q.ilike("status", fStatus);
+    if (fActorRole !== ALL) q = q.ilike("actor_role", fActorRole);
+    if (startCursor) {
+      q = q.or(`created_at.lt.${startCursor.createdAt},and(created_at.eq.${startCursor.createdAt},id.lt.${startCursor.id})`);
     }
+    const { count, error } = await q;
+    if (error) throw error;
+    return count ?? 0;
   };
 
-  const beginExport = async (format: "csv" | "pdf", startCursor?: Cursor, jobLabel?: string) => {
-    setEstimate({ format, loading: true, count: null, willTruncate: false, startCursor, jobLabel });
+  const beginExport = async (
+    format: "csv" | "pdf",
+    startCursor?: Cursor,
+    jobLabel?: string,
+    parentJobId?: string,
+  ) => {
+    setEstimate({ format, loading: true, count: null, willTruncate: false, startCursor, jobLabel, parentJobId });
     try {
-      const total = await estimateRowCount();
-      // If resuming, we don't know exactly how many remain, but the cap still applies.
+      const total = await estimateRowCount(startCursor);
       const projected = total ?? 0;
       setEstimate({
-        format,
-        loading: false,
-        count: projected,
+        format, loading: false, count: projected,
         willTruncate: projected > HARD_MAX,
-        startCursor,
-        jobLabel,
+        startCursor, jobLabel, parentJobId,
       });
     } catch (e) {
       console.error(e);
-      setEstimate({ format, loading: false, count: null, willTruncate: false, error: "Could not estimate row count.", startCursor, jobLabel });
+      setEstimate({ format, loading: false, count: null, willTruncate: false,
+        error: "Could not estimate row count.", startCursor, jobLabel, parentJobId });
     }
   };
 
-  const confirmEstimate = () => {
-    if (!estimate) return;
-    const { format, startCursor, jobLabel } = estimate;
+  const confirmEstimate = async () => {
+    if (!estimate || !trainerId || !trainerEmail) { setEstimate(null); return; }
+    const { format, startCursor, jobLabel, parentJobId, count } = estimate;
     setEstimate(null);
-    runExport(format, startCursor, jobLabel);
+
+    const filters = {
+      days,
+      curriculum_id: fCurriculum !== ALL ? fCurriculum : "",
+      student_id: fStudent !== ALL ? fStudent : "",
+      status: fStatus !== ALL ? fStatus : "",
+      actor_role: fActorRole !== ALL ? fActorRole : "",
+    };
+
+    const { data: jobId, error } = await supabase.rpc("create_trainer_export_job", {
+      _trainer_id: trainerId, _email: trainerEmail, _trainer_name: trainerName,
+      _format: format, _filters: filters, _student_ids: studentIds,
+      _estimated_total: count ?? 0, _hard_max: HARD_MAX,
+      _will_truncate: (count ?? 0) > HARD_MAX,
+      _start_cursor_created_at: startCursor?.createdAt ?? null,
+      _start_cursor_id: startCursor?.id ?? null,
+      _job_label: jobLabel ?? "",
+      _parent_job_id: parentJobId ?? null,
+    });
+    if (error || !jobId) {
+      console.error(error);
+      toast.error("Could not queue export job");
+      return;
+    }
+    setActiveJobId(jobId as string);
+    setActiveMinimized(false);
+    setShowJobsPanel(true);
+
+    // Fire-and-forget runner; it returns immediately and processes in background.
+    supabase.functions.invoke("trainer-export-runner", { body: { jobId } })
+      .catch((e) => console.error("invoke runner", e));
+
+    toast.message("Export started in the background", {
+      description: "Safe to refresh or close this tab — you can resume from the Recent exports panel.",
+    });
+    reloadJobs();
   };
 
   const exportCsv = () => beginExport("csv");
   const exportPdf = () => beginExport("pdf");
-  const cancelExport = () => { exportCancelRef.current = true; };
-  const closeExportDialog = () => { exportCancelRef.current = false; setExportState(null); };
-  const minimizeExport = () => setExportState((s) => (s ? { ...s, minimized: true } : s));
-  const restoreExport = () => setExportState((s) => (s ? { ...s, minimized: false } : s));
+
+  const cancelJob = async (jobId: string) => {
+    if (!trainerId || !trainerEmail) return;
+    await supabase.rpc("cancel_trainer_export_job", { _trainer_id: trainerId, _email: trainerEmail, _job_id: jobId });
+    toast.message("Cancellation requested", { description: "The job will stop after the current page." });
+  };
+
+  const downloadJob = async (jobId: string) => {
+    if (!trainerId || !trainerEmail) return;
+    try {
+      const { data, error } = await supabase.functions.invoke("trainer-export-download", {
+        body: { jobId, trainerId, trainerEmail },
+      });
+      if (error) throw error;
+      const url = (data as any)?.url;
+      if (!url) throw new Error("No URL returned");
+      const a = document.createElement("a");
+      a.href = url; a.target = "_blank"; a.rel = "noopener"; a.click();
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not get download link");
+    }
+  };
+
+  const deleteJob = async (jobId: string) => {
+    if (!trainerId || !trainerEmail) return;
+    await supabase.rpc("delete_trainer_export_job", { _trainer_id: trainerId, _email: trainerEmail, _job_id: jobId });
+    setExportJobs((prev) => prev.filter((j) => j.id !== jobId));
+    if (activeJobId === jobId) setActiveJobId(null);
+  };
 
   const runResumeJob = () => {
     if (!resumeOffer) return;
-    const { format, cursor, previousCount } = resumeOffer;
+    const { format, cursor, previousCount, parentJobId } = resumeOffer;
+    dismissedResumeRef.current.add(parentJobId);
     const jobLabel = `continued-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}`;
     setResumeOffer(null);
     toast.message("Starting follow-up export", { description: `Fetching rows older than the previous ${previousCount}.` });
-    beginExport(format, cursor, jobLabel);
+    beginExport(format, cursor, jobLabel, parentJobId);
+  };
+
+  const dismissResumeOffer = () => {
+    if (resumeOffer) dismissedResumeRef.current.add(resumeOffer.parentJobId);
+    setResumeOffer(null);
+  };
+
+  const activeJob = useMemo(
+    () => exportJobs.find((j) => j.id === activeJobId) || null,
+    [exportJobs, activeJobId],
+  );
+  const isJobRunning = (s: string) => s === "queued" || s === "running";
+  const jobProgressPct = (j: ExportJob) => {
+    if (j.status === "done") return 100;
+    const denom = j.estimated_total > 0 ? Math.min(j.estimated_total, j.hard_max) : j.hard_max;
+    if (!denom) return 0;
+    return Math.min(99, Math.round((j.rows_fetched / denom) * 100));
   };
 
 

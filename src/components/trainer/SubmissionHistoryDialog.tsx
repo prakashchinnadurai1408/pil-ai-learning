@@ -600,15 +600,19 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
             const all = Array.from(root2.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
             if (all.length === 0) return;
             const dir2: 1 | -1 = (e.key === "P" || e.key === "p") ? -1 : 1;
-            let nx = matchIdxRef.current + dir2;
-            if (nx < 0) nx = all.length - 1;
-            if (nx >= all.length) nx = 0;
+            const prev2 = matchIdxRef.current;
+            let nx = prev2 + dir2;
+            let wrapped2 = false;
+            if (nx < 0) { nx = all.length - 1; wrapped2 = true; }
+            if (nx >= all.length) { nx = 0; wrapped2 = true; }
             matchIdxRef.current = nx;
             setMatchIdx(nx);
             setMatchTotal(all.length);
             all[nx].scrollIntoView({ block: "center", behavior: "smooth" });
             all.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
             all[nx].classList.add("ring-2", "ring-primary");
+            focusMatchNode(all[nx]);
+            if (wrapped2) emitDiffEvent("diff_match_wraparound", { from: prev2, to: nx, total: all.length, source: "keyboard", attsAutoExpanded: true, submissionId: submission?.id });
           });
           e.preventDefault();
           return;

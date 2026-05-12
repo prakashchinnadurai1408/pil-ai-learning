@@ -974,29 +974,37 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                       if (!r2) return;
                       const all = Array.from(r2.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
                       if (all.length === 0) return;
-                      let nx = matchIdxRef.current + dir;
-                      if (nx < 0) nx = all.length - 1;
-                      if (nx >= all.length) nx = 0;
+                      const prev = matchIdxRef.current;
+                      let nx = prev + dir;
+                      let wrapped = false;
+                      if (nx < 0) { nx = all.length - 1; wrapped = true; }
+                      if (nx >= all.length) { nx = 0; wrapped = true; }
                       matchIdxRef.current = nx;
                       setMatchIdx(nx);
                       setMatchTotal(all.length);
                       all[nx].scrollIntoView({ block: "center", behavior: "smooth" });
                       all.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
                       all[nx].classList.add("ring-2", "ring-primary");
+                      focusMatchNode(all[nx]);
+                      if (wrapped) emitDiffEvent("diff_match_wraparound", { from: prev, to: nx, total: all.length, source: "button", attsAutoExpanded: true, submissionId: submission?.id });
                     });
                     return;
                   }
                   const nodes = Array.from(root.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
                   if (nodes.length === 0) return;
-                  let next = matchIdxRef.current + dir;
-                  if (next < 0) next = nodes.length - 1;
-                  if (next >= nodes.length) next = 0;
+                  const prev = matchIdxRef.current;
+                  let next = prev + dir;
+                  let wrapped = false;
+                  if (next < 0) { next = nodes.length - 1; wrapped = true; }
+                  if (next >= nodes.length) { next = 0; wrapped = true; }
                   matchIdxRef.current = next;
                   setMatchIdx(next);
                   setMatchTotal(nodes.length);
                   nodes[next].scrollIntoView({ block: "center", behavior: "smooth" });
                   nodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
                   nodes[next].classList.add("ring-2", "ring-primary");
+                  focusMatchNode(nodes[next]);
+                  if (wrapped) emitDiffEvent("diff_match_wraparound", { from: prev, to: next, total: nodes.length, source: "button", submissionId: submission?.id });
                 };
                 const visibleChanges = changeTotal;
                 return (

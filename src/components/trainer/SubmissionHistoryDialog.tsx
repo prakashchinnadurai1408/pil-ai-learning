@@ -13,6 +13,42 @@ import { toast } from "@/hooks/use-toast";
 
 type AnySubmission = { id: string; student_name?: string } | null;
 
+// Lightweight analytics emitter — broadcasts diff/match events on the window so
+// the host app (or future telemetry hook) can listen without coupling.
+const emitDiffEvent = (event: string, detail: Record<string, any> = {}) => {
+  try {
+    const payload = { event, ts: Date.now(), ...detail };
+    if (typeof window !== "undefined") {
+      (window as any).__diffAnalytics = (window as any).__diffAnalytics || [];
+      (window as any).__diffAnalytics.push(payload);
+      window.dispatchEvent(new CustomEvent("diff:analytics", { detail: payload }));
+    }
+    // eslint-disable-next-line no-console
+    console.debug("[diff-analytics]", event, detail);
+  } catch { /* ignore */ }
+};
+
+// Move keyboard focus to the active match. For attachment-rooted matches we
+// also focus the surrounding attachment row (when discoverable) so screen
+// readers announce the parent context.
+const focusMatchNode = (node: HTMLElement) => {
+  try {
+    if (!node.hasAttribute("tabindex")) node.setAttribute("tabindex", "-1");
+    node.focus({ preventScroll: true });
+    const att = node.closest<HTMLElement>('[data-attachment-item="true"], [data-attachment-row="true"]');
+    if (att) {
+      if (!att.hasAttribute("tabindex")) att.setAttribute("tabindex", "-1");
+      att.setAttribute("aria-current", "true");
+      window.setTimeout(() => att.removeAttribute("aria-current"), 1500);
+    }
+  } catch { /* ignore */ }
+};
+
+// Persisted pending histM key — survives re-renders / brief unmounts while we
+// wait for slow-loading rows to render the requested match.
+const PENDING_HIST_M_KEY = (id: string) => `histM:pending:${id}`;
+
+
 type HistoryRow = {
   id: string;
   submission_id: string;

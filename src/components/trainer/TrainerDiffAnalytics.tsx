@@ -312,44 +312,82 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
 
   const filtersStamp = `${days}d_${fCurriculum}_${fStudent}_${fStatus}_${fActorRole}_${search || "all"}`.replace(/[^\w-]+/g, "-").slice(0, 80);
 
-  // Pull the full filtered window straight from Supabase (paginated, server-side filters).
-  // Supports progress callback, cancellation and an optional `beforeIso` cursor for resume jobs.
+  // Pull the full filtered window straight from Supabase using stable keyset
+  // pagination on (created_at desc, id desc). Avoids missing/duplicating rows
+  // when offset windows shift, and lets resume jobs continue exactly where
+  // the previous one stopped.
+  const buildBaseQuery = (sinceIso: string) => {
+    let q = supabase
+      .from("curriculum_submission_history")
+      .select("id, created_at, submission_id, curriculum_id, student_id, student_name, kind, status, version_number, attachment_name, attachment_url, trainer_feedback, notes, score, max_score, actor_role, actor_name")
+      .in("student_id", studentIds)
+      .gte("created_at", sinceIso);
+    if (fCurriculum !== ALL) q = q.eq("curriculum_id", fCurriculum);
+    if (fStudent !== ALL) q = q.eq("student_id", fStudent);
+    if (fStatus !== ALL) q = q.ilike("status", fStatus);
+    if (fActorRole !== ALL) q = q.ilike("actor_role", fActorRole);
+    return q;
+  };
+
+  // Pre-export estimator: counts rows server-side without fetching them.
+  const estimateRowCount = async (): Promise<number | null> => {
+    if (!studentIds.length) return 0;
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+    let q = supabase
+      .from("curriculum_submission_history")
+      .select("id", { count: "exact", head: true })
+      .in("student_id", studentIds)
+      .gte("created_at", since);
+    if (fCurriculum !== ALL) q = q.eq("curriculum_id", fCurriculum);
+    if (fStudent !== ALL) q = q.eq("student_id", fStudent);
+    if (fStatus !== ALL) q = q.ilike("status", fStatus);
+    if (fActorRole !== ALL) q = q.ilike("actor_role", fActorRole);
+    const { count, error } = await q;
+    if (error) throw error;
+    return count ?? 0;
+  };
+
   const fetchAllFiltered = async (opts: {
     onProgress?: (loaded: number, pages: number) => void;
     isCanceled?: () => boolean;
-    beforeIso?: string;
+    startCursor?: Cursor;
     maxRows?: number;
-  } = {}): Promise<{ rows: any[]; truncated: boolean; oldestIso: string | null; canceled: boolean }> => {
-    if (!studentIds.length) return { rows: [], truncated: false, oldestIso: null, canceled: false };
+  } = {}): Promise<{ rows: any[]; truncated: boolean; lastCursor: Cursor | null; canceled: boolean }> => {
+    if (!studentIds.length) return { rows: [], truncated: false, lastCursor: null, canceled: false };
     const since = new Date(Date.now() - days * 86400000).toISOString();
     const PAGE = 1000;
     const cap = opts.maxRows ?? HARD_MAX;
     const out: any[] = [];
-    let from = 0;
+    let cursor: Cursor | undefined = opts.startCursor;
     let pages = 0;
     let truncated = false;
     while (out.length < cap) {
-      if (opts.isCanceled?.()) return { rows: out, truncated: false, oldestIso: out.at(-1)?.created_at ?? null, canceled: true };
-      let q = supabase
-        .from("curriculum_submission_history")
-        .select("id, created_at, submission_id, curriculum_id, student_id, student_name, kind, status, version_number, attachment_name, attachment_url, trainer_feedback, notes, score, max_score, actor_role, actor_name")
-        .in("student_id", studentIds)
-        .gte("created_at", since);
-      if (opts.beforeIso) q = q.lt("created_at", opts.beforeIso);
-      if (fCurriculum !== ALL) q = q.eq("curriculum_id", fCurriculum);
-      if (fStudent !== ALL) q = q.eq("student_id", fStudent);
-      if (fStatus !== ALL) q = q.ilike("status", fStatus);
-      if (fActorRole !== ALL) q = q.ilike("actor_role", fActorRole);
-      const { data, error } = await q.order("created_at", { ascending: false }).range(from, from + PAGE - 1);
+      if (opts.isCanceled?.()) {
+        return { rows: out, truncated: false, lastCursor: cursor ?? null, canceled: true };
+      }
+      let q = buildBaseQuery(since);
+      if (cursor) {
+        // Strict keyset filter: rows strictly older than cursor (by created_at, then id).
+        q = q.or(
+          `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`,
+        );
+      }
+      const { data, error } = await q
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(PAGE);
       if (error) throw error;
       const batch = (data as any[]) || [];
       out.push(...batch);
       pages += 1;
       opts.onProgress?.(out.length, pages);
       if (batch.length < PAGE) break;
-      from += PAGE;
+      const last = batch[batch.length - 1];
+      cursor = { createdAt: last.created_at, id: last.id };
       if (out.length >= cap) { truncated = true; break; }
     }
+    const lastRow = out[out.length - 1];
+    const lastCursor: Cursor | null = lastRow ? { createdAt: lastRow.created_at, id: lastRow.id } : (cursor ?? null);
     // Apply the same client-side text search the table uses
     const q = search.trim().toLowerCase();
     const enrichedAll = out.map((r) => ({
@@ -365,7 +403,7 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
       (r.curriculum_id || "").toLowerCase().includes(q) ||
       (r.notes || "").toLowerCase().includes(q),
     );
-    return { rows: finalRows, truncated, oldestIso: out.at(-1)?.created_at ?? null, canceled: false };
+    return { rows: finalRows, truncated, lastCursor, canceled: false };
   };
 
   const buildCsv = (rowsAll: any[]) => {
@@ -404,19 +442,19 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
     return doc;
   };
 
-  const runExport = async (format: "csv" | "pdf", beforeIso?: string, jobLabel?: string) => {
+  const runExport = async (format: "csv" | "pdf", startCursor?: Cursor, jobLabel?: string) => {
     exportCancelRef.current = false;
-    setExportState({ open: true, format, loaded: 0, pages: 0, phase: "fetching" });
+    setExportState({ open: true, minimized: false, format, loaded: 0, pages: 0, phase: "fetching", jobLabel });
     if (format === "pdf") setExportingPdf(true);
     try {
       const result = await fetchAllFiltered({
-        beforeIso,
+        startCursor,
         isCanceled: () => exportCancelRef.current,
         onProgress: (loaded, pages) =>
           setExportState((s) => (s ? { ...s, loaded, pages } : s)),
       });
       if (result.canceled) {
-        setExportState((s) => (s ? { ...s, phase: "canceled" } : s));
+        setExportState((s) => (s ? { ...s, phase: "canceled", minimized: false } : s));
         toast.message("Export canceled", { description: `Stopped after ${result.rows.length} rows.` });
         return;
       }
@@ -428,32 +466,63 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
         const doc = await buildPdf(result.rows, jobLabel ? `part ${jobLabel}` : "");
         doc.save(`diff-events-${stamp}.pdf`);
       }
-      setExportState((s) => (s ? { ...s, phase: "done" } : s));
-      toast.success(`Exported ${result.rows.length} rows to ${format.toUpperCase()}`);
-      if (result.truncated && result.oldestIso) {
-        setResumeOffer({ format, cursorBefore: result.oldestIso, previousCount: result.rows.length });
+      setExportState((s) => (s ? { ...s, phase: "done", minimized: false } : s));
+      toast.success(`Exported ${result.rows.length} rows to ${format.toUpperCase()}`, {
+        description: jobLabel ? `Job ${jobLabel} complete.` : undefined,
+      });
+      if (result.truncated && result.lastCursor) {
+        setResumeOffer({ format, cursor: result.lastCursor, previousCount: result.rows.length });
       }
     } catch (e) {
       console.error(e);
-      setExportState((s) => (s ? { ...s, phase: "error" } : s));
+      setExportState((s) => (s ? { ...s, phase: "error", minimized: false } : s));
       toast.error(`${format.toUpperCase()} export failed`);
     } finally {
       if (format === "pdf") setExportingPdf(false);
     }
   };
 
-  const exportCsv = () => runExport("csv");
-  const exportPdf = () => runExport("pdf");
+  const beginExport = async (format: "csv" | "pdf", startCursor?: Cursor, jobLabel?: string) => {
+    setEstimate({ format, loading: true, count: null, willTruncate: false, startCursor, jobLabel });
+    try {
+      const total = await estimateRowCount();
+      // If resuming, we don't know exactly how many remain, but the cap still applies.
+      const projected = total ?? 0;
+      setEstimate({
+        format,
+        loading: false,
+        count: projected,
+        willTruncate: projected > HARD_MAX,
+        startCursor,
+        jobLabel,
+      });
+    } catch (e) {
+      console.error(e);
+      setEstimate({ format, loading: false, count: null, willTruncate: false, error: "Could not estimate row count.", startCursor, jobLabel });
+    }
+  };
+
+  const confirmEstimate = () => {
+    if (!estimate) return;
+    const { format, startCursor, jobLabel } = estimate;
+    setEstimate(null);
+    runExport(format, startCursor, jobLabel);
+  };
+
+  const exportCsv = () => beginExport("csv");
+  const exportPdf = () => beginExport("pdf");
   const cancelExport = () => { exportCancelRef.current = true; };
   const closeExportDialog = () => { exportCancelRef.current = false; setExportState(null); };
+  const minimizeExport = () => setExportState((s) => (s ? { ...s, minimized: true } : s));
+  const restoreExport = () => setExportState((s) => (s ? { ...s, minimized: false } : s));
 
   const runResumeJob = () => {
     if (!resumeOffer) return;
-    const { format, cursorBefore, previousCount } = resumeOffer;
+    const { format, cursor, previousCount } = resumeOffer;
     const jobLabel = `continued-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}`;
     setResumeOffer(null);
     toast.message("Starting follow-up export", { description: `Fetching rows older than the previous ${previousCount}.` });
-    runExport(format, cursorBefore, jobLabel);
+    beginExport(format, cursor, jobLabel);
   };
 
 

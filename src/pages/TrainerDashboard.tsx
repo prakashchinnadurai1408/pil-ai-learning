@@ -575,6 +575,8 @@ const TrainerDashboard = () => {
             <TrainerDiffAnalytics
               studentIds={students.map((s) => s.id)}
               studentNameById={Object.fromEntries(students.map((s) => [s.id, s.name]))}
+              trainerId={trainerId}
+              trainerName={trainerName}
             />
           </Suspense>
         );

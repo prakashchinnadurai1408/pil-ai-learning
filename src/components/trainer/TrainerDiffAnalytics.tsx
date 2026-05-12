@@ -106,6 +106,17 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [activeMinimized, setActiveMinimized] = useState(false);
   const [showJobsPanel, setShowJobsPanel] = useState(false);
+  // Recent exports panel: filters, pagination, auto-download
+  const [autoDownload, setAutoDownload] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("trainer_export_auto_download") === "1";
+  });
+  const autoDownloadedRef = useRef<Set<string>>(new Set());
+  const [jobsStatusFilter, setJobsStatusFilter] = useState<string>(ALL);
+  const [jobsFormatFilter, setJobsFormatFilter] = useState<string>(ALL);
+  const [jobsDateFilter, setJobsDateFilter] = useState<"all" | "today" | "7d" | "30d">("all");
+  const [jobsPage, setJobsPage] = useState(1);
+  const JOBS_PAGE_SIZE = 6;
   const [estimate, setEstimate] = useState<{
     format: "csv" | "pdf";
     loading: boolean;
@@ -337,7 +348,7 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
   const reloadJobs = useCallback(async () => {
     if (!trainerId || !trainerEmail) { setExportJobs([]); return; }
     const { data, error } = await supabase.rpc("list_trainer_export_jobs", {
-      _trainer_id: trainerId, _email: trainerEmail, _limit: 10,
+      _trainer_id: trainerId, _email: trainerEmail, _limit: 100,
     });
     if (error) { console.warn("list jobs", error); return; }
     setExportJobs((data as any[]) || []);
@@ -362,7 +373,7 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
             }
             if (!newRow) return prev;
             const idx = prev.findIndex((j) => j.id === newRow.id);
-            if (idx === -1) return [newRow, ...prev].slice(0, 10);
+            if (idx === -1) return [newRow, ...prev].slice(0, 100);
             const next = prev.slice();
             next[idx] = { ...next[idx], ...newRow };
             return next;
@@ -380,17 +391,22 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
           }
           if (newRow && newRow.status === "done" && newRow.id === activeJobId) {
             toast.success(`Export ready · ${newRow.rows_fetched.toLocaleString()} rows`, {
-              description: "Click Download in the export panel.",
+              description: autoDownload ? "Downloading automatically…" : "Click Download in the export panel.",
             });
           }
           if (newRow && newRow.status === "error" && newRow.id === activeJobId) {
             toast.error(`Export failed: ${newRow.error_message || "unknown"}`);
           }
+          // Auto-download as soon as any job becomes done (once per job)
+          if (newRow && newRow.status === "done" && autoDownload && !autoDownloadedRef.current.has(newRow.id)) {
+            autoDownloadedRef.current.add(newRow.id);
+            downloadJob(newRow.id).catch(() => {});
+          }
         },
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [trainerEmail, activeJobId]);
+  }, [trainerEmail, activeJobId, autoDownload]);
 
   // Pre-export estimator: counts rows server-side without fetching them.
   const estimateRowCount = async (startCursor?: Cursor): Promise<number | null> => {
@@ -537,7 +553,75 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
     return Math.min(99, Math.round((j.rows_fetched / denom) * 100));
   };
 
+  // Persist auto-download preference
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("trainer_export_auto_download", autoDownload ? "1" : "0");
+    }
+  }, [autoDownload]);
 
+  // Retry / continue a failed or canceled job by starting a fresh job that resumes
+  // from the saved cursor (if any) so previously-fetched rows aren't re-exported.
+  const retryFailedJob = (j: ExportJob) => {
+    const cursor: Cursor | undefined =
+      j.cursor_created_at && j.cursor_id
+        ? { createdAt: j.cursor_created_at, id: j.cursor_id }
+        : undefined;
+    const label = j.status === "canceled" ? "resumed-from-canceled" : "retry-after-error";
+    toast.message(cursor ? "Resuming from last saved position" : "Restarting export from scratch");
+    beginExport(j.format, cursor, label, j.id);
+  };
+
+  // Friendly explanation for failure / cancellation reasons.
+  const explainFailure = (j: ExportJob): { title: string; detail: string } => {
+    if (j.status === "canceled") {
+      return {
+        title: "You canceled this export",
+        detail: j.rows_fetched
+          ? `Stopped after fetching ${j.rows_fetched.toLocaleString()} rows on page ${j.pages_fetched}. The cursor was saved so you can resume.`
+          : "Stopped before any rows were fetched.",
+      };
+    }
+    const raw = (j.error_message || "").toLowerCase();
+    if (!raw) return { title: "Unknown error", detail: "The server didn't return a reason. Try again or start a fresh export." };
+    if (raw.includes("timeout") || raw.includes("timed out")) {
+      return { title: "Server timeout", detail: `${j.error_message}. Retrying typically resumes from the last saved cursor.` };
+    }
+    if (raw.includes("storage") || raw.includes("upload")) {
+      return { title: "File upload failed", detail: `${j.error_message}. The data was fetched but the file couldn't be saved — please retry.` };
+    }
+    if (raw.includes("permission") || raw.includes("rls") || raw.includes("forbidden")) {
+      return { title: "Permission denied", detail: `${j.error_message}. Your trainer session may have expired — sign in again, then retry.` };
+    }
+    if (raw.includes("network") || raw.includes("fetch")) {
+      return { title: "Network error", detail: `${j.error_message}. Retrying will resume from where it stopped.` };
+    }
+    return { title: "Export error", detail: j.error_message };
+  };
+
+  // Filtered + paginated jobs for the Recent exports panel.
+  const filteredJobs = useMemo(() => {
+    let list = exportJobs;
+    if (jobsStatusFilter !== ALL) list = list.filter((j) => j.status === jobsStatusFilter);
+    if (jobsFormatFilter !== ALL) list = list.filter((j) => j.format === jobsFormatFilter);
+    if (jobsDateFilter !== "all") {
+      const now = Date.now();
+      const cutoff =
+        jobsDateFilter === "today" ? now - 86400000 :
+        jobsDateFilter === "7d" ? now - 7 * 86400000 :
+        now - 30 * 86400000;
+      list = list.filter((j) => new Date(j.created_at).getTime() >= cutoff);
+    }
+    return list;
+  }, [exportJobs, jobsStatusFilter, jobsFormatFilter, jobsDateFilter]);
+  const jobsPageCount = Math.max(1, Math.ceil(filteredJobs.length / JOBS_PAGE_SIZE));
+  useEffect(() => { if (jobsPage > jobsPageCount) setJobsPage(jobsPageCount); }, [jobsPageCount, jobsPage]);
+  const pagedJobs = useMemo(
+    () => filteredJobs.slice((jobsPage - 1) * JOBS_PAGE_SIZE, jobsPage * JOBS_PAGE_SIZE),
+    [filteredJobs, jobsPage],
+  );
+  const clearJobsFilters = () => { setJobsStatusFilter(ALL); setJobsFormatFilter(ALL); setJobsDateFilter("all"); setJobsPage(1); };
+  const jobsHaveFilters = jobsStatusFilter !== ALL || jobsFormatFilter !== ALL || jobsDateFilter !== "all";
 
   const clearFilters = () => { setSearch(""); setFCurriculum(ALL); setFStudent(ALL); setFStatus(ALL); setFActorRole(ALL); };
   const hasFilters = search || fCurriculum !== ALL || fStudent !== ALL || fStatus !== ALL || fActorRole !== ALL;
@@ -618,6 +702,21 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
             <DropdownMenuItem onClick={exportPdf}>Download PDF</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShowJobsPanel(true)}
+          title="Open recent export jobs"
+        >
+          <History className="h-3.5 w-3.5 mr-1" />
+          Recent exports
+          {exportJobs.some((j) => isJobRunning(j.status)) && (
+            <Loader2 className="h-3 w-3 ml-1 animate-spin text-primary" />
+          )}
+          {exportJobs.length > 0 && (
+            <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-[10px]">{exportJobs.length}</Badge>
+          )}
+        </Button>
         <Badge variant="outline">{filtered.length} of {rows.length} loaded</Badge>
       </div>
 
@@ -965,47 +1064,139 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
             <DialogTitle className="flex items-center gap-2"><History className="h-4 w-4" /> Recent exports</DialogTitle>
             <DialogDescription>Background jobs persist across refreshes. Files are kept for 7 days.</DialogDescription>
           </DialogHeader>
-          {exportJobs.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">No export jobs yet.</p>
+
+          {/* Filter bar + auto-download toggle */}
+          <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border">
+            <Select value={jobsStatusFilter} onValueChange={(v) => { setJobsStatusFilter(v); setJobsPage(1); }}>
+              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All status</SelectItem>
+                <SelectItem value="queued">Queued</SelectItem>
+                <SelectItem value="running">Running</SelectItem>
+                <SelectItem value="done">Done</SelectItem>
+                <SelectItem value="canceled">Canceled</SelectItem>
+                <SelectItem value="error">Error</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={jobsFormatFilter} onValueChange={(v) => { setJobsFormatFilter(v); setJobsPage(1); }}>
+              <SelectTrigger className="w-[120px] h-8 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All types</SelectItem>
+                <SelectItem value="csv">CSV</SelectItem>
+                <SelectItem value="pdf">PDF</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={jobsDateFilter} onValueChange={(v) => { setJobsDateFilter(v as any); setJobsPage(1); }}>
+              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Date range" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any date</SelectItem>
+                <SelectItem value="today">Last 24 hours</SelectItem>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+              </SelectContent>
+            </Select>
+            {jobsHaveFilters && (
+              <Button size="sm" variant="ghost" className="h-8" onClick={clearJobsFilters}>
+                <X className="h-3 w-3 mr-1" />Clear
+              </Button>
+            )}
+            <div className="ml-auto flex items-center gap-2">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 accent-primary"
+                  checked={autoDownload}
+                  onChange={(e) => setAutoDownload(e.target.checked)}
+                />
+                Auto-download when ready
+              </label>
+            </div>
+          </div>
+
+          {filteredJobs.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              {exportJobs.length === 0 ? "No export jobs yet." : "No jobs match the current filters."}
+            </p>
           ) : (
-            <div className="divide-y divide-border max-h-[60vh] overflow-y-auto">
-              {exportJobs.map((j) => (
-                <div key={j.id} className="py-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Badge variant="outline">{j.format.toUpperCase()}</Badge>
-                      <Badge variant={j.status === "done" ? "default" : j.status === "error" ? "destructive" : "secondary"}>{j.status}</Badge>
-                      {j.will_truncate && <Badge variant="outline" className="text-warning border-warning/40">truncated</Badge>}
-                      {j.format_downgraded && <Badge variant="outline">PDF→CSV</Badge>}
-                      <span className="text-xs text-muted-foreground">{new Date(j.created_at).toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {j.status === "done" && (
-                        <Button size="sm" variant="outline" onClick={() => downloadJob(j.id)}>
-                          <Download className="h-3.5 w-3.5 mr-1" />Download
+            <div className="divide-y divide-border max-h-[55vh] overflow-y-auto">
+              {pagedJobs.map((j) => {
+                const failed = j.status === "error" || j.status === "canceled";
+                const reason = failed ? explainFailure(j) : null;
+                return (
+                  <div key={j.id} className="py-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-sm flex-wrap">
+                        <Badge variant="outline">{j.format.toUpperCase()}</Badge>
+                        <Badge variant={j.status === "done" ? "default" : j.status === "error" ? "destructive" : "secondary"}>{j.status}</Badge>
+                        {j.will_truncate && <Badge variant="outline" className="text-warning border-warning/40">truncated</Badge>}
+                        {j.format_downgraded && <Badge variant="outline">PDF→CSV</Badge>}
+                        <span className="text-xs text-muted-foreground">{new Date(j.created_at).toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {j.status === "done" && (
+                          <Button size="sm" variant="outline" onClick={() => downloadJob(j.id)}>
+                            <Download className="h-3.5 w-3.5 mr-1" />Download
+                          </Button>
+                        )}
+                        {failed && (
+                          <Button size="sm" variant="outline" onClick={() => retryFailedJob(j)}>
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                            {j.cursor_created_at ? "Resume" : "Retry"}
+                          </Button>
+                        )}
+                        {isJobRunning(j.status) && (
+                          <Button size="sm" variant="ghost" onClick={() => cancelJob(j.id)} disabled={j.cancel_requested}>
+                            <X className="h-3.5 w-3.5 mr-1" />Cancel
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" onClick={() => { setActiveJobId(j.id); setActiveMinimized(false); }}>Open</Button>
+                        <Button size="sm" variant="ghost" onClick={() => deleteJob(j.id)} title="Delete">
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
-                      )}
-                      {isJobRunning(j.status) && (
-                        <Button size="sm" variant="ghost" onClick={() => cancelJob(j.id)} disabled={j.cancel_requested}>
-                          <X className="h-3.5 w-3.5 mr-1" />Cancel
-                        </Button>
-                      )}
-                      <Button size="sm" variant="ghost" onClick={() => { setActiveJobId(j.id); setActiveMinimized(false); }}>Open</Button>
-                      <Button size="sm" variant="ghost" onClick={() => deleteJob(j.id)} title="Delete">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      </div>
                     </div>
+                    <Progress value={jobProgressPct(j)} />
+                    <p className="text-[11px] text-muted-foreground">
+                      {j.rows_fetched.toLocaleString()} / ~{Math.min(j.estimated_total || j.hard_max, j.hard_max).toLocaleString()} rows
+                      {" · "}{j.pages_fetched} pages
+                    </p>
+                    {reason && (
+                      <div className={`text-xs rounded-md p-2 border ${j.status === "error" ? "border-destructive/40 bg-destructive/5 text-destructive" : "border-warning/40 bg-warning/5 text-warning-foreground"}`}>
+                        <p className="font-medium flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />{reason.title}
+                        </p>
+                        <p className="mt-1 text-muted-foreground">{reason.detail}</p>
+                        <div className="mt-2 flex gap-2">
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => retryFailedJob(j)}>
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                            {j.cursor_created_at ? "Resume from saved cursor" : "Start a fresh export"}
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => deleteJob(j.id)}>
+                            Dismiss
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <Progress value={jobProgressPct(j)} />
-                  <p className="text-[11px] text-muted-foreground">
-                    {j.rows_fetched.toLocaleString()} / ~{Math.min(j.estimated_total || j.hard_max, j.hard_max).toLocaleString()} rows
-                    {" · "}{j.pages_fetched} pages
-                    {j.error_message ? ` · ${j.error_message}` : ""}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
+
+          {/* Pagination controls */}
+          {filteredJobs.length > JOBS_PAGE_SIZE && (
+            <div className="flex items-center justify-between pt-2 text-xs text-muted-foreground">
+              <span>
+                Showing {(jobsPage - 1) * JOBS_PAGE_SIZE + 1}–{Math.min(jobsPage * JOBS_PAGE_SIZE, filteredJobs.length)} of {filteredJobs.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button size="sm" variant="ghost" className="h-7" disabled={jobsPage <= 1} onClick={() => setJobsPage((p) => Math.max(1, p - 1))}>Prev</Button>
+                <span>Page {jobsPage} / {jobsPageCount}</span>
+                <Button size="sm" variant="ghost" className="h-7" disabled={jobsPage >= jobsPageCount} onClick={() => setJobsPage((p) => Math.min(jobsPageCount, p + 1))}>Next</Button>
+              </div>
+            </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={reloadJobs}><RefreshCw className="h-3.5 w-3.5 mr-1" />Refresh</Button>
             <Button onClick={() => setShowJobsPanel(false)}>Close</Button>

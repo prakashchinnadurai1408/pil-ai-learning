@@ -569,6 +569,15 @@ const TrainerDashboard = () => {
             />
           </Suspense>
         );
+      case "diff-analytics":
+        return (
+          <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+            <TrainerDiffAnalytics
+              studentIds={students.map((s) => s.id)}
+              studentNameById={Object.fromEntries(students.map((s) => [s.id, s.name]))}
+            />
+          </Suspense>
+        );
     }
   };
 

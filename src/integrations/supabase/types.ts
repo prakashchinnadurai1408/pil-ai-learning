@@ -2291,6 +2291,39 @@ export type Database = {
         }
         Relationships: []
       }
+      trainer_diff_pins: {
+        Row: {
+          created_at: string
+          curriculum_id: string | null
+          history_id: string
+          id: string
+          note: string
+          student_id: string | null
+          submission_id: string | null
+          trainer_id: string
+        }
+        Insert: {
+          created_at?: string
+          curriculum_id?: string | null
+          history_id: string
+          id?: string
+          note?: string
+          student_id?: string | null
+          submission_id?: string | null
+          trainer_id: string
+        }
+        Update: {
+          created_at?: string
+          curriculum_id?: string | null
+          history_id?: string
+          id?: string
+          note?: string
+          student_id?: string | null
+          submission_id?: string | null
+          trainer_id?: string
+        }
+        Relationships: []
+      }
       trainer_messages: {
         Row: {
           body: string

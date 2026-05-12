@@ -283,6 +283,14 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   const [matchIdx, setMatchIdx] = useState(0);
   const [matchTotal, setMatchTotal] = useState(0);
   const [linkCopied, setLinkCopied] = useState(false);
+  // Subtle UI hint shown when a shared-link histM had to be clamped to a
+  // smaller in-range value. Holds the originally-requested index until
+  // dismissed or the user navigates manually.
+  const [clampedFrom, setClampedFrom] = useState<number | null>(null);
+  // True while we are still waiting for history rows / DOM matches to render
+  // for a pending shared-link histM. Drives the "Jumping to shared match…"
+  // inline indicator next to the match badge.
+  const [restoringMatch, setRestoringMatch] = useState(false);
   const compareRef = useRef<HTMLDivElement | null>(null);
   const changeIdxRef = useRef<number>(-1);
   const matchIdxRef = useRef<number>(-1);
@@ -326,6 +334,9 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
           pendingMatchRef.current = n;
           matchIdxRef.current = n;
           setMatchIdx(n);
+          // Flip a brief loading state so the UI tells the user we're waiting
+          // for rows / matches before scrolling.
+          setRestoringMatch(true);
         }
       }
     } catch { /* ignore */ }
@@ -415,6 +426,9 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
         matchIdxRef.current = 0;
         setMatchIdx(0);
       } else if (matchIdxRef.current >= nodes.length) {
+        // Capture the originally-requested index so we can surface a subtle
+        // "Adjusted to nearest match" hint to the user.
+        setClampedFrom(matchIdxRef.current);
         matchIdxRef.current = nodes.length - 1;
         setMatchIdx(nodes.length - 1);
       }
@@ -430,6 +444,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     if (tab !== "compare") return;
     if (!query) {
       pendingMatchRef.current = null;
+      setRestoringMatch(false);
       return;
     }
     const root = compareRef.current;
@@ -439,7 +454,11 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       if (nodes.length === 0) return;
       let idx: number;
       if (pendingMatchRef.current != null) {
-        idx = Math.min(Math.max(0, pendingMatchRef.current), nodes.length - 1);
+        const requested = pendingMatchRef.current;
+        idx = Math.min(Math.max(0, requested), nodes.length - 1);
+        // Surface a subtle hint when the shared link asked for an index that
+        // was out-of-range and we had to clamp it.
+        if (requested !== idx) setClampedFrom(requested);
         pendingMatchRef.current = null;
       } else {
         idx = 0;
@@ -447,6 +466,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       matchIdxRef.current = idx;
       setMatchIdx(idx);
       setMatchTotal(nodes.length);
+      setRestoringMatch(false);
       const target = nodes[idx];
       target.scrollIntoView({ block: "center", behavior: "smooth" });
       target.classList.add("ring-2", "ring-primary");
@@ -480,6 +500,31 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
 
       // Shift+N / Shift+P navigate keyword matches; plain N/P navigate change blocks.
       if (e.shiftKey && (e.key === "N" || e.key === "P" || e.key === "n" || e.key === "p")) {
+        // If the attachments panel is collapsed, expand it first so any
+        // attachment <mark> nodes participate in the wraparound match sequence.
+        if (!attsOpen) {
+          setAttsOpen(true);
+          // Defer the navigation to the next render so the new <mark> nodes
+          // are in the DOM and counted in wraparound math.
+          requestAnimationFrame(() => {
+            const root2 = compareRef.current;
+            if (!root2) return;
+            const all = Array.from(root2.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
+            if (all.length === 0) return;
+            const dir2: 1 | -1 = (e.key === "P" || e.key === "p") ? -1 : 1;
+            let nx = matchIdxRef.current + dir2;
+            if (nx < 0) nx = all.length - 1;
+            if (nx >= all.length) nx = 0;
+            matchIdxRef.current = nx;
+            setMatchIdx(nx);
+            setMatchTotal(all.length);
+            all[nx].scrollIntoView({ block: "center", behavior: "smooth" });
+            all.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
+            all[nx].classList.add("ring-2", "ring-primary");
+          });
+          e.preventDefault();
+          return;
+        }
         const matchNodes = Array.from(root.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
         if (matchNodes.length === 0) return;
         const dir: 1 | -1 = (e.key === "P" || e.key === "p") ? -1 : 1;
@@ -512,7 +557,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [submission, tab, query]);
+  }, [submission, tab, query, attsOpen]);
 
   // Clean URL params when closing.
   const handleClose = () => {
@@ -538,6 +583,21 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
         setLoading(false);
       });
   }, [submission]);
+
+  // Safety: once loading completes, clear the "Jumping to shared match…"
+  // indicator after a brief grace period even if no pending match resolves
+  // (e.g. when the shared link's query yielded zero matches).
+  useEffect(() => {
+    if (!restoringMatch) return;
+    if (loading) return;
+    const t = setTimeout(() => setRestoringMatch(false), 1200);
+    return () => clearTimeout(t);
+  }, [restoringMatch, loading, rows]);
+
+  // Auto-dismiss the "Adjusted to nearest match" hint when the user changes
+  // the query or compared versions — at that point the original index is no
+  // longer relevant.
+  useEffect(() => { setClampedFrom(null); }, [query, leftId, rightId]);
 
   if (!submission) return null;
 
@@ -809,6 +869,27 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                 const goToMatch = (dir: 1 | -1) => {
                   const root = compareRef.current;
                   if (!root) return;
+                  // Auto-expand attachments so collapsed previews participate
+                  // in the wraparound match sequence.
+                  if (!attsOpen) {
+                    setAttsOpen(true);
+                    requestAnimationFrame(() => {
+                      const r2 = compareRef.current;
+                      if (!r2) return;
+                      const all = Array.from(r2.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
+                      if (all.length === 0) return;
+                      let nx = matchIdxRef.current + dir;
+                      if (nx < 0) nx = all.length - 1;
+                      if (nx >= all.length) nx = 0;
+                      matchIdxRef.current = nx;
+                      setMatchIdx(nx);
+                      setMatchTotal(all.length);
+                      all[nx].scrollIntoView({ block: "center", behavior: "smooth" });
+                      all.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
+                      all[nx].classList.add("ring-2", "ring-primary");
+                    });
+                    return;
+                  }
                   const nodes = Array.from(root.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
                   if (nodes.length === 0) return;
                   let next = matchIdxRef.current + dir;
@@ -929,7 +1010,41 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                           Match {matchTotal === 0 ? 0 : Math.min(matchIdx + 1, matchTotal)} of {matchTotal}
                         </Badge>
                       )}
+                      {restoringMatch && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] shrink-0 bg-primary/10 text-primary border-primary/30 animate-pulse"
+                          aria-live="polite"
+                        >
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          Jumping to shared match…
+                        </Badge>
+                      )}
                     </div>
+                    {clampedFrom != null && (
+                      <div
+                        role="status"
+                        aria-live="polite"
+                        className="rounded border border-dashed border-warning/40 bg-warning/10 text-warning-foreground px-3 py-1.5 flex items-center justify-between gap-2 text-[11px]"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+                          Adjusted shared link match{" "}
+                          <span className="font-medium">#{clampedFrom + 1}</span>{" "}
+                          to nearest available match{" "}
+                          <span className="font-medium">#{Math.min(matchIdx + 1, matchTotal)}</span>.
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-[10px] shrink-0"
+                          onClick={() => setClampedFrom(null)}
+                          aria-label="Dismiss adjusted match notice"
+                        >
+                          <XIcon className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                     {query && matchTotal === 0 && (
                       <div
                         role="status"

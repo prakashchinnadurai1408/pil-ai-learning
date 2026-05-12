@@ -2324,6 +2324,93 @@ export type Database = {
         }
         Relationships: []
       }
+      trainer_export_jobs: {
+        Row: {
+          cancel_requested: boolean
+          completed_at: string | null
+          created_at: string
+          cursor_created_at: string | null
+          cursor_id: string | null
+          error_message: string
+          estimated_total: number
+          file_path: string
+          file_size_bytes: number
+          filters: Json
+          format: string
+          format_downgraded: boolean
+          hard_max: number
+          id: string
+          job_label: string
+          pages_fetched: number
+          parent_job_id: string | null
+          rows_fetched: number
+          started_at: string | null
+          status: string
+          student_ids: Json
+          trainer_email: string
+          trainer_id: string
+          trainer_name: string
+          updated_at: string
+          will_truncate: boolean
+        }
+        Insert: {
+          cancel_requested?: boolean
+          completed_at?: string | null
+          created_at?: string
+          cursor_created_at?: string | null
+          cursor_id?: string | null
+          error_message?: string
+          estimated_total?: number
+          file_path?: string
+          file_size_bytes?: number
+          filters?: Json
+          format: string
+          format_downgraded?: boolean
+          hard_max?: number
+          id?: string
+          job_label?: string
+          pages_fetched?: number
+          parent_job_id?: string | null
+          rows_fetched?: number
+          started_at?: string | null
+          status?: string
+          student_ids?: Json
+          trainer_email: string
+          trainer_id: string
+          trainer_name?: string
+          updated_at?: string
+          will_truncate?: boolean
+        }
+        Update: {
+          cancel_requested?: boolean
+          completed_at?: string | null
+          created_at?: string
+          cursor_created_at?: string | null
+          cursor_id?: string | null
+          error_message?: string
+          estimated_total?: number
+          file_path?: string
+          file_size_bytes?: number
+          filters?: Json
+          format?: string
+          format_downgraded?: boolean
+          hard_max?: number
+          id?: string
+          job_label?: string
+          pages_fetched?: number
+          parent_job_id?: string | null
+          rows_fetched?: number
+          started_at?: string | null
+          status?: string
+          student_ids?: Json
+          trainer_email?: string
+          trainer_id?: string
+          trainer_name?: string
+          updated_at?: string
+          will_truncate?: boolean
+        }
+        Relationships: []
+      }
       trainer_messages: {
         Row: {
           body: string
@@ -2728,9 +2815,72 @@ export type Database = {
         }
         Returns: string
       }
+      cancel_trainer_export_job: {
+        Args: { _email: string; _job_id: string; _trainer_id: string }
+        Returns: undefined
+      }
+      create_trainer_export_job: {
+        Args: {
+          _email: string
+          _estimated_total: number
+          _filters: Json
+          _format: string
+          _hard_max: number
+          _job_label: string
+          _parent_job_id: string
+          _start_cursor_created_at: string
+          _start_cursor_id: string
+          _student_ids: Json
+          _trainer_id: string
+          _trainer_name: string
+          _will_truncate: boolean
+        }
+        Returns: string
+      }
+      delete_trainer_export_job: {
+        Args: { _email: string; _job_id: string; _trainer_id: string }
+        Returns: string
+      }
       delete_video_quiz_progress: {
         Args: { _lesson_id: string; _mobile: string; _student_id: string }
         Returns: undefined
+      }
+      get_trainer_export_job: {
+        Args: { _email: string; _job_id: string; _trainer_id: string }
+        Returns: {
+          cancel_requested: boolean
+          completed_at: string | null
+          created_at: string
+          cursor_created_at: string | null
+          cursor_id: string | null
+          error_message: string
+          estimated_total: number
+          file_path: string
+          file_size_bytes: number
+          filters: Json
+          format: string
+          format_downgraded: boolean
+          hard_max: number
+          id: string
+          job_label: string
+          pages_fetched: number
+          parent_job_id: string | null
+          rows_fetched: number
+          started_at: string | null
+          status: string
+          student_ids: Json
+          trainer_email: string
+          trainer_id: string
+          trainer_name: string
+          updated_at: string
+          will_truncate: boolean
+        }
+        SetofOptions: {
+          from: "*"
+          to: "trainer_export_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       get_video_quiz_progress: {
         Args: { _lesson_id: string; _mobile: string; _student_id: string }
@@ -2749,6 +2899,43 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      list_trainer_export_jobs: {
+        Args: { _email: string; _limit?: number; _trainer_id: string }
+        Returns: {
+          cancel_requested: boolean
+          completed_at: string | null
+          created_at: string
+          cursor_created_at: string | null
+          cursor_id: string | null
+          error_message: string
+          estimated_total: number
+          file_path: string
+          file_size_bytes: number
+          filters: Json
+          format: string
+          format_downgraded: boolean
+          hard_max: number
+          id: string
+          job_label: string
+          pages_fetched: number
+          parent_job_id: string | null
+          rows_fetched: number
+          started_at: string | null
+          status: string
+          student_ids: Json
+          trainer_email: string
+          trainer_id: string
+          trainer_name: string
+          updated_at: string
+          will_truncate: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "trainer_export_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       list_trainer_pins: {
         Args: { _email: string; _trainer_id: string }

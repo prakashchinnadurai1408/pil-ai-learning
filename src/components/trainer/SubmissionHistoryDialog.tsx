@@ -620,14 +620,18 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
         const matchNodes = Array.from(root.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
         if (matchNodes.length === 0) return;
         const dir: 1 | -1 = (e.key === "P" || e.key === "p") ? -1 : 1;
-        let next = matchIdxRef.current + dir;
-        if (next < 0) next = matchNodes.length - 1;
-        if (next >= matchNodes.length) next = 0;
+        const prev = matchIdxRef.current;
+        let next = prev + dir;
+        let wrapped = false;
+        if (next < 0) { next = matchNodes.length - 1; wrapped = true; }
+        if (next >= matchNodes.length) { next = 0; wrapped = true; }
         matchIdxRef.current = next;
         setMatchIdx(next);
         matchNodes[next].scrollIntoView({ block: "center", behavior: "smooth" });
         matchNodes.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
         matchNodes[next].classList.add("ring-2", "ring-primary");
+        focusMatchNode(matchNodes[next]);
+        if (wrapped) emitDiffEvent("diff_match_wraparound", { from: prev, to: next, total: matchNodes.length, source: "keyboard", submissionId: submission?.id });
         e.preventDefault();
         return;
       }

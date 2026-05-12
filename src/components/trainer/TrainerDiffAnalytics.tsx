@@ -79,24 +79,33 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
 
-  // Export progress + cancellation + background mode
+  // Background export jobs (server-side, durable across refreshes)
   const HARD_MAX = 20000;
   type Cursor = { createdAt: string; id: string };
-  const [exportState, setExportState] = useState<{
-    open: boolean;
-    minimized: boolean;
+  type ExportJob = {
+    id: string;
     format: "csv" | "pdf";
-    loaded: number;
-    pages: number;
-    phase: "fetching" | "rendering" | "done" | "canceled" | "error";
-    jobLabel?: string;
-  } | null>(null);
-  const exportCancelRef = useRef(false);
-  const [resumeOffer, setResumeOffer] = useState<{
-    format: "csv" | "pdf";
-    cursor: Cursor;
-    previousCount: number;
-  } | null>(null);
+    status: "queued" | "running" | "done" | "canceled" | "error";
+    rows_fetched: number;
+    pages_fetched: number;
+    estimated_total: number;
+    hard_max: number;
+    will_truncate: boolean;
+    cancel_requested: boolean;
+    error_message: string;
+    file_path: string;
+    file_size_bytes: number;
+    format_downgraded: boolean;
+    cursor_created_at: string | null;
+    cursor_id: string | null;
+    job_label: string;
+    created_at: string;
+    completed_at: string | null;
+  };
+  const [exportJobs, setExportJobs] = useState<ExportJob[]>([]);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [activeMinimized, setActiveMinimized] = useState(false);
+  const [showJobsPanel, setShowJobsPanel] = useState(false);
   const [estimate, setEstimate] = useState<{
     format: "csv" | "pdf";
     loading: boolean;
@@ -105,7 +114,15 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
     error?: string;
     startCursor?: Cursor;
     jobLabel?: string;
+    parentJobId?: string;
   } | null>(null);
+  const [resumeOffer, setResumeOffer] = useState<{
+    format: "csv" | "pdf";
+    cursor: Cursor;
+    previousCount: number;
+    parentJobId: string;
+  } | null>(null);
+  const dismissedResumeRef = useRef<Set<string>>(new Set());
 
 
   const sidsKey = studentIds.join(",");

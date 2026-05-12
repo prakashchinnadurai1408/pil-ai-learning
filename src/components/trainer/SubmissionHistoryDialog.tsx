@@ -428,7 +428,6 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
   // cursor — the jump only fires after a brief pause.
   useEffect(() => {
     if (tab !== "compare") return;
-    if (!query) return;
     const root = compareRef.current;
     if (!root) return;
     const t = setTimeout(() => {
@@ -446,15 +445,11 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       setMatchTotal(nodes.length);
       const target = nodes[idx];
       target.scrollIntoView({ block: "center", behavior: "smooth" });
-      // Move keyboard focus close to the match so screen readers and
-      // subsequent Shift+N/P feel anchored to the right spot.
-      const focusable = target.closest<HTMLElement>('[tabindex], button, a, [role="button"]') || target;
-      try { (focusable as HTMLElement).focus({ preventScroll: true }); } catch { /* ignore */ }
       target.classList.add("ring-2", "ring-primary");
       setTimeout(() => target.classList.remove("ring-2", "ring-primary"), 1500);
-    }, 350);
+    }, 500);
     return () => clearTimeout(t);
-  }, [query, onlyMatches, tab, leftId, rightId]);
+  }, [query, onlyMatches, tab, leftId, rightId, rows]);
 
   // Keyboard shortcuts inside the dialog: N = next change, P = previous change,
   // Esc = clear search (only when search has a value; otherwise let the dialog close).

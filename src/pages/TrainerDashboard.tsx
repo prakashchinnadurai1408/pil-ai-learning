@@ -13,7 +13,7 @@ import {
 import {
   Users, BarChart3, ClipboardCheck, LogOut, TrendingUp, Eye, Loader2,
   Search, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FolderKanban, Code2, Sparkles,
-  BookOpen, Layers, Database, Route, Activity, Lock, Crown,
+  BookOpen, Layers, Database, Route, Activity, Lock, Crown, GitCompare,
 } from "lucide-react";
 import { getMenuAccess, isAllowed, TIER_META, TIERS, type MenuAccessConfig, type Tier } from "@/hooks/useMenuAccessControls";
 import { toast } from "sonner";

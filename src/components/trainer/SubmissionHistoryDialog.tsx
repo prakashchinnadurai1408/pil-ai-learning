@@ -500,6 +500,31 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
 
       // Shift+N / Shift+P navigate keyword matches; plain N/P navigate change blocks.
       if (e.shiftKey && (e.key === "N" || e.key === "P" || e.key === "n" || e.key === "p")) {
+        // If attachment matches exist but the panel is collapsed, expand it
+        // first so attachment <mark> nodes participate in the match sequence.
+        if (!attsOpen && hasAttMatch) {
+          setAttsOpen(true);
+          // Defer the navigation to the next render so the new <mark> nodes
+          // are in the DOM and counted in wraparound math.
+          requestAnimationFrame(() => {
+            const root2 = compareRef.current;
+            if (!root2) return;
+            const all = Array.from(root2.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
+            if (all.length === 0) return;
+            const dir2: 1 | -1 = (e.key === "P" || e.key === "p") ? -1 : 1;
+            let nx = matchIdxRef.current + dir2;
+            if (nx < 0) nx = all.length - 1;
+            if (nx >= all.length) nx = 0;
+            matchIdxRef.current = nx;
+            setMatchIdx(nx);
+            setMatchTotal(all.length);
+            all[nx].scrollIntoView({ block: "center", behavior: "smooth" });
+            all.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
+            all[nx].classList.add("ring-2", "ring-primary");
+          });
+          e.preventDefault();
+          return;
+        }
         const matchNodes = Array.from(root.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
         if (matchNodes.length === 0) return;
         const dir: 1 | -1 = (e.key === "P" || e.key === "p") ? -1 : 1;

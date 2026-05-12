@@ -426,6 +426,9 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
         matchIdxRef.current = 0;
         setMatchIdx(0);
       } else if (matchIdxRef.current >= nodes.length) {
+        // Capture the originally-requested index so we can surface a subtle
+        // "Adjusted to nearest match" hint to the user.
+        setClampedFrom(matchIdxRef.current);
         matchIdxRef.current = nodes.length - 1;
         setMatchIdx(nodes.length - 1);
       }

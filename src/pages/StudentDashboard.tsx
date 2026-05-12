@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -158,6 +158,12 @@ const StudentDashboard = () => {
   const overallProgress = 28;
   const [userTier, setUserTier] = useState<Tier>("free");
   const [menuAccess, setMenuAccess] = useState<MenuAccessConfig>({});
+
+  // Auth guard: if no student session in storage, send back to login.
+  // Hooks above stay unconditional so React's rules-of-hooks holds.
+  if (!studentId) {
+    return <Navigate to="/student-login" replace />;
+  }
 
   useEffect(() => {
     getMenuAccess("student").then(setMenuAccess);

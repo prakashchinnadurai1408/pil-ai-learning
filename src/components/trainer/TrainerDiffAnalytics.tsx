@@ -106,6 +106,17 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [activeMinimized, setActiveMinimized] = useState(false);
   const [showJobsPanel, setShowJobsPanel] = useState(false);
+  // Recent exports panel: filters, pagination, auto-download
+  const [autoDownload, setAutoDownload] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("trainer_export_auto_download") === "1";
+  });
+  const autoDownloadedRef = useRef<Set<string>>(new Set());
+  const [jobsStatusFilter, setJobsStatusFilter] = useState<string>(ALL);
+  const [jobsFormatFilter, setJobsFormatFilter] = useState<string>(ALL);
+  const [jobsDateFilter, setJobsDateFilter] = useState<"all" | "today" | "7d" | "30d">("all");
+  const [jobsPage, setJobsPage] = useState(1);
+  const JOBS_PAGE_SIZE = 6;
   const [estimate, setEstimate] = useState<{
     format: "csv" | "pdf";
     loading: boolean;

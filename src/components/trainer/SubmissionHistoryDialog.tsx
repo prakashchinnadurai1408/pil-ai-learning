@@ -444,6 +444,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     if (tab !== "compare") return;
     if (!query) {
       pendingMatchRef.current = null;
+      setRestoringMatch(false);
       return;
     }
     const root = compareRef.current;
@@ -453,7 +454,11 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       if (nodes.length === 0) return;
       let idx: number;
       if (pendingMatchRef.current != null) {
-        idx = Math.min(Math.max(0, pendingMatchRef.current), nodes.length - 1);
+        const requested = pendingMatchRef.current;
+        idx = Math.min(Math.max(0, requested), nodes.length - 1);
+        // Surface a subtle hint when the shared link asked for an index that
+        // was out-of-range and we had to clamp it.
+        if (requested !== idx) setClampedFrom(requested);
         pendingMatchRef.current = null;
       } else {
         idx = 0;
@@ -461,6 +466,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       matchIdxRef.current = idx;
       setMatchIdx(idx);
       setMatchTotal(nodes.length);
+      setRestoringMatch(false);
       const target = nodes[idx];
       target.scrollIntoView({ block: "center", behavior: "smooth" });
       target.classList.add("ring-2", "ring-primary");

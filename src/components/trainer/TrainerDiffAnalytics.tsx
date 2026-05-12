@@ -329,40 +329,8 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
 
   const filtersStamp = `${days}d_${fCurriculum}_${fStudent}_${fStatus}_${fActorRole}_${search || "all"}`.replace(/[^\w-]+/g, "-").slice(0, 80);
 
-  // Pull the full filtered window straight from Supabase using stable keyset
-  // pagination on (created_at desc, id desc). Avoids missing/duplicating rows
-  // when offset windows shift, and lets resume jobs continue exactly where
-  // the previous one stopped.
-  const buildBaseQuery = (sinceIso: string) => {
-    let q = supabase
-      .from("curriculum_submission_history")
-      .select("id, created_at, submission_id, curriculum_id, student_id, student_name, kind, status, version_number, attachment_name, attachment_url, trainer_feedback, notes, score, max_score, actor_role, actor_name")
-      .in("student_id", studentIds)
-      .gte("created_at", sinceIso);
-    if (fCurriculum !== ALL) q = q.eq("curriculum_id", fCurriculum);
-    if (fStudent !== ALL) q = q.eq("student_id", fStudent);
-    if (fStatus !== ALL) q = q.ilike("status", fStatus);
-    if (fActorRole !== ALL) q = q.ilike("actor_role", fActorRole);
-    return q;
-  };
+  // (Server-side keyset pagination, estimator, and job lifecycle live below.)
 
-  // Pre-export estimator: counts rows server-side without fetching them.
-  const estimateRowCount = async (): Promise<number | null> => {
-    if (!studentIds.length) return 0;
-    const since = new Date(Date.now() - days * 86400000).toISOString();
-    let q = supabase
-      .from("curriculum_submission_history")
-      .select("id", { count: "exact", head: true })
-      .in("student_id", studentIds)
-      .gte("created_at", since);
-    if (fCurriculum !== ALL) q = q.eq("curriculum_id", fCurriculum);
-    if (fStudent !== ALL) q = q.eq("student_id", fStudent);
-    if (fStatus !== ALL) q = q.ilike("status", fStatus);
-    if (fActorRole !== ALL) q = q.ilike("actor_role", fActorRole);
-    const { count, error } = await q;
-    if (error) throw error;
-    return count ?? 0;
-  };
 
   // ---------- Server-side background export jobs ----------
 

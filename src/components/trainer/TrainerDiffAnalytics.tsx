@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Activity, GitCompare, Paperclip, MessageSquare, Users, Pin, RotateCcw, StickyNote, X } from "lucide-react";
+import { Loader2, Activity, GitCompare, Paperclip, MessageSquare, Users, Pin, RotateCcw, StickyNote, X, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
@@ -40,15 +47,23 @@ interface Props {
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--accent))"];
 const ALL = "__all__";
 const countAtts = (s: string) => (s ? s.split(/[\n,|]+/).map((t) => t.trim()).filter(Boolean).length : 0);
-const PIN_KEY = (tid: string) => `diffPins:${tid || "anon"}`;
 
-const loadPins = (tid: string): Record<string, string> => {
-  try { return JSON.parse(localStorage.getItem(PIN_KEY(tid)) || "{}"); } catch { return {}; }
+const csvCell = (v: any) => {
+  const s = v == null ? "" : String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+const downloadBlob = (filename: string, mime: string, content: string) => {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
 const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", trainerName = "Trainer" }: Props) => {
   const [rows, setRows] = useState<HistoryRow[]>([]);
   const [subs, setSubs] = useState<Record<string, { curriculum_id: string; student_id: string; student_name: string }>>({});
+  const [pinIdMap, setPinIdMap] = useState<Record<string, string>>({}); // history_id -> pin row id
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [days, setDays] = useState<7 | 14 | 30>(14);
@@ -56,24 +71,40 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
   const [fStudent, setFStudent] = useState<string>(ALL);
   const [fStatus, setFStatus] = useState<string>(ALL);
   const [fActorRole, setFActorRole] = useState<string>(ALL);
-  const [pins, setPins] = useState<Record<string, string>>(() => loadPins(trainerId));
   const [noteFor, setNoteFor] = useState<HistoryRow | null>(null);
   const [noteText, setNoteText] = useState("");
+  const [confirmResub, setConfirmResub] = useState<HistoryRow | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const sidsKey = studentIds.join(",");
+
+  const fetchPins = useCallback(async () => {
+    if (!trainerId) { setPinIdMap({}); return; }
+    const { data } = await supabase.from("trainer_diff_pins").select("id, history_id").eq("trainer_id", trainerId);
+    const m: Record<string, string> = {};
+    (data || []).forEach((p: any) => { m[p.history_id] = p.id; });
+    setPinIdMap(m);
+  }, [trainerId]);
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
     if (studentIds.length === 0) { setRows([]); setSubs({}); setLoading(false); return; }
     const since = new Date(Date.now() - days * 86400000).toISOString();
-    const { data: hist } = await supabase
+
+    let query = supabase
       .from("curriculum_submission_history")
       .select("*")
       .in("student_id", studentIds)
-      .gte("created_at", since)
-      .order("created_at", { ascending: false })
-      .limit(2000);
+      .gte("created_at", since);
+
+    if (fCurriculum !== ALL) query = query.eq("curriculum_id", fCurriculum);
+    if (fStudent !== ALL) query = query.eq("student_id", fStudent);
+    if (fStatus !== ALL) query = query.ilike("status", fStatus);
+    if (fActorRole !== ALL) query = query.ilike("actor_role", fActorRole);
+
+    const { data: hist } = await query.order("created_at", { ascending: false }).limit(2000);
+
     const subIds = Array.from(new Set((hist || []).map((r: any) => r.submission_id).filter(Boolean)));
     const subMap: Record<string, any> = {};
     if (subIds.length) {
@@ -86,9 +117,33 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
     setSubs(subMap);
     setRows((hist as any[]) || []);
     setLoading(false);
-  }, [sidsKey, days]);
+  }, [sidsKey, days, fCurriculum, fStudent, fStatus, fActorRole]);
 
-  useEffect(() => { let active = true; (async () => { await fetchRows(); if (!active) return; })(); return () => { active = false; }; }, [fetchRows]);
+  useEffect(() => { fetchRows(); }, [fetchRows]);
+  useEffect(() => { fetchPins(); }, [fetchPins]);
+
+  // Lightweight option lists: load distinct curricula/students from a small lookup query so dropdowns aren't bound to the (possibly filtered) rows.
+  const [allCurricula, setAllCurricula] = useState<string[]>([]);
+  const [allStatuses, setAllStatuses] = useState<string[]>([]);
+  const [allActorRoles, setAllActorRoles] = useState<string[]>([]);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!studentIds.length) return;
+      const since = new Date(Date.now() - days * 86400000).toISOString();
+      const { data } = await supabase
+        .from("curriculum_submission_history")
+        .select("curriculum_id, status, actor_role")
+        .in("student_id", studentIds)
+        .gte("created_at", since)
+        .limit(2000);
+      if (!active) return;
+      setAllCurricula(Array.from(new Set((data || []).map((r: any) => r.curriculum_id).filter(Boolean))).slice(0, 200));
+      setAllStatuses(Array.from(new Set((data || []).map((r: any) => (r.status || "").toLowerCase()).filter(Boolean))));
+      setAllActorRoles(Array.from(new Set((data || []).map((r: any) => (r.actor_role || "").toLowerCase()).filter(Boolean))));
+    })();
+    return () => { active = false; };
+  }, [sidsKey, days]);
 
   const enriched = useMemo(() => rows.map((r) => ({
     ...r,
@@ -96,45 +151,36 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
     attCount: countAtts(r.attachment_name),
     fbLen: (r.trainer_feedback || "").length,
     notesLen: (r.notes || "").length,
-    pinned: !!pins[r.id],
-  })), [rows, subs, studentNameById, pins]);
+    pinned: !!pinIdMap[r.id],
+  })), [rows, subs, studentNameById, pinIdMap]);
 
-  const curriculumOptions = useMemo(() => Array.from(new Set(enriched.map((r) => r.curriculum_id).filter(Boolean))).slice(0, 100), [enriched]);
-  const studentOptions = useMemo(() => {
-    const m = new Map<string, string>();
-    enriched.forEach((r) => m.set(r.student_id, r.student_name));
-    return Array.from(m.entries());
-  }, [enriched]);
-  const statusOptions = useMemo(() => Array.from(new Set(enriched.map((r) => (r.status || "").toLowerCase()).filter(Boolean))), [enriched]);
-  const actorRoleOptions = useMemo(() => Array.from(new Set(enriched.map((r) => (r.actor_role || "").toLowerCase()).filter(Boolean))), [enriched]);
-
+  // Client-side text search only (DB filters handled the dropdowns)
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return enriched.filter((r) => {
-      if (fCurriculum !== ALL && r.curriculum_id !== fCurriculum) return false;
-      if (fStudent !== ALL && r.student_id !== fStudent) return false;
-      if (fStatus !== ALL && (r.status || "").toLowerCase() !== fStatus) return false;
-      if (fActorRole !== ALL && (r.actor_role || "").toLowerCase() !== fActorRole) return false;
-      if (!q) return true;
-      return (
-        r.student_name.toLowerCase().includes(q) ||
-        (r.attachment_name || "").toLowerCase().includes(q) ||
-        (r.actor_name || "").toLowerCase().includes(q) ||
-        (r.curriculum_id || "").toLowerCase().includes(q) ||
-        (r.notes || "").toLowerCase().includes(q)
-      );
-    });
-  }, [enriched, search, fCurriculum, fStudent, fStatus, fActorRole]);
+    if (!q) return enriched;
+    return enriched.filter((r) =>
+      r.student_name.toLowerCase().includes(q) ||
+      (r.attachment_name || "").toLowerCase().includes(q) ||
+      (r.actor_name || "").toLowerCase().includes(q) ||
+      (r.curriculum_id || "").toLowerCase().includes(q) ||
+      (r.notes || "").toLowerCase().includes(q),
+    );
+  }, [enriched, search]);
+
+  const studentOptions = useMemo(() => Object.entries(studentNameById).slice(0, 500), [studentNameById]);
 
   const counters = useMemo(() => {
     const total = filtered.length;
     const studentSubs = filtered.filter((r) => r.kind === "student_submission").length;
-    const trainerEvents = total - studentSubs;
-    const uniqStudents = new Set(filtered.map((r) => r.student_id)).size;
-    const uniqCurricula = new Set(filtered.map((r) => r.curriculum_id)).size;
-    const totalAtts = filtered.reduce((a, r) => a + r.attCount, 0);
-    const pinnedCount = filtered.filter((r) => r.pinned).length;
-    return { total, studentSubs, trainerEvents, uniqStudents, uniqCurricula, totalAtts, pinnedCount };
+    return {
+      total,
+      studentSubs,
+      trainerEvents: total - studentSubs,
+      uniqStudents: new Set(filtered.map((r) => r.student_id)).size,
+      uniqCurricula: new Set(filtered.map((r) => r.curriculum_id)).size,
+      totalAtts: filtered.reduce((a, r) => a + r.attCount, 0),
+      pinnedCount: filtered.filter((r) => r.pinned).length,
+    };
   }, [filtered]);
 
   const topStudents = useMemo(() => {
@@ -144,9 +190,7 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
       if (r.kind === "student_submission") cur.submissions += 1; else cur.revisions += 1;
       m.set(r.student_id, cur);
     });
-    return Array.from(m.values())
-      .sort((a, b) => (b.revisions + b.submissions) - (a.revisions + a.submissions))
-      .slice(0, 8);
+    return Array.from(m.values()).sort((a, b) => (b.revisions + b.submissions) - (a.revisions + a.submissions)).slice(0, 8);
   }, [filtered]);
 
   const timeline = useMemo(() => {
@@ -181,44 +225,64 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
 
   const recent = filtered.slice(0, 20);
 
-  const togglePin = (r: HistoryRow) => {
-    setPins((prev) => {
-      const next = { ...prev };
-      if (next[r.id]) { delete next[r.id]; toast.success("Unpinned"); }
-      else { next[r.id] = `${r.student_id}|${new Date().toISOString()}`; toast.success(`Pinned to ${r.student_name || "student"}`); }
-      try { localStorage.setItem(PIN_KEY(trainerId), JSON.stringify(next)); } catch {}
-      return next;
-    });
+  const togglePin = async (r: any) => {
+    if (!trainerId) { toast.error("Trainer session missing"); return; }
+    const existing = pinIdMap[r.id];
+    if (existing) {
+      const { error } = await supabase.from("trainer_diff_pins").delete().eq("id", existing);
+      if (error) { toast.error("Failed to unpin"); return; }
+      setPinIdMap((m) => { const n = { ...m }; delete n[r.id]; return n; });
+      toast.success("Unpinned");
+    } else {
+      const { data, error } = await supabase.from("trainer_diff_pins").insert({
+        trainer_id: trainerId,
+        history_id: r.id,
+        student_id: r.student_id,
+        curriculum_id: r.curriculum_id,
+        submission_id: r.submission_id,
+      }).select("id").single();
+      if (error) { toast.error("Failed to pin"); return; }
+      setPinIdMap((m) => ({ ...m, [r.id]: data!.id }));
+      toast.success(`Pinned to ${r.student_name || "student"}`);
+    }
   };
 
   const requestResubmission = async (r: any) => {
     if (!r.submission_id) { toast.error("No submission linked"); return; }
     setActionBusy(r.id);
+    const newStatus = "revision_requested";
     const { error: upErr } = await supabase
       .from("curriculum_submissions")
-      .update({ status: "revision_requested", reviewed_by: trainerId, reviewed_by_name: trainerName, reviewed_at: new Date().toISOString() })
+      .update({ status: newStatus, reviewed_by: trainerId, reviewed_by_name: trainerName, reviewed_at: new Date().toISOString() })
       .eq("id", r.submission_id);
     if (upErr) { toast.error("Failed to update submission"); setActionBusy(null); return; }
-    await supabase.from("curriculum_submission_history").insert({
+    const { data: histRow, error: histErr } = await supabase.from("curriculum_submission_history").insert({
       submission_id: r.submission_id,
       curriculum_id: r.curriculum_id,
       student_id: r.student_id,
       kind: "revision_requested",
-      status: "revision_requested",
+      status: newStatus,
       revision_message: "Trainer requested a fresh revision from analytics view.",
       actor_id: trainerId,
       actor_name: trainerName,
       actor_role: "trainer",
-    });
-    toast.success("Resubmission requested");
+    }).select("id").single();
+    if (histErr) {
+      toast.warning("Submission status updated, but history event failed to log");
+    } else {
+      toast.success("Resubmission requested", {
+        description: `Status → revision_requested · history event #${histRow!.id.slice(0, 8)} logged for ${r.student_name}`,
+      });
+    }
     setActionBusy(null);
+    setConfirmResub(null);
     fetchRows();
   };
 
   const submitNote = async () => {
     if (!noteFor || !noteText.trim()) return;
     setActionBusy(noteFor.id);
-    await supabase.from("curriculum_submission_history").insert({
+    const { data: histRow, error } = await supabase.from("curriculum_submission_history").insert({
       submission_id: noteFor.submission_id,
       curriculum_id: noteFor.curriculum_id,
       student_id: noteFor.student_id,
@@ -229,29 +293,84 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
       actor_id: trainerId,
       actor_name: trainerName,
       actor_role: "trainer",
-    });
-    toast.success("Note added to history");
+    }).select("id").single();
     setActionBusy(null);
-    setNoteFor(null);
-    setNoteText("");
+    if (error) { toast.error("Failed to add note"); return; }
+    toast.success("Note added", { description: `History event #${histRow!.id.slice(0, 8)} logged for ${noteFor.student_name}` });
+    setNoteFor(null); setNoteText("");
     fetchRows();
   };
 
-  const clearFilters = () => {
-    setSearch(""); setFCurriculum(ALL); setFStudent(ALL); setFStatus(ALL); setFActorRole(ALL);
+  const filtersStamp = `${days}d_${fCurriculum}_${fStudent}_${fStatus}_${fActorRole}_${search || "all"}`.replace(/[^\w-]+/g, "-").slice(0, 80);
+
+  const exportCsv = () => {
+    const header = ["created_at", "student_id", "student_name", "curriculum_id", "submission_id", "kind", "version_number", "attachments", "status", "actor_role", "actor_name", "trainer_feedback", "notes", "pinned"];
+    const lines = [header.join(",")].concat(filtered.map((r) => [
+      r.created_at, r.student_id, r.student_name, r.curriculum_id, r.submission_id,
+      r.kind, r.version_number ?? "", r.attCount, r.status, r.actor_role, r.actor_name,
+      (r.trainer_feedback || "").replace(/\n/g, " "), (r.notes || "").replace(/\n/g, " "), r.pinned ? "yes" : "",
+    ].map(csvCell).join(",")));
+    downloadBlob(`diff-events-${filtersStamp}.csv`, "text/csv;charset=utf-8", lines.join("\n"));
+    toast.success(`Exported ${filtered.length} rows to CSV`);
   };
+
+  const exportPdf = async () => {
+    setExportingPdf(true);
+    try {
+      const [{ default: jsPDF }, autoTableMod] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
+      const autoTable = (autoTableMod as any).default || (autoTableMod as any);
+      const doc = new jsPDF({ orientation: "landscape" });
+      doc.setFontSize(14);
+      doc.text("Submission Diff Events", 14, 14);
+      doc.setFontSize(9);
+      doc.text(
+        `Window: last ${days}d · Curriculum: ${fCurriculum === ALL ? "all" : fCurriculum.slice(0, 8)} · Student: ${fStudent === ALL ? "all" : (studentNameById[fStudent] || fStudent)} · Status: ${fStatus === ALL ? "all" : fStatus} · Actor: ${fActorRole === ALL ? "all" : fActorRole}${search ? ` · Search: "${search}"` : ""}`,
+        14, 20,
+      );
+      doc.text(`${filtered.length} rows · exported by ${trainerName} · ${new Date().toLocaleString()}`, 14, 26);
+      autoTable(doc, {
+        startY: 32,
+        head: [["When", "Student", "Curriculum", "Kind", "Ver", "Atts", "Status", "Actor", "Pinned"]],
+        body: filtered.map((r) => [
+          new Date(r.created_at).toLocaleString(),
+          r.student_name,
+          (r.curriculum_id || "").slice(0, 8),
+          r.kind,
+          r.version_number ?? "—",
+          r.attCount,
+          r.status || "—",
+          r.actor_name || r.actor_role || "—",
+          r.pinned ? "★" : "",
+        ]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [37, 99, 235] },
+      });
+      doc.save(`diff-events-${filtersStamp}.pdf`);
+      toast.success(`Exported ${filtered.length} rows to PDF`);
+    } catch (e) {
+      console.error(e);
+      toast.error("PDF export failed");
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
+  const clearFilters = () => { setSearch(""); setFCurriculum(ALL); setFStudent(ALL); setFStatus(ALL); setFActorRole(ALL); };
   const hasFilters = search || fCurriculum !== ALL || fStudent !== ALL || fStatus !== ALL || fActorRole !== ALL;
 
   if (loading) {
     return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
-  if (rows.length === 0) {
+  if (rows.length === 0 && !hasFilters) {
     return (
       <div className="bg-card rounded-lg border border-border p-12 text-center">
         <GitCompare className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
         <h3 className="font-display font-semibold text-card-foreground">No submission diffs in last {days} days</h3>
-        <p className="text-sm text-muted-foreground mt-1">Try expanding the time window above, or wait for student activity.</p>
+        <p className="text-sm text-muted-foreground mt-1">Try a wider window or wait for student activity.</p>
         <div className="flex justify-center gap-1 mt-4">
           {([7, 14, 30] as const).map((d) => (
             <Button key={d} size="sm" variant={days === d ? "default" : "outline"} onClick={() => setDays(d)}>{d}d</Button>
@@ -277,7 +396,7 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
         <Select value={fCurriculum} onValueChange={setFCurriculum}>
           <SelectTrigger className="w-[160px]"><SelectValue placeholder="Curriculum" /></SelectTrigger>
           <SelectContent><SelectItem value={ALL}>All curricula</SelectItem>
-            {curriculumOptions.map((c) => <SelectItem key={c} value={c}>{c.slice(0, 8)}…</SelectItem>)}
+            {allCurricula.map((c) => <SelectItem key={c} value={c}>{c.slice(0, 8)}…</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={fStudent} onValueChange={setFStudent}>
@@ -289,13 +408,13 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
         <Select value={fStatus} onValueChange={setFStatus}>
           <SelectTrigger className="w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent><SelectItem value={ALL}>All status</SelectItem>
-            {statusOptions.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            {allStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={fActorRole} onValueChange={setFActorRole}>
           <SelectTrigger className="w-[140px]"><SelectValue placeholder="Actor role" /></SelectTrigger>
           <SelectContent><SelectItem value={ALL}>All actors</SelectItem>
-            {actorRoleOptions.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            {allActorRoles.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
         <div className="flex gap-1">
@@ -306,8 +425,26 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
         {hasFilters && (
           <Button size="sm" variant="ghost" onClick={clearFilters}><X className="h-3 w-3 mr-1" />Clear</Button>
         )}
-        <Badge variant="outline" className="ml-auto">{filtered.length} of {rows.length} events</Badge>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" disabled={filtered.length === 0 || exportingPdf}>
+              {exportingPdf ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1" />}
+              Export ({filtered.length})
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={exportCsv}>Download CSV</DropdownMenuItem>
+            <DropdownMenuItem onClick={exportPdf}>Download PDF</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Badge variant="outline">{filtered.length} of {rows.length} loaded</Badge>
       </div>
+
+      {rows.length === 0 && hasFilters && (
+        <div className="bg-card border border-border rounded-lg p-8 text-center text-sm text-muted-foreground">
+          No diff events match the current filters in the last {days} days.
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {stats.map((s) => {
@@ -433,7 +570,7 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
                     <Button size="sm" variant="ghost" className="h-7 px-2" title={r.pinned ? "Unpin" : "Pin to student"} onClick={() => togglePin(r)}>
                       <Pin className={`h-3.5 w-3.5 ${r.pinned ? "text-destructive fill-destructive" : ""}`} />
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-7 px-2" title="Request resubmission" disabled={actionBusy === r.id || !r.submission_id} onClick={() => requestResubmission(r)}>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" title="Request resubmission" disabled={actionBusy === r.id || !r.submission_id} onClick={() => setConfirmResub(r)}>
                       <RotateCcw className="h-3.5 w-3.5" />
                     </Button>
                     <Button size="sm" variant="ghost" className="h-7 px-2" title="Leave trainer note" disabled={!r.submission_id} onClick={() => { setNoteFor(r); setNoteText(""); }}>
@@ -451,6 +588,7 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Leave trainer note for {noteFor?.student_name}</DialogTitle>
+            <DialogDescription>This note becomes a permanent entry in the submission history (kind: trainer_note).</DialogDescription>
           </DialogHeader>
           <Textarea rows={5} value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Write a note that will appear in this submission's history…" />
           <DialogFooter>
@@ -461,6 +599,30 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!confirmResub} onOpenChange={(o) => { if (!o) setConfirmResub(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Request a resubmission?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmResub && (
+                <>
+                  Submission for <b>{confirmResub.student_name}</b> will move to <b>revision_requested</b>, and a new history event will be logged under your name. The student will see the new request.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={actionBusy === confirmResub?.id}
+              onClick={(e) => { e.preventDefault(); if (confirmResub) requestResubmission(confirmResub); }}
+            >
+              {actionBusy === confirmResub?.id && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}Request resubmission
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

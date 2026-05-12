@@ -584,6 +584,16 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       });
   }, [submission]);
 
+  // Safety: once loading completes, clear the "Jumping to shared match…"
+  // indicator after a brief grace period even if no pending match resolves
+  // (e.g. when the shared link's query yielded zero matches).
+  useEffect(() => {
+    if (!restoringMatch) return;
+    if (loading) return;
+    const t = setTimeout(() => setRestoringMatch(false), 1200);
+    return () => clearTimeout(t);
+  }, [restoringMatch, loading, rows]);
+
   if (!submission) return null;
 
   const total = rows.length;

@@ -852,110 +852,169 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Export progress + cancellation + background mode */}
+      {/* Active job dialog (server-side, durable) */}
       <Dialog
-        open={!!exportState?.open && !exportState?.minimized}
+        open={!!activeJob && !activeMinimized}
         onOpenChange={(o) => {
           if (o) return;
-          // Closing while running = minimize to background. Closing after finish = dismiss.
-          if (exportState?.phase === "fetching" || exportState?.phase === "rendering") {
-            minimizeExport();
-          } else {
-            closeExportDialog();
-          }
+          if (activeJob && isJobRunning(activeJob.status)) setActiveMinimized(true);
+          else setActiveJobId(null);
         }}
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {exportState?.phase === "fetching" && `Preparing ${exportState.format.toUpperCase()} export…`}
-              {exportState?.phase === "rendering" && `Building ${exportState.format.toUpperCase()} file…`}
-              {exportState?.phase === "done" && `Export ready`}
-              {exportState?.phase === "canceled" && `Export canceled`}
-              {exportState?.phase === "error" && `Export failed`}
+              {activeJob?.status === "queued" && `Queued · ${activeJob.format.toUpperCase()} export`}
+              {activeJob?.status === "running" && `Running · ${activeJob.format.toUpperCase()} export`}
+              {activeJob?.status === "done" && `${activeJob.format.toUpperCase()} export ready`}
+              {activeJob?.status === "canceled" && `Export canceled`}
+              {activeJob?.status === "error" && `Export failed`}
             </DialogTitle>
-            <DialogDescription>
-              {exportState?.phase === "fetching"
-                ? `Fetched ${exportState.loaded.toLocaleString()} rows across ${exportState.pages} page${exportState.pages === 1 ? "" : "s"} (cap ${HARD_MAX.toLocaleString()}). You can run this in the background.`
-                : exportState?.phase === "rendering"
-                  ? `Rendering ${exportState.loaded.toLocaleString()} rows…`
-                  : exportState?.phase === "done"
-                    ? `Downloaded ${exportState.loaded.toLocaleString()} rows.`
-                    : exportState?.phase === "canceled"
-                      ? `Stopped after ${exportState.loaded.toLocaleString()} rows. No file was downloaded.`
-                      : "Something went wrong. Check the console and try again."}
+            <DialogDescription asChild>
+              <div className="space-y-1">
+                {activeJob && (
+                  <>
+                    <p>
+                      {activeJob.rows_fetched.toLocaleString()} of ~{Math.min(activeJob.estimated_total || activeJob.hard_max, activeJob.hard_max).toLocaleString()} rows
+                      {" · "}{activeJob.pages_fetched} page{activeJob.pages_fetched === 1 ? "" : "s"}
+                    </p>
+                    {activeJob.will_truncate && (
+                      <p className="flex items-start gap-2 text-warning">
+                        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span>This job is likely to be truncated at the {activeJob.hard_max.toLocaleString()}-row cap. A follow-up will be offered automatically.</span>
+                      </p>
+                    )}
+                    {activeJob.format_downgraded && (
+                      <p className="text-warning">PDF was downgraded to CSV because the dataset is too large to render as a PDF.</p>
+                    )}
+                    {activeJob.status === "error" && (
+                      <p className="text-destructive">{activeJob.error_message || "Unknown error"}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">Runs on the server — safe to refresh or close this tab.</p>
+                  </>
+                )}
+              </div>
             </DialogDescription>
           </DialogHeader>
-          {(exportState?.phase === "fetching" || exportState?.phase === "rendering") && (
-            <Progress
-              value={exportState.phase === "rendering"
-                ? 100
-                : Math.min(99, Math.round((exportState.loaded / HARD_MAX) * 100))}
-            />
+          {activeJob && isJobRunning(activeJob.status) && (
+            <Progress value={jobProgressPct(activeJob)} />
           )}
           <DialogFooter>
-            {(exportState?.phase === "fetching" || exportState?.phase === "rendering") ? (
+            {activeJob && isJobRunning(activeJob.status) ? (
               <>
-                <Button variant="outline" onClick={minimizeExport}>
+                <Button variant="outline" onClick={() => setActiveMinimized(true)}>
                   <Minimize2 className="h-3.5 w-3.5 mr-1" />Run in background
                 </Button>
-                <Button variant="destructive" onClick={cancelExport}>
+                <Button variant="destructive" onClick={() => cancelJob(activeJob.id)} disabled={activeJob.cancel_requested}>
                   <X className="h-3.5 w-3.5 mr-1" />Cancel
                 </Button>
               </>
+            ) : activeJob?.status === "done" ? (
+              <>
+                <Button variant="outline" onClick={() => setActiveJobId(null)}>Close</Button>
+                <Button onClick={() => downloadJob(activeJob.id)}>
+                  <Download className="h-3.5 w-3.5 mr-1" />Download
+                </Button>
+              </>
             ) : (
-              <Button onClick={closeExportDialog}>Close</Button>
+              <Button onClick={() => setActiveJobId(null)}>Close</Button>
             )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Floating background-job chip when minimized */}
-      {exportState && exportState.minimized && (
+      {activeJob && activeMinimized && (
         <div className="fixed bottom-4 right-4 z-50 w-72 bg-card border border-border shadow-lg rounded-lg p-3 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm font-medium text-card-foreground">
-              {exportState.phase === "fetching" || exportState.phase === "rendering" ? (
+              {isJobRunning(activeJob.status) ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
               ) : (
                 <Download className="h-3.5 w-3.5 text-success" />
               )}
               <span>
-                {exportState.phase === "fetching" && `Exporting ${exportState.format.toUpperCase()}…`}
-                {exportState.phase === "rendering" && `Building ${exportState.format.toUpperCase()}…`}
-                {exportState.phase === "done" && `${exportState.format.toUpperCase()} ready`}
-                {exportState.phase === "canceled" && `Canceled`}
-                {exportState.phase === "error" && `Failed`}
+                {activeJob.status === "queued" && `Queued ${activeJob.format.toUpperCase()}…`}
+                {activeJob.status === "running" && `Exporting ${activeJob.format.toUpperCase()}…`}
+                {activeJob.status === "done" && `${activeJob.format.toUpperCase()} ready`}
+                {activeJob.status === "canceled" && `Canceled`}
+                {activeJob.status === "error" && `Failed`}
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={restoreExport} title="Restore">
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setActiveMinimized(false)} title="Restore">
                 <Maximize2 className="h-3 w-3" />
               </Button>
-              {(exportState.phase === "fetching" || exportState.phase === "rendering") ? (
-                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={cancelExport} title="Cancel">
-                  <X className="h-3 w-3" />
-                </Button>
-              ) : (
-                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={closeExportDialog} title="Dismiss">
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setActiveJobId(null)} title="Dismiss">
+                <X className="h-3 w-3" />
+              </Button>
             </div>
           </div>
-          <Progress
-            value={exportState.phase === "rendering" || exportState.phase === "done"
-              ? 100
-              : Math.min(99, Math.round((exportState.loaded / HARD_MAX) * 100))}
-          />
+          <Progress value={jobProgressPct(activeJob)} />
           <p className="text-[11px] text-muted-foreground">
-            {exportState.loaded.toLocaleString()} rows · {exportState.pages} page{exportState.pages === 1 ? "" : "s"}
+            {activeJob.rows_fetched.toLocaleString()} / ~{Math.min(activeJob.estimated_total || activeJob.hard_max, activeJob.hard_max).toLocaleString()} rows · {activeJob.pages_fetched} pg
+            {activeJob.will_truncate ? " · may truncate" : ""}
           </p>
         </div>
       )}
 
+      {/* Recent exports panel */}
+      <Dialog open={showJobsPanel} onOpenChange={setShowJobsPanel}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><History className="h-4 w-4" /> Recent exports</DialogTitle>
+            <DialogDescription>Background jobs persist across refreshes. Files are kept for 7 days.</DialogDescription>
+          </DialogHeader>
+          {exportJobs.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">No export jobs yet.</p>
+          ) : (
+            <div className="divide-y divide-border max-h-[60vh] overflow-y-auto">
+              {exportJobs.map((j) => (
+                <div key={j.id} className="py-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge variant="outline">{j.format.toUpperCase()}</Badge>
+                      <Badge variant={j.status === "done" ? "default" : j.status === "error" ? "destructive" : "secondary"}>{j.status}</Badge>
+                      {j.will_truncate && <Badge variant="outline" className="text-warning border-warning/40">truncated</Badge>}
+                      {j.format_downgraded && <Badge variant="outline">PDF→CSV</Badge>}
+                      <span className="text-xs text-muted-foreground">{new Date(j.created_at).toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {j.status === "done" && (
+                        <Button size="sm" variant="outline" onClick={() => downloadJob(j.id)}>
+                          <Download className="h-3.5 w-3.5 mr-1" />Download
+                        </Button>
+                      )}
+                      {isJobRunning(j.status) && (
+                        <Button size="sm" variant="ghost" onClick={() => cancelJob(j.id)} disabled={j.cancel_requested}>
+                          <X className="h-3.5 w-3.5 mr-1" />Cancel
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => { setActiveJobId(j.id); setActiveMinimized(false); }}>Open</Button>
+                      <Button size="sm" variant="ghost" onClick={() => deleteJob(j.id)} title="Delete">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  <Progress value={jobProgressPct(j)} />
+                  <p className="text-[11px] text-muted-foreground">
+                    {j.rows_fetched.toLocaleString()} / ~{Math.min(j.estimated_total || j.hard_max, j.hard_max).toLocaleString()} rows
+                    {" · "}{j.pages_fetched} pages
+                    {j.error_message ? ` · ${j.error_message}` : ""}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={reloadJobs}><RefreshCw className="h-3.5 w-3.5 mr-1" />Refresh</Button>
+            <Button onClick={() => setShowJobsPanel(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Resume offer when HARD_MAX is reached */}
-      <AlertDialog open={!!resumeOffer} onOpenChange={(o) => { if (!o) setResumeOffer(null); }}>
+      <AlertDialog open={!!resumeOffer} onOpenChange={(o) => { if (!o) dismissResumeOffer(); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
@@ -972,13 +1031,14 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Skip</AlertDialogCancel>
+            <AlertDialogCancel onClick={dismissResumeOffer}>Skip</AlertDialogCancel>
             <AlertDialogAction onClick={(e) => { e.preventDefault(); runResumeJob(); }}>
               Export remaining rows
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
     </div>
   );
 };

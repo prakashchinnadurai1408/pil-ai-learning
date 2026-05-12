@@ -362,18 +362,29 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
       const om = urlOnlyM != null ? urlOnlyM === "1" : stored?.onlyMatches;
       if (typeof om === "boolean") setOnlyMatches(om);
       const mi = params.get("histM");
+      let pendingFromUrl: number | null = null;
       if (mi != null) {
         const n = parseInt(mi, 10);
-        if (Number.isFinite(n) && n >= 0) {
-          // Defer the actual scroll/clamp until matches have rendered so the
-          // index can be clamped against the real number of matches.
-          pendingMatchRef.current = n;
-          matchIdxRef.current = n;
-          setMatchIdx(n);
-          // Flip a brief loading state so the UI tells the user we're waiting
-          // for rows / matches before scrolling.
-          setRestoringMatch(true);
-        }
+        if (Number.isFinite(n) && n >= 0) pendingFromUrl = n;
+      }
+      // Persistence: if the URL didn't carry histM but a previous render saved
+      // a pending value (slow load), restore it so we keep trying until the
+      // match actually highlights.
+      if (pendingFromUrl == null) {
+        try {
+          const saved = sessionStorage.getItem(PENDING_HIST_M_KEY(submission.id));
+          if (saved != null) {
+            const sv = parseInt(saved, 10);
+            if (Number.isFinite(sv) && sv >= 0) pendingFromUrl = sv;
+          }
+        } catch { /* ignore */ }
+      }
+      if (pendingFromUrl != null) {
+        pendingMatchRef.current = pendingFromUrl;
+        matchIdxRef.current = pendingFromUrl;
+        setMatchIdx(pendingFromUrl);
+        setRestoringMatch(true);
+        try { sessionStorage.setItem(PENDING_HIST_M_KEY(submission.id), String(pendingFromUrl)); } catch { /* ignore */ }
       }
     } catch { /* ignore */ }
   }, [submission]);

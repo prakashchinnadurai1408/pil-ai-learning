@@ -108,21 +108,38 @@ const AIPlayground = () => {
     fetchContext();
   }, []);
 
+  // Auto-scroll to bottom on every message change (covers streaming chunks too).
+  // Use rAF so the scroll runs after layout commits — guarantees the new message is in view.
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
+    const el = scrollRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    });
+  }, [messages, isLoading]);
+
+  // Snap to bottom on initial mount so restored history shows the latest reply.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, []);
 
   const handleSend = useCallback(async (text?: string) => {
     const msg = text || input;
     if (!msg.trim() || isLoading) return;
 
-    const userMsg: Message = { role: "user", content: msg.trim() };
+    const trimmedMsg = msg.trim();
+    const userMsg: Message = { role: "user", content: trimmedMsg };
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
+    setLastError(null);
+    setLastFailedPrompt(null);
     // Onboarding: mark first AI chat
     import("./OnboardingChecklist").then(({ markFirstAiChat }) => markFirstAiChat()).catch(() => {});
+
 
     const selectedLang = LANGUAGES.find(l => l.code === lang);
 

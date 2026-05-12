@@ -594,6 +594,11 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     return () => clearTimeout(t);
   }, [restoringMatch, loading, rows]);
 
+  // Auto-dismiss the "Adjusted to nearest match" hint when the user changes
+  // the query or compared versions — at that point the original index is no
+  // longer relevant.
+  useEffect(() => { setClampedFrom(null); }, [query, leftId, rightId]);
+
   if (!submission) return null;
 
   const total = rows.length;

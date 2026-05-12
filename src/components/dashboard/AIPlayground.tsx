@@ -55,6 +55,7 @@ const AIPlayground = () => {
   const [lang, setLang] = useState<LanguageCode>("en-IN");
   const [lastError, setLastError] = useState<string | null>(null);
   const [lastFailedPrompt, setLastFailedPrompt] = useState<string | null>(null);
+  const [streamStatus, setStreamStatus] = useState<"idle" | "streaming" | "completed" | "failed">("idle");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [studentCtx, setStudentCtx] = useState<Record<string, any> | undefined>(undefined);
 

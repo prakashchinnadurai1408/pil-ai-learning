@@ -138,6 +138,7 @@ const AIPlayground = () => {
     setIsLoading(true);
     setLastError(null);
     setLastFailedPrompt(null);
+    setStreamStatus("streaming");
     // Onboarding: mark first AI chat
     import("./OnboardingChecklist").then(({ markFirstAiChat }) => markFirstAiChat()).catch(() => {});
 

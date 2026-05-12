@@ -61,7 +61,7 @@ const downloadBlob = (filename: string, mime: string, content: string) => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
-const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", trainerName = "Trainer" }: Props) => {
+const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", trainerName = "Trainer", trainerEmail = "" }: Props) => {
   const [rows, setRows] = useState<HistoryRow[]>([]);
   const [subs, setSubs] = useState<Record<string, { curriculum_id: string; student_id: string; student_name: string }>>({});
   const [pinIdMap, setPinIdMap] = useState<Record<string, string>>({}); // history_id -> pin row id

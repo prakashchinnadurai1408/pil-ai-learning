@@ -81,12 +81,12 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
   const sidsKey = studentIds.join(",");
 
   const fetchPins = useCallback(async () => {
-    if (!trainerId) { setPinIdMap({}); return; }
-    const { data } = await supabase.from("trainer_diff_pins").select("id, history_id").eq("trainer_id", trainerId);
+    if (!trainerId || !trainerEmail) { setPinIdMap({}); return; }
+    const { data } = await supabase.rpc("list_trainer_pins", { _trainer_id: trainerId, _email: trainerEmail });
     const m: Record<string, string> = {};
     (data || []).forEach((p: any) => { m[p.history_id] = p.id; });
     setPinIdMap(m);
-  }, [trainerId]);
+  }, [trainerId, trainerEmail]);
 
   const fetchRows = useCallback(async () => {
     setLoading(true);

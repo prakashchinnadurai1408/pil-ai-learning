@@ -702,6 +702,21 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
             <DropdownMenuItem onClick={exportPdf}>Download PDF</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShowJobsPanel(true)}
+          title="Open recent export jobs"
+        >
+          <History className="h-3.5 w-3.5 mr-1" />
+          Recent exports
+          {exportJobs.some((j) => isJobRunning(j.status)) && (
+            <Loader2 className="h-3 w-3 ml-1 animate-spin text-primary" />
+          )}
+          {exportJobs.length > 0 && (
+            <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-[10px]">{exportJobs.length}</Badge>
+          )}
+        </Button>
         <Badge variant="outline">{filtered.length} of {rows.length} loaded</Badge>
       </div>
 

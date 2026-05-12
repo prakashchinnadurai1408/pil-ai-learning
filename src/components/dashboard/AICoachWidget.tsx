@@ -217,9 +217,9 @@ const AICoachWidget = ({ studentId, studentName, onOpenChat }: AICoachWidgetProp
             </h4>
             <div className="space-y-1">
               {advice.nextSteps.map((s, i) => (
-                <p key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                  <Badge variant="outline" className="shrink-0 text-xs">{i + 1}</Badge> {s}
-                </p>
+                <div key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                  <Badge variant="outline" className="shrink-0 text-xs">{i + 1}</Badge> <span>{s}</span>
+                </div>
               ))}
             </div>
           </div>

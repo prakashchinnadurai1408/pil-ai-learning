@@ -406,7 +406,7 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [trainerEmail, activeJobId]);
+  }, [trainerEmail, activeJobId, autoDownload]);
 
   // Pre-export estimator: counts rows server-side without fetching them.
   const estimateRowCount = async (startCursor?: Cursor): Promise<number | null> => {

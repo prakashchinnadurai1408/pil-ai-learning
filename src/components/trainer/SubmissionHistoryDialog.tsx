@@ -557,7 +557,7 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [submission, tab, query, attsOpen, hasAttMatch]);
+  }, [submission, tab, query, attsOpen]);
 
   // Clean URL params when closing.
   const handleClose = () => {

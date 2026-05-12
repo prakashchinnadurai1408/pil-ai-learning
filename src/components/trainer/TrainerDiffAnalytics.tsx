@@ -553,7 +553,75 @@ const TrainerDiffAnalytics = ({ studentIds, studentNameById, trainerId = "", tra
     return Math.min(99, Math.round((j.rows_fetched / denom) * 100));
   };
 
+  // Persist auto-download preference
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("trainer_export_auto_download", autoDownload ? "1" : "0");
+    }
+  }, [autoDownload]);
 
+  // Retry / continue a failed or canceled job by starting a fresh job that resumes
+  // from the saved cursor (if any) so previously-fetched rows aren't re-exported.
+  const retryFailedJob = (j: ExportJob) => {
+    const cursor: Cursor | undefined =
+      j.cursor_created_at && j.cursor_id
+        ? { createdAt: j.cursor_created_at, id: j.cursor_id }
+        : undefined;
+    const label = j.status === "canceled" ? "resumed-from-canceled" : "retry-after-error";
+    toast.message(cursor ? "Resuming from last saved position" : "Restarting export from scratch");
+    beginExport(j.format, cursor, label, j.id);
+  };
+
+  // Friendly explanation for failure / cancellation reasons.
+  const explainFailure = (j: ExportJob): { title: string; detail: string } => {
+    if (j.status === "canceled") {
+      return {
+        title: "You canceled this export",
+        detail: j.rows_fetched
+          ? `Stopped after fetching ${j.rows_fetched.toLocaleString()} rows on page ${j.pages_fetched}. The cursor was saved so you can resume.`
+          : "Stopped before any rows were fetched.",
+      };
+    }
+    const raw = (j.error_message || "").toLowerCase();
+    if (!raw) return { title: "Unknown error", detail: "The server didn't return a reason. Try again or start a fresh export." };
+    if (raw.includes("timeout") || raw.includes("timed out")) {
+      return { title: "Server timeout", detail: `${j.error_message}. Retrying typically resumes from the last saved cursor.` };
+    }
+    if (raw.includes("storage") || raw.includes("upload")) {
+      return { title: "File upload failed", detail: `${j.error_message}. The data was fetched but the file couldn't be saved — please retry.` };
+    }
+    if (raw.includes("permission") || raw.includes("rls") || raw.includes("forbidden")) {
+      return { title: "Permission denied", detail: `${j.error_message}. Your trainer session may have expired — sign in again, then retry.` };
+    }
+    if (raw.includes("network") || raw.includes("fetch")) {
+      return { title: "Network error", detail: `${j.error_message}. Retrying will resume from where it stopped.` };
+    }
+    return { title: "Export error", detail: j.error_message };
+  };
+
+  // Filtered + paginated jobs for the Recent exports panel.
+  const filteredJobs = useMemo(() => {
+    let list = exportJobs;
+    if (jobsStatusFilter !== ALL) list = list.filter((j) => j.status === jobsStatusFilter);
+    if (jobsFormatFilter !== ALL) list = list.filter((j) => j.format === jobsFormatFilter);
+    if (jobsDateFilter !== "all") {
+      const now = Date.now();
+      const cutoff =
+        jobsDateFilter === "today" ? now - 86400000 :
+        jobsDateFilter === "7d" ? now - 7 * 86400000 :
+        now - 30 * 86400000;
+      list = list.filter((j) => new Date(j.created_at).getTime() >= cutoff);
+    }
+    return list;
+  }, [exportJobs, jobsStatusFilter, jobsFormatFilter, jobsDateFilter]);
+  const jobsPageCount = Math.max(1, Math.ceil(filteredJobs.length / JOBS_PAGE_SIZE));
+  useEffect(() => { if (jobsPage > jobsPageCount) setJobsPage(jobsPageCount); }, [jobsPageCount, jobsPage]);
+  const pagedJobs = useMemo(
+    () => filteredJobs.slice((jobsPage - 1) * JOBS_PAGE_SIZE, jobsPage * JOBS_PAGE_SIZE),
+    [filteredJobs, jobsPage],
+  );
+  const clearJobsFilters = () => { setJobsStatusFilter(ALL); setJobsFormatFilter(ALL); setJobsDateFilter("all"); setJobsPage(1); };
+  const jobsHaveFilters = jobsStatusFilter !== ALL || jobsFormatFilter !== ALL || jobsDateFilter !== "all";
 
   const clearFilters = () => { setSearch(""); setFCurriculum(ALL); setFStudent(ALL); setFStatus(ALL); setFActorRole(ALL); };
   const hasFilters = search || fCurriculum !== ALL || fStudent !== ALL || fStatus !== ALL || fActorRole !== ALL;

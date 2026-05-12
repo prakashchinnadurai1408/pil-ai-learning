@@ -854,6 +854,27 @@ export default function SubmissionHistoryDialog({ submission, onClose }: { submi
                 const goToMatch = (dir: 1 | -1) => {
                   const root = compareRef.current;
                   if (!root) return;
+                  // Auto-expand attachments so collapsed previews participate
+                  // in the wraparound match sequence.
+                  if (!attsOpen) {
+                    setAttsOpen(true);
+                    requestAnimationFrame(() => {
+                      const r2 = compareRef.current;
+                      if (!r2) return;
+                      const all = Array.from(r2.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
+                      if (all.length === 0) return;
+                      let nx = matchIdxRef.current + dir;
+                      if (nx < 0) nx = all.length - 1;
+                      if (nx >= all.length) nx = 0;
+                      matchIdxRef.current = nx;
+                      setMatchIdx(nx);
+                      setMatchTotal(all.length);
+                      all[nx].scrollIntoView({ block: "center", behavior: "smooth" });
+                      all.forEach((n) => n.classList.remove("ring-2", "ring-primary"));
+                      all[nx].classList.add("ring-2", "ring-primary");
+                    });
+                    return;
+                  }
                   const nodes = Array.from(root.querySelectorAll<HTMLElement>('mark[data-hl="true"]'));
                   if (nodes.length === 0) return;
                   let next = matchIdxRef.current + dir;

@@ -307,7 +307,11 @@ const StudentDashboard = () => {
           </div>
         );
       case "playground":
-        return <Suspense fallback={<ContentSkeleton />}><AIPlayground /></Suspense>;
+        return (
+          <div className="h-[calc(100vh-7rem)] min-h-[520px] flex">
+            <Suspense fallback={<ContentSkeleton />}><AIPlayground /></Suspense>
+          </div>
+        );
       case "tools":
         return <Suspense fallback={<ContentSkeleton />}><AIToolsSandbox /></Suspense>;
       case "question_bank":

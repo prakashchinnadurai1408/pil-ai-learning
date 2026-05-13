@@ -88,10 +88,68 @@ const VideoQuizSandbox = () => {
     setAnswers({});
     setScore(0);
     setStartedAt(null);
+    setEditMode(false);
     const { data } = await supabase.from("video_lesson_questions")
       .select("*").eq("lesson_id", lesson.id).order("chapter_index").order("sort_order");
     setQuestions((data as Question[]) || []);
   };
+
+  const saveEditedTranscript = async () => {
+    if (!activeLesson) return;
+    setSavingTranscript(true);
+    try {
+      // Re-join edited segments preserving order; chapter timestamps stay attached via chapters[].
+      const joined = editedSegments.map((s) => s.text.trim()).filter(Boolean).join("\n\n").slice(0, 50000);
+      const { error } = await supabase.from("video_lessons")
+        .update({ transcript: joined }).eq("id", activeLesson.id);
+      if (error) throw error;
+      setActiveLesson({ ...activeLesson, transcript: joined });
+      setLessons((ls) => ls.map((l) => l.id === activeLesson.id ? { ...l, transcript: joined } : l));
+      setEditMode(false);
+      toast.success("Transcript saved — timestamps preserved");
+    } catch (e: any) {
+      toast.error(e?.message || "Save failed");
+    } finally {
+      setSavingTranscript(false);
+    }
+  };
+
+  const regenerate = async (mode: "mcqs" | "notes") => {
+    if (!activeLesson) return;
+    const text = (activeLesson.transcript || "").trim();
+    if (text.length < 100) { toast.error("Transcript is too short to regenerate"); return; }
+    setRegenMode(mode);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-uploaded-video-mcqs", {
+        body: {
+          lessonId: activeLesson.id,
+          transcript: text,
+          title: activeLesson.title,
+          mediaUrl: activeLesson.media_url,
+          durationSeconds: activeLesson.duration_seconds,
+          uploaderId: studentId,
+          uploaderRole: "student",
+          mode,
+        },
+      });
+      if (error) throw error;
+      toast.success(mode === "mcqs" ? `Regenerated ${data?.questionCount ?? 0} MCQs` : "Regenerated notes & summary");
+      // Reload lesson + questions
+      const { data: l } = await supabase.from("video_lessons")
+        .select("id, title, source_type, media_url, duration_seconds, generation_status, generation_error, created_at, transcript, summary, notes, chapters")
+        .eq("id", activeLesson.id).single();
+      if (l) {
+        setActiveLesson(l as Lesson);
+        setLessons((ls) => ls.map((x) => x.id === l.id ? (l as Lesson) : x));
+        if (mode === "mcqs") await loadQuestions(l as Lesson);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Regeneration failed");
+    } finally {
+      setRegenMode(null);
+    }
+  };
+
 
   useEffect(() => {
     if (!startedAt || submitted) return;

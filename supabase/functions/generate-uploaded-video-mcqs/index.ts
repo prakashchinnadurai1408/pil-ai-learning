@@ -72,21 +72,37 @@ serve(async (req) => {
       startSeconds: i * span,
     }));
 
-    const systemPrompt = `You are an instructional designer. From the transcript, generate timed MCQs grouped by lesson segment. Use ONLY facts present in the transcript. Each MCQ has 4 distinct options and one correct answer.`;
+    const systemPrompt = `You are an instructional designer for Indian UG/PG students. From the transcript, generate (a) a concise summary, (b) structured study notes grouped into sections with bullet points, and (c) timed MCQs grouped by lesson segment. Use ONLY facts present in the transcript. Each MCQ has 4 distinct options and one correct answer.`;
     const userPrompt = `Title: ${title}
 Duration: ${durationSeconds}s, ${segCount} equal segments.
 Transcript (truncated):\n${transcript.slice(0, 12000)}
 
-Generate 2 MCQs per segment.`;
+Generate:
+- summary: 4–6 sentence overview of the lesson.
+- notes: 3–6 sections, each with a heading and 3–6 concise bullet points.
+- segments: 2 MCQs per segment.`;
 
     const tools = [{
       type: "function",
       function: {
-        name: "submit_segment_questions",
-        description: "Return MCQs grouped by segment index.",
+        name: "submit_lesson_pack",
+        description: "Return a complete study pack: summary, structured notes, and segment MCQs.",
         parameters: {
           type: "object",
           properties: {
+            summary: { type: "string" },
+            notes: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  heading: { type: "string" },
+                  bullets: { type: "array", items: { type: "string" } },
+                },
+                required: ["heading", "bullets"],
+                additionalProperties: false,
+              },
+            },
             segments: {
               type: "array",
               items: {
@@ -113,7 +129,7 @@ Generate 2 MCQs per segment.`;
               },
             },
           },
-          required: ["segments"],
+          required: ["summary", "notes", "segments"],
           additionalProperties: false,
         },
       },
@@ -126,7 +142,7 @@ Generate 2 MCQs per segment.`;
         model: "google/gemini-2.5-flash",
         messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
         tools,
-        tool_choice: { type: "function", function: { name: "submit_segment_questions" } },
+        tool_choice: { type: "function", function: { name: "submit_lesson_pack" } },
       }),
     });
     if (!aiRes.ok) {
@@ -174,13 +190,23 @@ Generate 2 MCQs per segment.`;
     }
     if (rows.length) await supabase.from("video_lesson_questions").insert(rows);
 
+    const summary = String(parsed.summary || "").slice(0, 4000);
+    const notes = Array.isArray(parsed.notes)
+      ? parsed.notes.slice(0, 10).map((n: any) => ({
+          heading: String(n?.heading || "").slice(0, 200),
+          bullets: Array.isArray(n?.bullets) ? n.bullets.slice(0, 10).map((b: any) => String(b).slice(0, 500)) : [],
+        }))
+      : [];
+
     await supabase.from("video_lessons").update({
       generation_status: rows.length ? "success" : "failed",
       generation_error: rows.length ? "" : "No usable questions",
       chapters: segments,
+      summary,
+      notes,
     }).eq("id", lessonId);
 
-    return json({ lessonId, questionCount: rows.length, segmentCount: segments.length });
+    return json({ lessonId, questionCount: rows.length, segmentCount: segments.length, summary, notes });
   } catch (e) {
     console.error("generate-uploaded-video-mcqs fatal:", e);
     if (lessonId) {

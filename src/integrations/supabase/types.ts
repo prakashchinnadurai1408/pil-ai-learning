@@ -2629,9 +2629,11 @@ export type Database = {
           last_regenerated_at: string | null
           media_url: string
           module_id: number | null
+          notes: Json
           retry_scheduled_at: string | null
           source_type: string
           status: string
+          summary: string
           thumbnail_url: string
           title: string
           transcript: string
@@ -2654,9 +2656,11 @@ export type Database = {
           last_regenerated_at?: string | null
           media_url?: string
           module_id?: number | null
+          notes?: Json
           retry_scheduled_at?: string | null
           source_type?: string
           status?: string
+          summary?: string
           thumbnail_url?: string
           title: string
           transcript?: string
@@ -2679,9 +2683,11 @@ export type Database = {
           last_regenerated_at?: string | null
           media_url?: string
           module_id?: number | null
+          notes?: Json
           retry_scheduled_at?: string | null
           source_type?: string
           status?: string
+          summary?: string
           thumbnail_url?: string
           title?: string
           transcript?: string

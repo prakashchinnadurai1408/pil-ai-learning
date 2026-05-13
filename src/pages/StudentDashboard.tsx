@@ -79,7 +79,7 @@ const SECTIONS: { label: string; items: { key: TabKey; label: string; icon: type
     { key: "coding", label: "Coding Challenges", icon: Code2 },
     { key: "prompts", label: "Prompts", icon: Pencil },
     { key: "rag_sandbox", label: "RAG Study Sandbox", icon: Library },
-    { key: "video_quiz", label: "Video → Quiz", icon: BookOpen },
+    { key: "video_quiz", label: "Upload Video → MCQs", icon: BookOpen },
   ]},
   { label: "Assessments", items: [
     { key: "assessments", label: "Assessments", icon: ClipboardCheck },

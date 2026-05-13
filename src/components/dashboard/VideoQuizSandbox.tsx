@@ -115,18 +115,51 @@ const VideoQuizSandbox = () => {
     return () => clearInterval(t);
   }, [lessons]);
 
-  // Build transcript segments from lesson.transcript + chapters.
+  // Build transcript segments aligned to chapter timestamps.
+  // Splits transcript into sentences and distributes them across chapters in
+  // proportion to each chapter's time span — so the text shown next to a
+  // timestamp better matches what's said at that moment in the video.
   const buildSegments = useCallback((lesson: Lesson | null) => {
     const text = (lesson?.transcript || "").trim();
     const chapters = (lesson?.chapters || []) as Chapter[];
+    const dur = Number(lesson?.duration_seconds) || 0;
     if (!text) return [] as Array<{ start: number; title?: string; text: string }>;
     if (!chapters.length) return [{ start: 0, text }];
-    const len = text.length;
-    return chapters.map((ch, i) => {
-      const startCh = Math.floor((i / chapters.length) * len);
-      const endCh = i === chapters.length - 1 ? len : Math.floor(((i + 1) / chapters.length) * len);
-      return { start: ch.startSeconds, title: ch.title, text: text.slice(startCh, endCh).trim() };
+
+    // Sentence split that preserves punctuation and handles newlines.
+    const sentences = (text.match(/[^.!?\n]+[.!?]+\s*|[^.!?\n]+(?:\n+|$)/g) || [text])
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    // Time span (seconds) covered by each chapter.
+    const spans = chapters.map((c, i) => {
+      const next = i < chapters.length - 1 ? chapters[i + 1].startSeconds : (dur > c.startSeconds ? dur : c.startSeconds + 1);
+      return Math.max(1, next - c.startSeconds);
     });
+    const totalSpan = spans.reduce((a, b) => a + b, 0) || 1;
+
+    // Allocate sentence counts proportional to span; reconcile rounding drift.
+    const counts = spans.map((s) => Math.max(1, Math.round((s / totalSpan) * sentences.length)));
+    let drift = sentences.length - counts.reduce((a, b) => a + b, 0);
+    for (let i = 0; drift !== 0 && i < counts.length * 4; i++) {
+      const idx = drift > 0 ? (i % counts.length) : (counts.length - 1 - (i % counts.length));
+      if (drift > 0) { counts[idx] += 1; drift--; }
+      else if (counts[idx] > 1) { counts[idx] -= 1; drift++; }
+    }
+
+    const result: Array<{ start: number; title?: string; text: string }> = [];
+    let cursor = 0;
+    chapters.forEach((ch, i) => {
+      const take = counts[i] ?? 0;
+      const slice = sentences.slice(cursor, cursor + take).join(" ").trim();
+      cursor += take;
+      result.push({ start: ch.startSeconds, title: ch.title, text: slice });
+    });
+    if (cursor < sentences.length && result.length) {
+      const last = result[result.length - 1];
+      last.text = `${last.text} ${sentences.slice(cursor).join(" ")}`.trim();
+    }
+    return result;
   }, []);
 
   const transcriptSegments = useMemo(() => buildSegments(activeLesson), [activeLesson, buildSegments]);

@@ -492,13 +492,43 @@ const VideoQuizSandbox = () => {
 
               <TabsContent value="transcript" className="space-y-3">
                 {transcriptSegments.length === 0 && <p className="text-sm text-muted-foreground">No transcript saved.</p>}
-                {transcriptSegments.map((seg: any, i) => (
+                {transcriptSegments.length > 0 && (
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className="text-xs text-muted-foreground">Edits keep each segment’s timestamp anchored — only the text changes.</p>
+                    {!editMode ? (
+                      <Button size="sm" variant="outline" onClick={() => {
+                        setEditedSegments(transcriptSegments.map((s: any) => ({ start: s.start, title: s.title, text: s.text })));
+                        setEditMode(true);
+                      }}>
+                        <Pencil className="h-3.5 w-3.5 mr-1" /> Edit transcript
+                      </Button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setEditMode(false)}>Cancel</Button>
+                        <Button size="sm" onClick={saveEditedTranscript} disabled={savingTranscript}>
+                          {savingTranscript ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                          Save transcript
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {(editMode ? editedSegments : transcriptSegments).map((seg: any, i) => (
                   <div key={i} className="p-3 rounded-lg border border-border">
                     <div className="flex items-center gap-2 mb-1.5">
                       <Badge variant="outline" className="text-[10px]">{formatTime(seg.start)}</Badge>
                       {seg.title && <span className="text-xs font-medium text-foreground">{seg.title}</span>}
                     </div>
-                    <p className="text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">{seg.text}</p>
+                    {editMode ? (
+                      <Textarea
+                        rows={5}
+                        value={seg.text}
+                        onChange={(e) => setEditedSegments((arr) => arr.map((s, si) => si === i ? { ...s, text: e.target.value } : s))}
+                        className="text-xs"
+                      />
+                    ) : (
+                      <p className="text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">{seg.text}</p>
+                    )}
                   </div>
                 ))}
               </TabsContent>

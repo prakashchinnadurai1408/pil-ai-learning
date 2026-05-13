@@ -142,7 +142,7 @@ Generate:
         model: "google/gemini-2.5-flash",
         messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
         tools,
-        tool_choice: { type: "function", function: { name: "submit_segment_questions" } },
+        tool_choice: { type: "function", function: { name: "submit_lesson_pack" } },
       }),
     });
     if (!aiRes.ok) {

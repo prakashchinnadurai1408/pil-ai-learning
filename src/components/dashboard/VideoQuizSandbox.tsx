@@ -60,6 +60,10 @@ const VideoQuizSandbox = () => {
   const [transcribing, setTranscribing] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editedSegments, setEditedSegments] = useState<Array<{ start: number; title?: string; text: string }>>([]);
+  const [savingTranscript, setSavingTranscript] = useState(false);
+  const [regenMode, setRegenMode] = useState<null | "mcqs" | "notes">(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadLessons = async () => {

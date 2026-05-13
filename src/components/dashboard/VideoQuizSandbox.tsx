@@ -67,7 +67,7 @@ const VideoQuizSandbox = () => {
       .select("id, title, source_type, media_url, duration_seconds, generation_status, generation_error, created_at, transcript, summary, notes, chapters")
       .eq("uploader_id", studentId || "")
       .order("created_at", { ascending: false }).limit(20);
-    setLessons((data as Lesson[]) || []);
+    setLessons(((data as any[]) || []) as Lesson[]);
   };
 
   useEffect(() => { if (studentId) loadLessons(); }, [studentId]);

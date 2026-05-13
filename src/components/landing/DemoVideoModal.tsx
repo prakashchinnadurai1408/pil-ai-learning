@@ -30,11 +30,11 @@ interface Script {
 const SCRIPT: Script[] = [
   {
     title: "Welcome to Pluginlive AI Learning",
-    text: "Hi! I'm Aira, your AI guide. Welcome to Pluginlive — an AI-powered learning platform built for UG and PG students.",
+    text: "Hi! I'm Aira, your AI guide. Welcome to Pluginlive — an AI-powered learning platform built for students of all age groups.",
     icon: Sparkles,
     gradient: "from-primary via-primary/80 to-accent",
     chips: [
-      { icon: GraduationCap, label: "UG & PG Students" },
+      { icon: GraduationCap, label: "All Age Group Students" },
       { icon: Bot, label: "AI-Powered" },
       { icon: Rocket, label: "Career Ready" },
     ],

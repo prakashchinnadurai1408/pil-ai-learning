@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Upload, Loader2, Video, ListChecks, Clock, CheckCircle2, XCircle, Trash2, FileDown, FileText, NotebookPen, MessageSquareQuote, Save, RefreshCw, Pencil } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Upload, Loader2, Video, ListChecks, Clock, CheckCircle2, XCircle, Trash2, FileDown, FileText, NotebookPen, MessageSquareQuote, Save, RefreshCw, Pencil, RotateCcw, Check, CloudOff } from "lucide-react";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 
@@ -23,6 +33,8 @@ interface Lesson {
   generation_error: string;
   created_at: string;
   transcript?: string;
+  original_transcript?: string;
+  transcript_updated_at?: string | null;
   summary?: string;
   notes?: NoteSection[];
   chapters?: Chapter[];
@@ -40,7 +52,23 @@ interface Question {
   sort_order: number;
 }
 
+type DraftStatus = "idle" | "dirty" | "saving" | "saved";
+
 const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+const draftKey = (lessonId: string) => `videoQuiz:transcriptDraft:${lessonId}`;
+
+const formatRelative = (iso?: string | null) => {
+  if (!iso) return "never";
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+};
+
+const LESSON_COLS = "id, title, source_type, media_url, duration_seconds, generation_status, generation_error, created_at, transcript, original_transcript, transcript_updated_at, summary, notes, chapters";
 
 const VideoQuizSandbox = () => {
   const studentId = sessionStorage.getItem("studentId");
@@ -64,11 +92,16 @@ const VideoQuizSandbox = () => {
   const [editedSegments, setEditedSegments] = useState<Array<{ start: number; title?: string; text: string }>>([]);
   const [savingTranscript, setSavingTranscript] = useState(false);
   const [regenMode, setRegenMode] = useState<null | "mcqs" | "notes">(null);
+  const [regenConfirm, setRegenConfirm] = useState<null | "mcqs" | "notes">(null);
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [draftStatus, setDraftStatus] = useState<DraftStatus>("idle");
+  const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const draftTimer = useRef<number | null>(null);
 
   const loadLessons = async () => {
     const { data } = await supabase.from("video_lessons")
-      .select("id, title, source_type, media_url, duration_seconds, generation_status, generation_error, created_at, transcript, summary, notes, chapters")
+      .select(LESSON_COLS)
       .eq("uploader_id", studentId || "")
       .order("created_at", { ascending: false }).limit(20);
     setLessons(((data as any[]) || []) as Lesson[]);
@@ -82,6 +115,22 @@ const VideoQuizSandbox = () => {
     return () => clearInterval(t);
   }, [lessons]);
 
+  // Build transcript segments from lesson.transcript + chapters.
+  const buildSegments = useCallback((lesson: Lesson | null) => {
+    const text = (lesson?.transcript || "").trim();
+    const chapters = (lesson?.chapters || []) as Chapter[];
+    if (!text) return [] as Array<{ start: number; title?: string; text: string }>;
+    if (!chapters.length) return [{ start: 0, text }];
+    const len = text.length;
+    return chapters.map((ch, i) => {
+      const startCh = Math.floor((i / chapters.length) * len);
+      const endCh = i === chapters.length - 1 ? len : Math.floor(((i + 1) / chapters.length) * len);
+      return { start: ch.startSeconds, title: ch.title, text: text.slice(startCh, endCh).trim() };
+    });
+  }, []);
+
+  const transcriptSegments = useMemo(() => buildSegments(activeLesson), [activeLesson, buildSegments]);
+
   const loadQuestions = async (lesson: Lesson) => {
     setActiveLesson(lesson);
     setSubmitted(false);
@@ -89,23 +138,75 @@ const VideoQuizSandbox = () => {
     setScore(0);
     setStartedAt(null);
     setEditMode(false);
+    setDraftStatus("idle");
+    setDraftSavedAt(null);
     const { data } = await supabase.from("video_lesson_questions")
       .select("*").eq("lesson_id", lesson.id).order("chapter_index").order("sort_order");
     setQuestions((data as Question[]) || []);
+
+    // Restore unsaved draft if present.
+    try {
+      const raw = localStorage.getItem(draftKey(lesson.id));
+      if (raw) {
+        const parsed = JSON.parse(raw) as { segments: typeof editedSegments; savedAt: number };
+        if (parsed?.segments?.length) {
+          setEditedSegments(parsed.segments);
+          setEditMode(true);
+          setDraftStatus("saved");
+          setDraftSavedAt(parsed.savedAt);
+          toast.info("Restored unsaved transcript draft from your last session.");
+        }
+      }
+    } catch { /* ignore */ }
+  };
+
+  // Auto-save draft to localStorage on edits (debounced).
+  useEffect(() => {
+    if (!editMode || !activeLesson) return;
+    if (draftTimer.current) window.clearTimeout(draftTimer.current);
+    setDraftStatus("dirty");
+    draftTimer.current = window.setTimeout(() => {
+      setDraftStatus("saving");
+      try {
+        const savedAt = Date.now();
+        localStorage.setItem(draftKey(activeLesson.id), JSON.stringify({ segments: editedSegments, savedAt }));
+        setDraftSavedAt(savedAt);
+        setDraftStatus("saved");
+      } catch {
+        setDraftStatus("idle");
+      }
+    }, 800);
+    return () => { if (draftTimer.current) window.clearTimeout(draftTimer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editedSegments, editMode, activeLesson?.id]);
+
+  const refetchLesson = async (id: string): Promise<Lesson | null> => {
+    const { data } = await supabase.from("video_lessons").select(LESSON_COLS).eq("id", id).single();
+    return data ? (data as unknown as Lesson) : null;
   };
 
   const saveEditedTranscript = async () => {
     if (!activeLesson) return;
     setSavingTranscript(true);
     try {
-      // Re-join edited segments preserving order; chapter timestamps stay attached via chapters[].
       const joined = editedSegments.map((s) => s.text.trim()).filter(Boolean).join("\n\n").slice(0, 50000);
-      const { error } = await supabase.from("video_lessons")
-        .update({ transcript: joined }).eq("id", activeLesson.id);
+      const updates: Record<string, any> = {
+        transcript: joined,
+        transcript_updated_at: new Date().toISOString(),
+      };
+      // Snapshot original on first edit-save so Reset works.
+      if (!activeLesson.original_transcript) {
+        updates.original_transcript = activeLesson.transcript || "";
+      }
+      const { error } = await supabase.from("video_lessons").update(updates as any).eq("id", activeLesson.id);
       if (error) throw error;
-      setActiveLesson({ ...activeLesson, transcript: joined });
-      setLessons((ls) => ls.map((l) => l.id === activeLesson.id ? { ...l, transcript: joined } : l));
+      const merged: Lesson = { ...activeLesson, ...updates } as Lesson;
+      setActiveLesson(merged);
+      setLessons((ls) => ls.map((l) => l.id === activeLesson.id ? merged : l));
+      try { localStorage.removeItem(draftKey(activeLesson.id)); } catch { /* ignore */ }
       setEditMode(false);
+      setDraftStatus("idle");
+      setDraftSavedAt(null);
       toast.success("Transcript saved — timestamps preserved");
     } catch (e: any) {
       toast.error(e?.message || "Save failed");
@@ -114,35 +215,66 @@ const VideoQuizSandbox = () => {
     }
   };
 
+  const resetTranscript = async () => {
+    if (!activeLesson) return;
+    const original = activeLesson.original_transcript || "";
+    if (!original) {
+      toast.error("No original transcript snapshot is available for this lesson.");
+      return;
+    }
+    try {
+      const updates = { transcript: original, transcript_updated_at: new Date().toISOString() };
+      const { error } = await supabase.from("video_lessons").update(updates as any).eq("id", activeLesson.id);
+      if (error) throw error;
+      const merged: Lesson = { ...activeLesson, ...updates } as Lesson;
+      setActiveLesson(merged);
+      setLessons((ls) => ls.map((l) => l.id === activeLesson.id ? merged : l));
+      try { localStorage.removeItem(draftKey(activeLesson.id)); } catch { /* ignore */ }
+      setEditMode(false);
+      setEditedSegments([]);
+      setDraftStatus("idle");
+      setDraftSavedAt(null);
+      toast.success("Transcript reset to the original upload.");
+    } catch (e: any) {
+      toast.error(e?.message || "Reset failed");
+    }
+  };
+
   const regenerate = async (mode: "mcqs" | "notes") => {
     if (!activeLesson) return;
-    const text = (activeLesson.transcript || "").trim();
-    if (text.length < 100) { toast.error("Transcript is too short to regenerate"); return; }
     setRegenMode(mode);
     try {
+      // Always re-fetch the latest saved transcript first.
+      const fresh = await refetchLesson(activeLesson.id);
+      if (!fresh) throw new Error("Lesson not found");
+      const text = (fresh.transcript || "").trim();
+      if (text.length < 100) { toast.error("Transcript is too short to regenerate"); return; }
+      setActiveLesson(fresh);
+
       const { data, error } = await supabase.functions.invoke("generate-uploaded-video-mcqs", {
         body: {
-          lessonId: activeLesson.id,
+          lessonId: fresh.id,
           transcript: text,
-          title: activeLesson.title,
-          mediaUrl: activeLesson.media_url,
-          durationSeconds: activeLesson.duration_seconds,
+          title: fresh.title,
+          mediaUrl: fresh.media_url,
+          durationSeconds: fresh.duration_seconds,
           uploaderId: studentId,
           uploaderRole: "student",
           mode,
         },
       });
       if (error) throw error;
-      toast.success(mode === "mcqs" ? `Regenerated ${data?.questionCount ?? 0} MCQs` : "Regenerated notes & summary");
-      // Reload lesson + questions
-      const { data: l } = await supabase.from("video_lessons")
-        .select("id, title, source_type, media_url, duration_seconds, generation_status, generation_error, created_at, transcript, summary, notes, chapters")
-        .eq("id", activeLesson.id).single();
-      if (l) {
-        const lesson = l as unknown as Lesson;
-        setActiveLesson(lesson);
-        setLessons((ls) => ls.map((x) => x.id === lesson.id ? lesson : x));
-        if (mode === "mcqs") await loadQuestions(lesson);
+      const stamp = formatRelative(fresh.transcript_updated_at);
+      toast.success(
+        mode === "mcqs"
+          ? `Regenerated ${data?.questionCount ?? 0} MCQs from transcript saved ${stamp} (${text.length} chars)`
+          : `Regenerated notes & summary from transcript saved ${stamp} (${text.length} chars)`,
+      );
+      const reloaded = await refetchLesson(fresh.id);
+      if (reloaded) {
+        setActiveLesson(reloaded);
+        setLessons((ls) => ls.map((x) => x.id === reloaded.id ? reloaded : x));
+        if (mode === "mcqs") await loadQuestions(reloaded);
       }
     } catch (e: any) {
       toast.error(e?.message || "Regeneration failed");
@@ -150,7 +282,6 @@ const VideoQuizSandbox = () => {
       setRegenMode(null);
     }
   };
-
 
   useEffect(() => {
     if (!startedAt || submitted) return;
@@ -165,20 +296,6 @@ const VideoQuizSandbox = () => {
     const t = setInterval(tick, 1000);
     return () => clearInterval(t);
   }, [startedAt, submitted, questions.length]);
-
-  // Split transcript proportionally across chapters/segments to attach timestamps.
-  const transcriptSegments = useMemo(() => {
-    const text = (activeLesson?.transcript || "").trim();
-    const chapters = (activeLesson?.chapters || []) as Chapter[];
-    if (!text) return [];
-    if (!chapters.length) return [{ start: 0, text }];
-    const len = text.length;
-    return chapters.map((ch, i) => {
-      const startCh = Math.floor((i / chapters.length) * len);
-      const endCh = i === chapters.length - 1 ? len : Math.floor(((i + 1) / chapters.length) * len);
-      return { start: ch.startSeconds, title: ch.title, text: text.slice(startCh, endCh).trim() };
-    });
-  }, [activeLesson]);
 
   const handleVideoUpload = async (file: File) => {
     if (!studentId) { toast.error("Sign in required"); return; }
@@ -285,6 +402,7 @@ const VideoQuizSandbox = () => {
   const onDeleteLesson = async (l: Lesson) => {
     if (!confirm(`Delete "${l.title}"?`)) return;
     await supabase.from("video_lessons").delete().eq("id", l.id);
+    try { localStorage.removeItem(draftKey(l.id)); } catch { /* ignore */ }
     if (activeLesson?.id === l.id) { setActiveLesson(null); setQuestions([]); }
     loadLessons();
   };
@@ -310,7 +428,6 @@ const VideoQuizSandbox = () => {
       y += gap;
     };
 
-    // Header
     writeWrapped(activeLesson.title || "Lesson study pack", { size: 18, bold: true, lineH: 22, gap: 6 });
     writeWrapped(`Student: ${studentName}   ·   Generated: ${new Date().toLocaleString()}`, { size: 9, gap: 10 });
 
@@ -318,13 +435,11 @@ const VideoQuizSandbox = () => {
       writeWrapped(`Quiz Score: ${score}%  (${Object.values(answers).filter((a, i) => a === questions[i]?.correct).length}/${questions.length})`, { size: 12, bold: true, gap: 12 });
     }
 
-    // Summary
     if (activeLesson.summary) {
       writeWrapped("Summary", { size: 14, bold: true, gap: 6 });
       writeWrapped(activeLesson.summary, { gap: 12 });
     }
 
-    // Notes
     if (activeLesson.notes && activeLesson.notes.length) {
       writeWrapped("Structured Notes", { size: 14, bold: true, gap: 6 });
       activeLesson.notes.forEach((n) => {
@@ -334,7 +449,6 @@ const VideoQuizSandbox = () => {
       });
     }
 
-    // Transcript with timestamps
     if (transcriptSegments.length) {
       doc.addPage(); y = margin;
       writeWrapped("Transcript", { size: 14, bold: true, gap: 6 });
@@ -344,7 +458,6 @@ const VideoQuizSandbox = () => {
       });
     }
 
-    // Quiz with answers
     if (questions.length) {
       doc.addPage(); y = margin;
       writeWrapped("Quiz Review", { size: 14, bold: true, gap: 6 });
@@ -365,6 +478,20 @@ const VideoQuizSandbox = () => {
     const safeTitle = (activeLesson.title || "study-pack").replace(/[^a-z0-9-_]+/gi, "-").slice(0, 60);
     doc.save(`${safeTitle}-study-pack.pdf`);
     toast.success("Study pack downloaded");
+  };
+
+  const transcriptLen = (activeLesson?.transcript || "").length;
+  const versionLabel = activeLesson
+    ? `Transcript: ${transcriptLen.toLocaleString()} chars · saved ${formatRelative(activeLesson.transcript_updated_at)}`
+    : "";
+
+  const draftBadge = () => {
+    if (!editMode) return null;
+    const cls = "text-[10px] flex items-center gap-1";
+    if (draftStatus === "dirty") return <Badge variant="outline" className={cls}><CloudOff className="h-3 w-3" /> Unsaved changes</Badge>;
+    if (draftStatus === "saving") return <Badge variant="outline" className={cls}><Loader2 className="h-3 w-3 animate-spin" /> Saving draft…</Badge>;
+    if (draftStatus === "saved") return <Badge variant="outline" className={cls}><Check className="h-3 w-3 text-success" /> Draft saved {draftSavedAt ? formatRelative(new Date(draftSavedAt).toISOString()) : ""}</Badge>;
+    return null;
   };
 
   return (
@@ -434,7 +561,10 @@ const VideoQuizSandbox = () => {
       <Card className="lg:col-span-2">
         <CardHeader className="border-b border-border py-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <CardTitle className="text-sm">{activeLesson ? activeLesson.title : "Pick a lesson"}</CardTitle>
+            <div className="min-w-0">
+              <CardTitle className="text-sm truncate">{activeLesson ? activeLesson.title : "Pick a lesson"}</CardTitle>
+              {activeLesson && <p className="text-[11px] text-muted-foreground mt-0.5">{versionLabel}</p>}
+            </div>
             <div className="flex items-center gap-2">
               {timeLeft !== null && !submitted && (
                 <Badge variant="outline" className="flex items-center gap-1">
@@ -443,11 +573,11 @@ const VideoQuizSandbox = () => {
               )}
               {activeLesson && (
                 <>
-                  <Button size="sm" variant="outline" disabled={regenMode !== null} onClick={() => regenerate("notes")}>
+                  <Button size="sm" variant="outline" disabled={regenMode !== null} onClick={() => setRegenConfirm("notes")}>
                     {regenMode === "notes" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
                     Regenerate Notes & Summary
                   </Button>
-                  <Button size="sm" variant="outline" disabled={regenMode !== null} onClick={() => regenerate("mcqs")}>
+                  <Button size="sm" variant="outline" disabled={regenMode !== null} onClick={() => setRegenConfirm("mcqs")}>
                     {regenMode === "mcqs" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
                     Regenerate MCQs
                   </Button>
@@ -493,18 +623,37 @@ const VideoQuizSandbox = () => {
               <TabsContent value="transcript" className="space-y-3">
                 {transcriptSegments.length === 0 && <p className="text-sm text-muted-foreground">No transcript saved.</p>}
                 {transcriptSegments.length > 0 && (
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <p className="text-xs text-muted-foreground">Edits keep each segment’s timestamp anchored — only the text changes.</p>
+                  <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs text-muted-foreground">Edits keep each segment’s timestamp anchored — only the text changes.</p>
+                      {draftBadge()}
+                    </div>
                     {!editMode ? (
-                      <Button size="sm" variant="outline" onClick={() => {
-                        setEditedSegments(transcriptSegments.map((s: any) => ({ start: s.start, title: s.title, text: s.text })));
-                        setEditMode(true);
-                      }}>
-                        <Pencil className="h-3.5 w-3.5 mr-1" /> Edit transcript
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => {
+                          setEditedSegments(transcriptSegments.map((s: any) => ({ start: s.start, title: s.title, text: s.text })));
+                          setEditMode(true);
+                          setDraftStatus("idle");
+                        }}>
+                          <Pencil className="h-3.5 w-3.5 mr-1" /> Edit transcript
+                        </Button>
+                        {activeLesson.original_transcript && activeLesson.original_transcript !== activeLesson.transcript && (
+                          <Button size="sm" variant="ghost" onClick={() => setResetConfirm(true)} className="text-muted-foreground">
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset to original
+                          </Button>
+                        )}
+                      </div>
                     ) : (
                       <div className="flex gap-2">
-                        <Button size="sm" variant="ghost" onClick={() => setEditMode(false)}>Cancel</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setResetConfirm(true)}>
+                          <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => {
+                          if (activeLesson) { try { localStorage.removeItem(draftKey(activeLesson.id)); } catch {} }
+                          setEditMode(false);
+                          setDraftStatus("idle");
+                          setDraftSavedAt(null);
+                        }}>Cancel</Button>
                         <Button size="sm" onClick={saveEditedTranscript} disabled={savingTranscript}>
                           {savingTranscript ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
                           Save transcript
@@ -595,6 +744,51 @@ const VideoQuizSandbox = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Confirm regenerate */}
+      <AlertDialog open={regenConfirm !== null} onOpenChange={(o) => !o && setRegenConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {regenConfirm === "mcqs" ? "Regenerate MCQs?" : "Regenerate Notes & Summary?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {regenConfirm === "mcqs"
+                ? "Your existing MCQs and any saved score for this lesson will be replaced. Notes and summary stay as-is."
+                : "Your current summary and structured notes will be overwritten. MCQs stay as-is."}
+              <br /><br />
+              <span className="text-xs">Source: {versionLabel || "current transcript"}</span>
+              {editMode && draftStatus !== "idle" && (
+                <><br /><span className="text-xs text-warning">⚠ You have unsaved transcript edits — save them first if you want them used.</span></>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { const m = regenConfirm; setRegenConfirm(null); if (m) regenerate(m); }}>
+              Yes, regenerate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirm reset transcript */}
+      <AlertDialog open={resetConfirm} onOpenChange={setResetConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset transcript to original?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This discards all of your timestamp-preserving edits and any unsaved draft, and restores the transcript that was first uploaded for this lesson. Notes, summary, and MCQs are not changed until you regenerate.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep my edits</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setResetConfirm(false); resetTranscript(); }}>
+              Yes, reset to original
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

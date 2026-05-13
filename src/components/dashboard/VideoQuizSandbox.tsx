@@ -198,7 +198,7 @@ const VideoQuizSandbox = () => {
       if (!activeLesson.original_transcript) {
         updates.original_transcript = activeLesson.transcript || "";
       }
-      const { error } = await supabase.from("video_lessons").update(updates).eq("id", activeLesson.id);
+      const { error } = await supabase.from("video_lessons").update(updates as any).eq("id", activeLesson.id);
       if (error) throw error;
       const merged: Lesson = { ...activeLesson, ...updates } as Lesson;
       setActiveLesson(merged);

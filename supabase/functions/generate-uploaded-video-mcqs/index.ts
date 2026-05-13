@@ -73,15 +73,16 @@ serve(async (req) => {
       startSeconds: i * span,
     }));
 
-    const systemPrompt = `You are an instructional designer for Indian UG/PG students. From the transcript, generate (a) a concise summary, (b) structured study notes grouped into sections with bullet points, and (c) timed MCQs grouped by lesson segment. Use ONLY facts present in the transcript. Each MCQ has 4 distinct options and one correct answer.`;
+    const wantMcqs = mode === "all" || mode === "mcqs";
+    const wantNotes = mode === "all" || mode === "notes";
+
+    const systemPrompt = `You are an instructional designer for Indian UG/PG students. From the transcript, generate ${wantNotes ? "(a) a concise summary, (b) structured study notes grouped into sections with bullet points" : ""}${wantNotes && wantMcqs ? ", and " : ""}${wantMcqs ? "timed MCQs grouped by lesson segment" : ""}. Use ONLY facts present in the transcript. Each MCQ has 4 distinct options and one correct answer.`;
     const userPrompt = `Title: ${title}
 Duration: ${durationSeconds}s, ${segCount} equal segments.
 Transcript (truncated):\n${transcript.slice(0, 12000)}
 
 Generate:
-- summary: 4–6 sentence overview of the lesson.
-- notes: 3–6 sections, each with a heading and 3–6 concise bullet points.
-- segments: 2 MCQs per segment.`;
+${wantNotes ? "- summary: 4–6 sentence overview of the lesson.\n- notes: 3–6 sections, each with a heading and 3–6 concise bullet points.\n" : ""}${wantMcqs ? "- segments: 2 MCQs per segment." : ""}`;
 
     const tools = [{
       type: "function",

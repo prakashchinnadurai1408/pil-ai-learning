@@ -32,6 +32,7 @@ serve(async (req) => {
     const uploaderId: string = body?.uploaderId || "";
     const uploaderRole: string = body?.uploaderRole || "student";
     const durationSeconds: number = Number(body?.durationSeconds) || 600;
+    const mode: "all" | "mcqs" | "notes" = (body?.mode === "mcqs" || body?.mode === "notes") ? body.mode : "all";
     if (!transcript || transcript.length < 100) return json({ error: "Transcript too short" }, 400);
 
     // Build/refresh lesson row

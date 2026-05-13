@@ -442,9 +442,19 @@ const VideoQuizSandbox = () => {
                 </Badge>
               )}
               {activeLesson && (
-                <Button size="sm" variant="outline" onClick={exportStudyPack}>
-                  <FileDown className="h-3.5 w-3.5 mr-1" /> Study pack PDF
-                </Button>
+                <>
+                  <Button size="sm" variant="outline" disabled={regenMode !== null} onClick={() => regenerate("notes")}>
+                    {regenMode === "notes" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
+                    Regenerate Notes & Summary
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={regenMode !== null} onClick={() => regenerate("mcqs")}>
+                    {regenMode === "mcqs" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
+                    Regenerate MCQs
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={exportStudyPack}>
+                    <FileDown className="h-3.5 w-3.5 mr-1" /> Study pack PDF
+                  </Button>
+                </>
               )}
             </div>
           </div>

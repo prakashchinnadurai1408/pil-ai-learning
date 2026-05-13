@@ -169,46 +169,51 @@ ${wantNotes ? "- summary: 4–6 sentence overview of the lesson.\n- notes: 3–6
     }
     const parsed = JSON.parse(args);
 
-    await supabase.from("video_lesson_questions").delete().eq("lesson_id", lessonId);
-
-    const rows: any[] = [];
-    for (const seg of parsed.segments || []) {
-      const idx = Math.max(0, Math.min(segments.length - 1, Number(seg.segment_index) || 0));
-      const meta = segments[idx];
-      (seg.questions || []).slice(0, 5).forEach((q: any, qi: number) => {
-        if (!q?.question || !Array.isArray(q?.options) || q.options.length !== 4) return;
-        rows.push({
-          lesson_id: lessonId,
-          chapter_index: idx,
-          chapter_title: meta.title,
-          chapter_start_seconds: meta.startSeconds,
-          question: String(q.question).slice(0, 1000),
-          options: q.options.map((o: any) => String(o).slice(0, 500)),
-          correct: Math.max(0, Math.min(3, Number(q.correct) || 0)),
-          explanation: String(q.explanation || "").slice(0, 1500),
-          sort_order: qi,
+    let rows: any[] = [];
+    if (wantMcqs) {
+      await supabase.from("video_lesson_questions").delete().eq("lesson_id", lessonId);
+      for (const seg of parsed.segments || []) {
+        const idx = Math.max(0, Math.min(segments.length - 1, Number(seg.segment_index) || 0));
+        const meta = segments[idx];
+        (seg.questions || []).slice(0, 5).forEach((q: any, qi: number) => {
+          if (!q?.question || !Array.isArray(q?.options) || q.options.length !== 4) return;
+          rows.push({
+            lesson_id: lessonId,
+            chapter_index: idx,
+            chapter_title: meta.title,
+            chapter_start_seconds: meta.startSeconds,
+            question: String(q.question).slice(0, 1000),
+            options: q.options.map((o: any) => String(o).slice(0, 500)),
+            correct: Math.max(0, Math.min(3, Number(q.correct) || 0)),
+            explanation: String(q.explanation || "").slice(0, 1500),
+            sort_order: qi,
+          });
         });
-      });
+      }
+      if (rows.length) await supabase.from("video_lesson_questions").insert(rows);
     }
-    if (rows.length) await supabase.from("video_lesson_questions").insert(rows);
 
-    const summary = String(parsed.summary || "").slice(0, 4000);
-    const notes = Array.isArray(parsed.notes)
-      ? parsed.notes.slice(0, 10).map((n: any) => ({
-          heading: String(n?.heading || "").slice(0, 200),
-          bullets: Array.isArray(n?.bullets) ? n.bullets.slice(0, 10).map((b: any) => String(b).slice(0, 500)) : [],
-        }))
-      : [];
-
-    await supabase.from("video_lessons").update({
-      generation_status: rows.length ? "success" : "failed",
-      generation_error: rows.length ? "" : "No usable questions",
+    const updates: Record<string, unknown> = {
+      generation_status: "success",
+      generation_error: "",
       chapters: segments,
-      summary,
-      notes,
-    }).eq("id", lessonId);
+    };
+    if (wantNotes) {
+      updates.summary = String(parsed.summary || "").slice(0, 4000);
+      updates.notes = Array.isArray(parsed.notes)
+        ? parsed.notes.slice(0, 10).map((n: any) => ({
+            heading: String(n?.heading || "").slice(0, 200),
+            bullets: Array.isArray(n?.bullets) ? n.bullets.slice(0, 10).map((b: any) => String(b).slice(0, 500)) : [],
+          }))
+        : [];
+    }
+    if (wantMcqs && !rows.length) {
+      updates.generation_status = "failed";
+      updates.generation_error = "No usable questions";
+    }
+    await supabase.from("video_lessons").update(updates).eq("id", lessonId);
 
-    return json({ lessonId, questionCount: rows.length, segmentCount: segments.length, summary, notes });
+    return json({ lessonId, mode, questionCount: rows.length, segmentCount: segments.length, summary: updates.summary, notes: updates.notes });
   } catch (e) {
     console.error("generate-uploaded-video-mcqs fatal:", e);
     if (lessonId) {

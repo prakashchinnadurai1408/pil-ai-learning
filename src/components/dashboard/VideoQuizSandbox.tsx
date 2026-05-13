@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Upload, Loader2, Video, ListChecks, Clock, CheckCircle2, XCircle, Trash2, FileDown, FileText, NotebookPen, MessageSquareQuote } from "lucide-react";
+import { Upload, Loader2, Video, ListChecks, Clock, CheckCircle2, XCircle, Trash2, FileDown, FileText, NotebookPen, MessageSquareQuote, Save, RefreshCw, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 

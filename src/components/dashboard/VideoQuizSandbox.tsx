@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Upload, Loader2, Video, ListChecks, Clock, CheckCircle2, XCircle, Trash2, FileDown, FileText, NotebookPen, MessageSquareQuote } from "lucide-react";
+import { Upload, Loader2, Video, ListChecks, Clock, CheckCircle2, XCircle, Trash2, FileDown, FileText, NotebookPen, MessageSquareQuote, Save, RefreshCw, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 
@@ -60,6 +60,10 @@ const VideoQuizSandbox = () => {
   const [transcribing, setTranscribing] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editedSegments, setEditedSegments] = useState<Array<{ start: number; title?: string; text: string }>>([]);
+  const [savingTranscript, setSavingTranscript] = useState(false);
+  const [regenMode, setRegenMode] = useState<null | "mcqs" | "notes">(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadLessons = async () => {
@@ -84,10 +88,69 @@ const VideoQuizSandbox = () => {
     setAnswers({});
     setScore(0);
     setStartedAt(null);
+    setEditMode(false);
     const { data } = await supabase.from("video_lesson_questions")
       .select("*").eq("lesson_id", lesson.id).order("chapter_index").order("sort_order");
     setQuestions((data as Question[]) || []);
   };
+
+  const saveEditedTranscript = async () => {
+    if (!activeLesson) return;
+    setSavingTranscript(true);
+    try {
+      // Re-join edited segments preserving order; chapter timestamps stay attached via chapters[].
+      const joined = editedSegments.map((s) => s.text.trim()).filter(Boolean).join("\n\n").slice(0, 50000);
+      const { error } = await supabase.from("video_lessons")
+        .update({ transcript: joined }).eq("id", activeLesson.id);
+      if (error) throw error;
+      setActiveLesson({ ...activeLesson, transcript: joined });
+      setLessons((ls) => ls.map((l) => l.id === activeLesson.id ? { ...l, transcript: joined } : l));
+      setEditMode(false);
+      toast.success("Transcript saved — timestamps preserved");
+    } catch (e: any) {
+      toast.error(e?.message || "Save failed");
+    } finally {
+      setSavingTranscript(false);
+    }
+  };
+
+  const regenerate = async (mode: "mcqs" | "notes") => {
+    if (!activeLesson) return;
+    const text = (activeLesson.transcript || "").trim();
+    if (text.length < 100) { toast.error("Transcript is too short to regenerate"); return; }
+    setRegenMode(mode);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-uploaded-video-mcqs", {
+        body: {
+          lessonId: activeLesson.id,
+          transcript: text,
+          title: activeLesson.title,
+          mediaUrl: activeLesson.media_url,
+          durationSeconds: activeLesson.duration_seconds,
+          uploaderId: studentId,
+          uploaderRole: "student",
+          mode,
+        },
+      });
+      if (error) throw error;
+      toast.success(mode === "mcqs" ? `Regenerated ${data?.questionCount ?? 0} MCQs` : "Regenerated notes & summary");
+      // Reload lesson + questions
+      const { data: l } = await supabase.from("video_lessons")
+        .select("id, title, source_type, media_url, duration_seconds, generation_status, generation_error, created_at, transcript, summary, notes, chapters")
+        .eq("id", activeLesson.id).single();
+      if (l) {
+        const lesson = l as unknown as Lesson;
+        setActiveLesson(lesson);
+        setLessons((ls) => ls.map((x) => x.id === lesson.id ? lesson : x));
+        if (mode === "mcqs") await loadQuestions(lesson);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Regeneration failed");
+    } finally {
+      setRegenMode(null);
+    }
+  };
+
 
   useEffect(() => {
     if (!startedAt || submitted) return;
@@ -379,9 +442,19 @@ const VideoQuizSandbox = () => {
                 </Badge>
               )}
               {activeLesson && (
-                <Button size="sm" variant="outline" onClick={exportStudyPack}>
-                  <FileDown className="h-3.5 w-3.5 mr-1" /> Study pack PDF
-                </Button>
+                <>
+                  <Button size="sm" variant="outline" disabled={regenMode !== null} onClick={() => regenerate("notes")}>
+                    {regenMode === "notes" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
+                    Regenerate Notes & Summary
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={regenMode !== null} onClick={() => regenerate("mcqs")}>
+                    {regenMode === "mcqs" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
+                    Regenerate MCQs
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={exportStudyPack}>
+                    <FileDown className="h-3.5 w-3.5 mr-1" /> Study pack PDF
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -419,13 +492,43 @@ const VideoQuizSandbox = () => {
 
               <TabsContent value="transcript" className="space-y-3">
                 {transcriptSegments.length === 0 && <p className="text-sm text-muted-foreground">No transcript saved.</p>}
-                {transcriptSegments.map((seg: any, i) => (
+                {transcriptSegments.length > 0 && (
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className="text-xs text-muted-foreground">Edits keep each segment’s timestamp anchored — only the text changes.</p>
+                    {!editMode ? (
+                      <Button size="sm" variant="outline" onClick={() => {
+                        setEditedSegments(transcriptSegments.map((s: any) => ({ start: s.start, title: s.title, text: s.text })));
+                        setEditMode(true);
+                      }}>
+                        <Pencil className="h-3.5 w-3.5 mr-1" /> Edit transcript
+                      </Button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setEditMode(false)}>Cancel</Button>
+                        <Button size="sm" onClick={saveEditedTranscript} disabled={savingTranscript}>
+                          {savingTranscript ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                          Save transcript
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {(editMode ? editedSegments : transcriptSegments).map((seg: any, i) => (
                   <div key={i} className="p-3 rounded-lg border border-border">
                     <div className="flex items-center gap-2 mb-1.5">
                       <Badge variant="outline" className="text-[10px]">{formatTime(seg.start)}</Badge>
                       {seg.title && <span className="text-xs font-medium text-foreground">{seg.title}</span>}
                     </div>
-                    <p className="text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">{seg.text}</p>
+                    {editMode ? (
+                      <Textarea
+                        rows={5}
+                        value={seg.text}
+                        onChange={(e) => setEditedSegments((arr) => arr.map((s, si) => si === i ? { ...s, text: e.target.value } : s))}
+                        className="text-xs"
+                      />
+                    ) : (
+                      <p className="text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">{seg.text}</p>
+                    )}
                   </div>
                 ))}
               </TabsContent>

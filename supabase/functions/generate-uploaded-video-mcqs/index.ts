@@ -32,6 +32,7 @@ serve(async (req) => {
     const uploaderId: string = body?.uploaderId || "";
     const uploaderRole: string = body?.uploaderRole || "student";
     const durationSeconds: number = Number(body?.durationSeconds) || 600;
+    const mode: "all" | "mcqs" | "notes" = (body?.mode === "mcqs" || body?.mode === "notes") ? body.mode : "all";
     if (!transcript || transcript.length < 100) return json({ error: "Transcript too short" }, 400);
 
     // Build/refresh lesson row
@@ -72,15 +73,16 @@ serve(async (req) => {
       startSeconds: i * span,
     }));
 
-    const systemPrompt = `You are an instructional designer for Indian UG/PG students. From the transcript, generate (a) a concise summary, (b) structured study notes grouped into sections with bullet points, and (c) timed MCQs grouped by lesson segment. Use ONLY facts present in the transcript. Each MCQ has 4 distinct options and one correct answer.`;
+    const wantMcqs = mode === "all" || mode === "mcqs";
+    const wantNotes = mode === "all" || mode === "notes";
+
+    const systemPrompt = `You are an instructional designer for Indian UG/PG students. From the transcript, generate ${wantNotes ? "(a) a concise summary, (b) structured study notes grouped into sections with bullet points" : ""}${wantNotes && wantMcqs ? ", and " : ""}${wantMcqs ? "timed MCQs grouped by lesson segment" : ""}. Use ONLY facts present in the transcript. Each MCQ has 4 distinct options and one correct answer.`;
     const userPrompt = `Title: ${title}
 Duration: ${durationSeconds}s, ${segCount} equal segments.
 Transcript (truncated):\n${transcript.slice(0, 12000)}
 
 Generate:
-- summary: 4–6 sentence overview of the lesson.
-- notes: 3–6 sections, each with a heading and 3–6 concise bullet points.
-- segments: 2 MCQs per segment.`;
+${wantNotes ? "- summary: 4–6 sentence overview of the lesson.\n- notes: 3–6 sections, each with a heading and 3–6 concise bullet points.\n" : ""}${wantMcqs ? "- segments: 2 MCQs per segment." : ""}`;
 
     const tools = [{
       type: "function",
@@ -167,46 +169,51 @@ Generate:
     }
     const parsed = JSON.parse(args);
 
-    await supabase.from("video_lesson_questions").delete().eq("lesson_id", lessonId);
-
-    const rows: any[] = [];
-    for (const seg of parsed.segments || []) {
-      const idx = Math.max(0, Math.min(segments.length - 1, Number(seg.segment_index) || 0));
-      const meta = segments[idx];
-      (seg.questions || []).slice(0, 5).forEach((q: any, qi: number) => {
-        if (!q?.question || !Array.isArray(q?.options) || q.options.length !== 4) return;
-        rows.push({
-          lesson_id: lessonId,
-          chapter_index: idx,
-          chapter_title: meta.title,
-          chapter_start_seconds: meta.startSeconds,
-          question: String(q.question).slice(0, 1000),
-          options: q.options.map((o: any) => String(o).slice(0, 500)),
-          correct: Math.max(0, Math.min(3, Number(q.correct) || 0)),
-          explanation: String(q.explanation || "").slice(0, 1500),
-          sort_order: qi,
+    let rows: any[] = [];
+    if (wantMcqs) {
+      await supabase.from("video_lesson_questions").delete().eq("lesson_id", lessonId);
+      for (const seg of parsed.segments || []) {
+        const idx = Math.max(0, Math.min(segments.length - 1, Number(seg.segment_index) || 0));
+        const meta = segments[idx];
+        (seg.questions || []).slice(0, 5).forEach((q: any, qi: number) => {
+          if (!q?.question || !Array.isArray(q?.options) || q.options.length !== 4) return;
+          rows.push({
+            lesson_id: lessonId,
+            chapter_index: idx,
+            chapter_title: meta.title,
+            chapter_start_seconds: meta.startSeconds,
+            question: String(q.question).slice(0, 1000),
+            options: q.options.map((o: any) => String(o).slice(0, 500)),
+            correct: Math.max(0, Math.min(3, Number(q.correct) || 0)),
+            explanation: String(q.explanation || "").slice(0, 1500),
+            sort_order: qi,
+          });
         });
-      });
+      }
+      if (rows.length) await supabase.from("video_lesson_questions").insert(rows);
     }
-    if (rows.length) await supabase.from("video_lesson_questions").insert(rows);
 
-    const summary = String(parsed.summary || "").slice(0, 4000);
-    const notes = Array.isArray(parsed.notes)
-      ? parsed.notes.slice(0, 10).map((n: any) => ({
-          heading: String(n?.heading || "").slice(0, 200),
-          bullets: Array.isArray(n?.bullets) ? n.bullets.slice(0, 10).map((b: any) => String(b).slice(0, 500)) : [],
-        }))
-      : [];
-
-    await supabase.from("video_lessons").update({
-      generation_status: rows.length ? "success" : "failed",
-      generation_error: rows.length ? "" : "No usable questions",
+    const updates: Record<string, unknown> = {
+      generation_status: "success",
+      generation_error: "",
       chapters: segments,
-      summary,
-      notes,
-    }).eq("id", lessonId);
+    };
+    if (wantNotes) {
+      updates.summary = String(parsed.summary || "").slice(0, 4000);
+      updates.notes = Array.isArray(parsed.notes)
+        ? parsed.notes.slice(0, 10).map((n: any) => ({
+            heading: String(n?.heading || "").slice(0, 200),
+            bullets: Array.isArray(n?.bullets) ? n.bullets.slice(0, 10).map((b: any) => String(b).slice(0, 500)) : [],
+          }))
+        : [];
+    }
+    if (wantMcqs && !rows.length) {
+      updates.generation_status = "failed";
+      updates.generation_error = "No usable questions";
+    }
+    await supabase.from("video_lessons").update(updates).eq("id", lessonId);
 
-    return json({ lessonId, questionCount: rows.length, segmentCount: segments.length, summary, notes });
+    return json({ lessonId, mode, questionCount: rows.length, segmentCount: segments.length, summary: updates.summary, notes: updates.notes });
   } catch (e) {
     console.error("generate-uploaded-video-mcqs fatal:", e);
     if (lessonId) {

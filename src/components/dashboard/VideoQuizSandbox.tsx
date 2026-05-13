@@ -490,7 +490,7 @@ const VideoQuizSandbox = () => {
     const cls = "text-[10px] flex items-center gap-1";
     if (draftStatus === "dirty") return <Badge variant="outline" className={cls}><CloudOff className="h-3 w-3" /> Unsaved changes</Badge>;
     if (draftStatus === "saving") return <Badge variant="outline" className={cls}><Loader2 className="h-3 w-3 animate-spin" /> Saving draft…</Badge>;
-    if (draftStatus === "saved") return <Badge variant="outline" className={cls}><CloudCheck className="h-3 w-3 text-success" /> Draft saved {draftSavedAt ? formatRelative(new Date(draftSavedAt).toISOString()) : ""}</Badge>;
+    if (draftStatus === "saved") return <Badge variant="outline" className={cls}><Check className="h-3 w-3 text-success" /> Draft saved {draftSavedAt ? formatRelative(new Date(draftSavedAt).toISOString()) : ""}</Badge>;
     return null;
   };
 

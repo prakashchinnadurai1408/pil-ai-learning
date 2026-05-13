@@ -72,21 +72,37 @@ serve(async (req) => {
       startSeconds: i * span,
     }));
 
-    const systemPrompt = `You are an instructional designer. From the transcript, generate timed MCQs grouped by lesson segment. Use ONLY facts present in the transcript. Each MCQ has 4 distinct options and one correct answer.`;
+    const systemPrompt = `You are an instructional designer for Indian UG/PG students. From the transcript, generate (a) a concise summary, (b) structured study notes grouped into sections with bullet points, and (c) timed MCQs grouped by lesson segment. Use ONLY facts present in the transcript. Each MCQ has 4 distinct options and one correct answer.`;
     const userPrompt = `Title: ${title}
 Duration: ${durationSeconds}s, ${segCount} equal segments.
 Transcript (truncated):\n${transcript.slice(0, 12000)}
 
-Generate 2 MCQs per segment.`;
+Generate:
+- summary: 4–6 sentence overview of the lesson.
+- notes: 3–6 sections, each with a heading and 3–6 concise bullet points.
+- segments: 2 MCQs per segment.`;
 
     const tools = [{
       type: "function",
       function: {
-        name: "submit_segment_questions",
-        description: "Return MCQs grouped by segment index.",
+        name: "submit_lesson_pack",
+        description: "Return a complete study pack: summary, structured notes, and segment MCQs.",
         parameters: {
           type: "object",
           properties: {
+            summary: { type: "string" },
+            notes: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  heading: { type: "string" },
+                  bullets: { type: "array", items: { type: "string" } },
+                },
+                required: ["heading", "bullets"],
+                additionalProperties: false,
+              },
+            },
             segments: {
               type: "array",
               items: {
@@ -113,7 +129,7 @@ Generate 2 MCQs per segment.`;
               },
             },
           },
-          required: ["segments"],
+          required: ["summary", "notes", "segments"],
           additionalProperties: false,
         },
       },

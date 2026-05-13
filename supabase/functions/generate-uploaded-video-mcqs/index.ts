@@ -190,13 +190,23 @@ Generate:
     }
     if (rows.length) await supabase.from("video_lesson_questions").insert(rows);
 
+    const summary = String(parsed.summary || "").slice(0, 4000);
+    const notes = Array.isArray(parsed.notes)
+      ? parsed.notes.slice(0, 10).map((n: any) => ({
+          heading: String(n?.heading || "").slice(0, 200),
+          bullets: Array.isArray(n?.bullets) ? n.bullets.slice(0, 10).map((b: any) => String(b).slice(0, 500)) : [],
+        }))
+      : [];
+
     await supabase.from("video_lessons").update({
       generation_status: rows.length ? "success" : "failed",
       generation_error: rows.length ? "" : "No usable questions",
       chapters: segments,
+      summary,
+      notes,
     }).eq("id", lessonId);
 
-    return json({ lessonId, questionCount: rows.length, segmentCount: segments.length });
+    return json({ lessonId, questionCount: rows.length, segmentCount: segments.length, summary, notes });
   } catch (e) {
     console.error("generate-uploaded-video-mcqs fatal:", e);
     if (lessonId) {

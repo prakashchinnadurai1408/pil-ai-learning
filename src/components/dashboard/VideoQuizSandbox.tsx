@@ -139,9 +139,10 @@ const VideoQuizSandbox = () => {
         .select("id, title, source_type, media_url, duration_seconds, generation_status, generation_error, created_at, transcript, summary, notes, chapters")
         .eq("id", activeLesson.id).single();
       if (l) {
-        setActiveLesson(l as Lesson);
-        setLessons((ls) => ls.map((x) => x.id === l.id ? (l as Lesson) : x));
-        if (mode === "mcqs") await loadQuestions(l as Lesson);
+        const lesson = l as unknown as Lesson;
+        setActiveLesson(lesson);
+        setLessons((ls) => ls.map((x) => x.id === lesson.id ? lesson : x));
+        if (mode === "mcqs") await loadQuestions(lesson);
       }
     } catch (e: any) {
       toast.error(e?.message || "Regeneration failed");

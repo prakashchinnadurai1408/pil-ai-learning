@@ -224,7 +224,7 @@ const VideoQuizSandbox = () => {
     }
     try {
       const updates = { transcript: original, transcript_updated_at: new Date().toISOString() };
-      const { error } = await supabase.from("video_lessons").update(updates).eq("id", activeLesson.id);
+      const { error } = await supabase.from("video_lessons").update(updates as any).eq("id", activeLesson.id);
       if (error) throw error;
       const merged: Lesson = { ...activeLesson, ...updates } as Lesson;
       setActiveLesson(merged);

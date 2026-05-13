@@ -2630,6 +2630,7 @@ export type Database = {
           media_url: string
           module_id: number | null
           notes: Json
+          original_transcript: string
           retry_scheduled_at: string | null
           source_type: string
           status: string
@@ -2637,6 +2638,7 @@ export type Database = {
           thumbnail_url: string
           title: string
           transcript: string
+          transcript_updated_at: string | null
           updated_at: string
           uploader_id: string
           uploader_role: string
@@ -2657,6 +2659,7 @@ export type Database = {
           media_url?: string
           module_id?: number | null
           notes?: Json
+          original_transcript?: string
           retry_scheduled_at?: string | null
           source_type?: string
           status?: string
@@ -2664,6 +2667,7 @@ export type Database = {
           thumbnail_url?: string
           title: string
           transcript?: string
+          transcript_updated_at?: string | null
           updated_at?: string
           uploader_id?: string
           uploader_role?: string
@@ -2684,6 +2688,7 @@ export type Database = {
           media_url?: string
           module_id?: number | null
           notes?: Json
+          original_transcript?: string
           retry_scheduled_at?: string | null
           source_type?: string
           status?: string
@@ -2691,6 +2696,7 @@ export type Database = {
           thumbnail_url?: string
           title?: string
           transcript?: string
+          transcript_updated_at?: string | null
           updated_at?: string
           uploader_id?: string
           uploader_role?: string

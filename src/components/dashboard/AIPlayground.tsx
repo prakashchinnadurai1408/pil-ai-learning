@@ -219,7 +219,7 @@ const AIPlayground = () => {
   }, [storageKey]);
 
   return (
-    <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden w-full max-w-full" role="region" aria-label="AI Chat Playground">
+    <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden w-full max-w-full flex flex-col flex-1 h-full min-h-0" role="region" aria-label="AI Chat Playground">
       <div className="p-3 sm:p-4 border-b border-border flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center flex-shrink-0">

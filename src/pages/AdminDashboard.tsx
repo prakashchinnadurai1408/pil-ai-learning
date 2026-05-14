@@ -17,7 +17,7 @@ import {
 import {
   Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2,
   LayoutDashboard, ClipboardCheck, BarChart3, Eye, FolderKanban, Route,
-  Brain, Activity, UserCheck, Video, Sparkles,
+  Brain, Activity, UserCheck, Video, Sparkles, Github,
 } from "lucide-react";
 import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 

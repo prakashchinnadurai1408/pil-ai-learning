@@ -112,6 +112,7 @@ const SECTIONS: { label: string; items: MenuItem[] }[] = [
     label: "System",
     items: [
       { key: "llm-settings", label: "LLM Settings", icon: Brain, component: LLMSettings },
+      { key: "github-status", label: "GitHub Sync", icon: Github, component: GitHubStatusPanel },
     ],
   },
 ];

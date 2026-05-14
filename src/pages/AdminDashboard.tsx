@@ -17,7 +17,7 @@ import {
 import {
   Users, BookOpen, CreditCard, LogOut, Shield, Layers, Database, Code2,
   LayoutDashboard, ClipboardCheck, BarChart3, Eye, FolderKanban, Route,
-  Brain, Activity, UserCheck, Video, Sparkles,
+  Brain, Activity, UserCheck, Video, Sparkles, Github,
 } from "lucide-react";
 import pluginliveLogo from "@/assets/ai-upskill-hub-logo.png";
 
@@ -45,6 +45,7 @@ const CurriculumAssignmentAnalytics = lazy(() => import("@/components/trainer/Cu
 const AdminManagement = lazy(() => import("@/components/admin/AdminManagement"));
 const VideoMcqManager = lazy(() => import("@/components/admin/VideoMcqManager"));
 const CoordinatorDashboard = lazy(() => import("@/components/admin/CoordinatorDashboard"));
+const GitHubStatusPanel = lazy(() => import("@/components/admin/GitHubStatusPanel"));
 
 const TabSkeleton = () => (
   <div className="space-y-4 animate-pulse">
@@ -111,6 +112,7 @@ const SECTIONS: { label: string; items: MenuItem[] }[] = [
     label: "System",
     items: [
       { key: "llm-settings", label: "LLM Settings", icon: Brain, component: LLMSettings },
+      { key: "github-status", label: "GitHub Sync", icon: Github, component: GitHubStatusPanel },
     ],
   },
 ];

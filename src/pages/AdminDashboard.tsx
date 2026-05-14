@@ -45,6 +45,7 @@ const CurriculumAssignmentAnalytics = lazy(() => import("@/components/trainer/Cu
 const AdminManagement = lazy(() => import("@/components/admin/AdminManagement"));
 const VideoMcqManager = lazy(() => import("@/components/admin/VideoMcqManager"));
 const CoordinatorDashboard = lazy(() => import("@/components/admin/CoordinatorDashboard"));
+const GitHubStatusPanel = lazy(() => import("@/components/admin/GitHubStatusPanel"));
 
 const TabSkeleton = () => (
   <div className="space-y-4 animate-pulse">
